@@ -1,35 +1,136 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect } from "react";
 import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
+import StudentDashboard from "./pages/StudentDashboard";
+import TeacherDashboard from "./pages/TeacherDashboard";
+import HODDashboard from "./pages/HODDashboard";
+import TeacherProfile from "./pages/TeacherProfile";
 import Feedback from "./pages/Feedback";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ErrorBoundary from "./components/ErrorBoundary";
+import BackendStatusNotification from "./components/BackendStatusNotification";
+import BackendStatusDemo from "./components/BackendStatusDemo";
+import { checkBackendHealth } from "./api";
 
 function App() {
+  // Check backend health on app startup
+  useEffect(() => {
+    const checkInitialBackendHealth = async () => {
+      try {
+        const isHealthy = await checkBackendHealth();
+        if (!isHealthy) {
+          console.log('⚠️ Backend is offline on app startup');
+          // The BackendStatusNotification will handle showing the appropriate message
+        }
+      } catch (error) {
+        console.log('❌ Backend health check failed on startup');
+      }
+    };
+
+    checkInitialBackendHealth();
+
+    // Listen for successful reconnection to refresh data
+    const handleBackendReconnected = () => {
+      console.log('🎉 Backend reconnected, refreshing page data...');
+      // You can trigger data refreshes here or dispatch events
+      window.location.reload(); // Simple refresh for now
+    };
+
+    window.addEventListener('backendReconnected', handleBackendReconnected);
+
+    return () => {
+      window.removeEventListener('backendReconnected', handleBackendReconnected);
+    };
+  }, []);
+
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Login />} />
+    <ErrorBoundary>
+      <Router>
+        <Routes>
+          <Route path="/" element={<Login />} />
+          
+          <Route 
+            path="/student-dashboard" 
+            element={
+              <ProtectedRoute allowedRoles={['student']}>
+                <StudentDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/feedback" 
+            element={
+              <ProtectedRoute allowedRoles={['student']}>
+                <Feedback />
+              </ProtectedRoute>
+            } 
+          />
 
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
+          <Route 
+            path="/teacher-dashboard" 
+            element={
+              <ProtectedRoute allowedRoles={['teacher']}>
+                <TeacherDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/hod-dashboard" 
+            element={
+              <ProtectedRoute allowedRoles={['hod']}>
+                <HODDashboard />
+              </ProtectedRoute>
+            } 
+          />
 
-        <Route
-          path="/feedback"
-          element={
-            <ProtectedRoute>
-              <Feedback />
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
-    </BrowserRouter>
+          <Route 
+            path="/hod/teacher/:id" 
+            element={
+              <ProtectedRoute allowedRoles={['hod']}>
+                <TeacherProfile />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Dashboard redirector */}
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute allowedRoles={['student', 'teacher', 'hod']}>
+                <DashboardRedirector />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Backend Status Demo (for testing) */}
+          <Route path="/backend-demo" element={<BackendStatusDemo />} />
+          
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+        
+        {/* Global Backend Status Notification */}
+        <BackendStatusNotification />
+      </Router>
+    </ErrorBoundary>
   );
+}
+
+function DashboardRedirector() {
+  const userStr = localStorage.getItem("user");
+  if (!userStr) return <Navigate to="/" />;
+  
+  try {
+    const user = JSON.parse(userStr);
+    if (user.role === "student") return <Navigate to="/student-dashboard" />;
+    if (user.role === "teacher") return <Navigate to="/teacher-dashboard" />;
+    if (user.role === "hod") return <Navigate to="/hod-dashboard" />;
+  } catch (e) {
+    return <Navigate to="/" />;
+  }
+  
+  return <Navigate to="/" />;
 }
 
 export default App;

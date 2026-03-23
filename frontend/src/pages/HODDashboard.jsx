@@ -1,0 +1,551 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import API from "../api";
+import Sidebar from "../components/Sidebar";
+import FeedbackWindowManager from "../components/FeedbackWindowManager";
+import ReportGenerator from "../components/ReportGenerator";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend,
+} from "recharts";
+
+const CHART_COLORS = ['#6366f1', '#22d3ee', '#a78bfa', '#f59e0b', '#10b981', '#ef4444', '#ec4899', '#8b5cf6'];
+const PIE_COLORS = ['#10b981', '#94a3b8', '#ef4444'];
+const RATING_PIE_COLORS = ['#6366f1', '#22d3ee', '#f59e0b', '#ef4444', '#10b981'];
+
+const chartTooltipStyle = {
+  backgroundColor: 'rgba(30, 41, 59, 0.95)',
+  borderColor: 'rgba(148, 163, 184, 0.15)',
+  borderRadius: '0.5rem',
+  color: '#f8fafc',
+};
+
+export default function HODDashboard() {
+  const [overview, setOverview] = useState(null);
+  const [teachers, setTeachers] = useState([]);
+  const [analytics, setAnalytics] = useState(null);
+  const [statistics, setStatistics] = useState(null);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [activeSection, setActiveSection] = useState("overview");
+
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const results = await Promise.allSettled([
+          API.get("hod/dashboard/"),
+          API.get("hod/teachers/"),
+          API.get("hod/analytics/"),
+          API.get("hod/statistics/"),
+          API.get("auth/profile/")
+        ]);
+        if (results[0].status === 'fulfilled') setOverview(results[0].value.data);
+        if (results[1].status === 'fulfilled') setTeachers(results[1].value.data);
+        if (results[2].status === 'fulfilled') setAnalytics(results[2].value.data);
+        if (results[3].status === 'fulfilled') setStatistics(results[3].value.data);
+        if (results[4].status === 'fulfilled') setUser(results[4].value.data.user);
+
+        // Log failures for debugging
+        const names = ['overview', 'teachers', 'analytics', 'statistics', 'profile'];
+        results.forEach((r, i) => {
+          if (r.status === 'rejected') {
+            console.error(`Failed to load ${names[i]}:`, r.reason);
+          }
+        });
+      } catch (err) {
+        console.error("Error fetching HOD data:", err);
+        setError("Failed to load dashboard data. Please ensure the backend is running.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-mesh flex items-center justify-center">
+        <div className="spinner" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-mesh flex items-center justify-center">
+        <div className="glass-card p-8 max-w-md text-center">
+          <p className="text-accent-rose text-lg font-medium mb-2">⚠️ Error</p>
+          <p className="text-surface-400">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ============================================================
+  // OVERVIEW SECTION
+  // ============================================================
+  const renderOverview = () => (
+    <div className="animate-fade-in">
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-surface-100 font-display">Dashboard Overview</h2>
+        <p className="text-surface-400 text-sm mt-1">High-level department metrics.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 stagger">
+        <div className="stat-card glass-card animate-fade-in" style={{ '--card-accent': 'var(--color-primary-500)' }}>
+          <p className="text-sm text-surface-400 mb-1">Total Feedback</p>
+          <p className="text-3xl font-bold text-primary-400 font-display">{overview?.total_feedback || 0}</p>
+        </div>
+        <div className="stat-card glass-card animate-fade-in" style={{ '--card-accent': 'var(--color-accent-cyan)' }}>
+          <p className="text-sm text-surface-400 mb-1">Total Teachers</p>
+          <p className="text-3xl font-bold text-accent-cyan font-display">{overview?.total_teachers || 0}</p>
+        </div>
+        <div className="stat-card glass-card animate-fade-in" style={{ '--card-accent': 'var(--color-accent-violet)' }}>
+          <p className="text-sm text-surface-400 mb-1">Total Subjects</p>
+          <p className="text-3xl font-bold text-accent-violet font-display">{overview?.total_subjects || 0}</p>
+        </div>
+        <div className="stat-card glass-card animate-fade-in" style={{ '--card-accent': 'var(--color-accent-amber)' }}>
+          <p className="text-sm text-surface-400 mb-1">Dept Average</p>
+          <p className="text-3xl font-bold text-accent-amber font-display">
+            {overview?.average_rating || 0} <span className="text-lg">/ 5.0</span>
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 stagger">
+        {overview?.top_teacher && (
+          <div className="glass-card p-6 border-l-4 border-l-accent-emerald animate-fade-in">
+            <h3 className="text-sm font-medium text-surface-400 uppercase tracking-wider mb-2">Top Performer</h3>
+            <div className="flex justify-between items-end">
+              <div>
+                <p className="text-xl font-bold text-surface-100 font-display">{overview.top_teacher.name}</p>
+                <p className="text-sm text-surface-500">{overview.top_teacher.email}</p>
+              </div>
+              <div className="text-2xl font-bold text-accent-emerald">{overview.top_teacher.avg_rating} ⭐</div>
+            </div>
+          </div>
+        )}
+
+        {overview?.lowest_teacher && (
+          <div className="glass-card p-6 border-l-4 border-l-accent-rose animate-fade-in">
+            <h3 className="text-sm font-medium text-surface-400 uppercase tracking-wider mb-2">Needs Improvement</h3>
+            <div className="flex justify-between items-end">
+              <div>
+                <p className="text-xl font-bold text-surface-100 font-display">{overview.lowest_teacher.name}</p>
+                <p className="text-sm text-surface-500">{overview.lowest_teacher.email}</p>
+              </div>
+              <div className="text-2xl font-bold text-accent-rose">{overview.lowest_teacher.avg_rating} ⭐</div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // ============================================================
+  // TEACHERS SECTION
+  // ============================================================
+  const renderTeachers = () => (
+    <div className="animate-fade-in">
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-surface-100 font-display">Teachers Directory</h2>
+        <p className="text-surface-400 text-sm mt-1">Select a teacher to view detailed performance and generate reports.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 stagger">
+        {teachers.map((teacher) => {
+          const performanceClass = 
+            teacher.performance === "Excellent" ? "badge-excellent" :
+            teacher.performance === "Good" ? "badge-good" :
+            teacher.performance === "Average" ? "badge-average" :
+            teacher.performance === "Poor" ? "badge-poor" : "badge-neutral";
+
+          return (
+            <div 
+              key={teacher.id} 
+              onClick={() => navigate(`/hod/teacher/${teacher.id}`)}
+              className="glass-card p-6 cursor-pointer hover:bg-surface-800/40 transition-colors group animate-fade-in"
+            >
+              <div className="flex justify-between items-start mb-4">
+                <div className="min-w-0 pr-2">
+                  <h3 className="text-lg font-bold text-surface-100 font-display truncate group-hover:text-primary-400 transition-colors">
+                    {teacher.name}
+                  </h3>
+                  <p className="text-sm text-surface-500 truncate">{teacher.email}</p>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-surface-800 flex items-center justify-center text-primary-400 font-bold flex-shrink-0">
+                  {teacher.name.charAt(0)}
+                </div>
+              </div>
+              
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <p className="text-xs text-surface-500 mb-0.5">Subjects</p>
+                  <p className="font-semibold text-surface-200">{teacher.subject_count}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-surface-500 mb-0.5">Feedback</p>
+                  <p className="font-semibold text-surface-200">{teacher.feedback_count}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-surface-500 mb-0.5">Rating</p>
+                  <p className="font-bold text-primary-400">{teacher.avg_rating} ⭐</p>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-surface-700/50 flex justify-between items-center">
+                <span className={`badge ${performanceClass}`}>{teacher.performance}</span>
+                <span className="text-xs text-primary-400 font-medium group-hover:underline">View Profile →</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {teachers.length === 0 && (
+         <div className="p-8 text-center text-surface-500 glass-card">No teachers found in the system.</div>
+      )}
+    </div>
+  );
+
+  // ============================================================
+  // ANALYTICS SECTION
+  // ============================================================
+  const teacherComparisonData = analytics?.teacher_ranking?.map(t => ({
+    name: t.name.length > 12 ? t.name.substring(0, 12) + '…' : t.name,
+    fullName: t.name,
+    rating: t.avg_rating,
+    feedback: t.feedback_count,
+  })) || [];
+
+  const sentimentPieData = analytics?.sentiment_distribution
+    ? [
+        { name: 'Positive', value: analytics.sentiment_distribution.positive },
+        { name: 'Neutral', value: analytics.sentiment_distribution.neutral },
+        { name: 'Negative', value: analytics.sentiment_distribution.negative },
+      ]
+    : [];
+
+  const ratingDistData = analytics?.rating_distribution
+    ? Object.entries(analytics.rating_distribution).map(([key, val]) => ({
+        name: `${key} ★`,
+        value: val,
+      }))
+    : [];
+
+  const subjectPerfData = analytics?.subject_performance?.map(s => ({
+    name: s.subject_name.length > 15 ? s.subject_name.substring(0, 15) + '…' : s.subject_name,
+    rating: s.avg_rating,
+    feedback: s.feedback_count,
+  })) || [];
+
+  const renderAnalytics = () => (
+    <div className="animate-fade-in">
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-surface-100 font-display">Performance Analytics</h2>
+        <p className="text-surface-400 text-sm mt-1">Department-wide performance insights and comparisons.</p>
+      </div>
+
+      {/* Department Average Card */}
+      <div className="glass-card p-6 mb-8 animate-fade-in border-l-4 border-l-primary-500">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-surface-400 uppercase tracking-wider">Department Average Rating</p>
+            <p className="text-4xl font-bold text-primary-400 font-display mt-1">
+              {analytics?.department_average || 0} <span className="text-xl text-surface-500">/ 5.0</span>
+            </p>
+          </div>
+          <div className="w-16 h-16 rounded-2xl bg-primary-500/20 flex items-center justify-center">
+            <svg className="w-8 h-8 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8 stagger">
+        {/* Teacher Comparison Bar Chart */}
+        <div className="glass-card p-6 animate-fade-in">
+          <h3 className="text-lg font-semibold text-surface-100 font-display mb-4">Teacher Comparison</h3>
+          {teacherComparisonData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={teacherComparisonData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" />
+                <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                <YAxis domain={[0, 5]} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                <Tooltip
+                  contentStyle={chartTooltipStyle}
+                  formatter={(value, name) => [value, name === 'rating' ? 'Avg Rating' : name]}
+                  labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
+                />
+                <Bar dataKey="rating" radius={[6, 6, 0, 0]} barSize={35}>
+                  {teacherComparisonData.map((_, i) => (
+                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-surface-500">No teacher data</div>
+          )}
+        </div>
+
+        {/* Sentiment Distribution Pie */}
+        <div className="glass-card p-6 animate-fade-in">
+          <h3 className="text-lg font-semibold text-surface-100 font-display mb-4">Sentiment Distribution</h3>
+          {sentimentPieData.some(d => d.value > 0) ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={sentimentPieData}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  innerRadius={50}
+                  dataKey="value"
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  labelLine={{ stroke: '#94a3b8' }}
+                >
+                  {sentimentPieData.map((_, i) => (
+                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip contentStyle={chartTooltipStyle} />
+                <Legend wrapperStyle={{ color: '#94a3b8', fontSize: 12 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-surface-500">No sentiment data</div>
+          )}
+        </div>
+
+        {/* Rating Distribution Bar */}
+        <div className="glass-card p-6 animate-fade-in">
+          <h3 className="text-lg font-semibold text-surface-100 font-display mb-4">Rating Distribution</h3>
+          {ratingDistData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={ratingDistData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" />
+                <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                <YAxis tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                <Tooltip contentStyle={chartTooltipStyle} />
+                <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={40}>
+                  {ratingDistData.map((_, i) => (
+                    <Cell key={i} fill={RATING_PIE_COLORS[i % RATING_PIE_COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-surface-500">No rating data</div>
+          )}
+        </div>
+
+        {/* Subject Performance Bar */}
+        <div className="glass-card p-6 animate-fade-in">
+          <h3 className="text-lg font-semibold text-surface-100 font-display mb-4">Subject Performance</h3>
+          {subjectPerfData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={subjectPerfData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" />
+                <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                <YAxis domain={[0, 5]} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                <Tooltip contentStyle={chartTooltipStyle} />
+                <Bar dataKey="rating" fill="#a78bfa" radius={[6, 6, 0, 0]} barSize={35}>
+                  {subjectPerfData.map((_, i) => (
+                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-surface-500">No subject data</div>
+          )}
+        </div>
+      </div>
+
+      {/* Top & Low Performers Table */}
+      {analytics?.teacher_ranking?.length > 0 && (
+        <div className="glass-card">
+          <div className="px-6 py-4 border-b border-surface-700/50">
+            <h3 className="text-lg font-semibold text-surface-100 font-display">Teacher Rankings</h3>
+          </div>
+          <div className="p-0 overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-surface-800/50 border-b border-surface-700/50 text-surface-400 text-sm">
+                  <th className="p-4 font-medium">Rank</th>
+                  <th className="p-4 font-medium">Teacher</th>
+                  <th className="p-4 font-medium">Avg Rating</th>
+                  <th className="p-4 font-medium">Feedback Count</th>
+                  <th className="p-4 font-medium">Performance</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-surface-700/30">
+                {analytics.teacher_ranking.map((t, i) => {
+                  const perfClass =
+                    t.performance === "Excellent" ? "badge-excellent" :
+                    t.performance === "Good" ? "badge-good" :
+                    t.performance === "Average" ? "badge-average" :
+                    t.performance === "Poor" ? "badge-poor" : "badge-neutral";
+                  return (
+                    <tr key={t.id} className="hover:bg-surface-800/30 transition-colors">
+                      <td className="p-4 text-surface-300 font-bold">#{i + 1}</td>
+                      <td className="p-4 text-surface-100 font-medium">{t.name}</td>
+                      <td className="p-4 text-primary-400 font-bold">{t.avg_rating} / 5.0</td>
+                      <td className="p-4 text-surface-300">{t.feedback_count}</td>
+                      <td className="p-4"><span className={`badge ${perfClass}`}>{t.performance}</span></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  // ============================================================
+  // STATISTICS SECTION
+  // ============================================================
+  const renderStatistics = () => {
+    const summary = statistics?.summary || {};
+    const details = statistics?.details || [];
+
+    return (
+      <div className="animate-fade-in">
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-surface-100 font-display">Feedback Statistics</h2>
+          <p className="text-surface-400 text-sm mt-1">Comprehensive subject-wise feedback breakdown.</p>
+        </div>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8 stagger">
+          <div className="stat-card glass-card animate-fade-in" style={{ '--card-accent': 'var(--color-primary-500)' }}>
+            <p className="text-sm text-surface-400 mb-1">Total Students</p>
+            <p className="text-3xl font-bold text-primary-400 font-display">{summary.total_students || 0}</p>
+          </div>
+          <div className="stat-card glass-card animate-fade-in" style={{ '--card-accent': 'var(--color-accent-cyan)' }}>
+            <p className="text-sm text-surface-400 mb-1">Total Teachers</p>
+            <p className="text-3xl font-bold text-accent-cyan font-display">{summary.total_teachers || 0}</p>
+          </div>
+          <div className="stat-card glass-card animate-fade-in" style={{ '--card-accent': 'var(--color-accent-emerald)' }}>
+            <p className="text-sm text-surface-400 mb-1">Total Feedback</p>
+            <p className="text-3xl font-bold text-accent-emerald font-display">{summary.total_feedback || 0}</p>
+          </div>
+          <div className="stat-card glass-card animate-fade-in" style={{ '--card-accent': 'var(--color-accent-violet)' }}>
+            <p className="text-sm text-surface-400 mb-1">Total Subjects</p>
+            <p className="text-3xl font-bold text-accent-violet font-display">{summary.total_subjects || 0}</p>
+          </div>
+          <div className="stat-card glass-card animate-fade-in" style={{ '--card-accent': 'var(--color-accent-amber)' }}>
+            <p className="text-sm text-surface-400 mb-1">Pending Feedback</p>
+            <p className="text-3xl font-bold text-accent-amber font-display">{summary.pending_feedback || 0}</p>
+          </div>
+        </div>
+
+        {/* Subject-wise Detail Table */}
+        <div className="glass-card">
+          <div className="px-6 py-4 border-b border-surface-700/50">
+            <h3 className="text-lg font-semibold text-surface-100 font-display">Subject-wise Breakdown</h3>
+          </div>
+          <div className="p-0 overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-surface-800/50 border-b border-surface-700/50 text-surface-400 text-sm">
+                  <th className="p-4 font-medium">Subject</th>
+                  <th className="p-4 font-medium">Teacher</th>
+                  <th className="p-4 font-medium">Feedback</th>
+                  <th className="p-4 font-medium">Overall</th>
+                  <th className="p-4 font-medium">Punctuality</th>
+                  <th className="p-4 font-medium">Teaching</th>
+                  <th className="p-4 font-medium">Clarity</th>
+                  <th className="p-4 font-medium">Interaction</th>
+                  <th className="p-4 font-medium">Behavior</th>
+                  <th className="p-4 font-medium">Sentiment</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-surface-700/30">
+                {details.map((row, i) => (
+                  <tr key={i} className="hover:bg-surface-800/30 transition-colors">
+                    <td className="p-4">
+                      <p className="text-surface-100 font-medium">{row.subject}</p>
+                      <p className="text-xs text-surface-500">{row.subject_code}</p>
+                    </td>
+                    <td className="p-4 text-surface-300">{row.teacher}</td>
+                    <td className="p-4 text-surface-300">{row.total_feedback}</td>
+                    <td className="p-4 text-primary-400 font-bold">{row.avg_overall}</td>
+                    <td className="p-4 text-surface-300">{row.avg_punctuality}</td>
+                    <td className="p-4 text-surface-300">{row.avg_teaching}</td>
+                    <td className="p-4 text-surface-300">{row.avg_clarity}</td>
+                    <td className="p-4 text-surface-300">{row.avg_interaction}</td>
+                    <td className="p-4 text-surface-300">{row.avg_behavior}</td>
+                    <td className="p-4">
+                      <div className="flex gap-1 text-xs whitespace-nowrap">
+                        <span className="text-accent-emerald">😊{row.sentiment_summary?.positive || 0}</span>
+                        <span className="text-surface-400">😐{row.sentiment_summary?.neutral || 0}</span>
+                        <span className="text-accent-rose">😞{row.sentiment_summary?.negative || 0}</span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {details.length === 0 && (
+              <div className="p-8 text-center text-surface-500">No statistics available yet.</div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ============================================================
+  // REPORTS SECTION
+  // ============================================================
+  const renderReports = () => (
+    <div className="animate-fade-in">
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-surface-100 font-display">Reports</h2>
+        <p className="text-surface-400 text-sm mt-1">Generate and send performance reports to teachers.</p>
+      </div>
+      <ReportGenerator teachers={teachers} subjects={analytics?.subject_performance || []} />
+    </div>
+  );
+
+  // ============================================================
+  // FEEDBACK WINDOWS SECTION
+  // ============================================================
+  const renderWindows = () => (
+    <div className="animate-fade-in">
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-surface-100 font-display">Feedback Windows</h2>
+        <p className="text-surface-400 text-sm mt-1">Manage feedback submission periods for students.</p>
+      </div>
+      <FeedbackWindowManager />
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-mesh flex">
+      <Sidebar 
+        role="hod" 
+        activeSection={activeSection} 
+        onSectionChange={setActiveSection}
+        user={user} 
+      />
+      <main className="flex-1 ml-64 p-8 overflow-y-auto w-full">
+        <div className="max-w-6xl mx-auto">
+          {activeSection === "overview" && renderOverview()}
+          {activeSection === "teachers" && renderTeachers()}
+          {activeSection === "analytics" && renderAnalytics()}
+          {activeSection === "statistics" && renderStatistics()}
+          {activeSection === "reports" && renderReports()}
+          {activeSection === "windows" && renderWindows()}
+        </div>
+      </main>
+    </div>
+  );
+}
