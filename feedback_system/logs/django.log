@@ -255,3 +255,4 @@ Traceback (most recent call last):
     raise FieldError(
 django.core.exceptions.FieldError: Unknown field(s) (usable_password) specified for User. Check fields/fieldsets/exclude attributes of class CustomUserAdmin.
 [2026-03-23 21:03:29,010] ERROR django.server "GET /admin/users/user/add/?_to_field=id&_popup=1 HTTP/1.1" 500 193121
+[2026-03-23 21:07:02,457] WARNING django.server "GET / HTTP/1.1" 404 2836
