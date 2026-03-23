@@ -3,16 +3,38 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
 
+class Branch(models.Model):
+    name = models.CharField(max_length=100)
+    code = models.CharField(max_length=10, unique=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.code})"
+
+
+class Semester(models.Model):
+    number = models.IntegerField(unique=True)
+    name = models.CharField(max_length=50)
+
+    def __str__(self):
+        return f"{self.name} ({self.number})"
+
+
 class User(AbstractUser):
 
     ROLE_CHOICES = (
-        ('student', 'Student'),
-        ('teacher', 'Teacher'),
+        ('admin', 'Admin'),
         ('hod', 'HOD'),
+        ('teacher', 'Teacher'),
+        ('student', 'Student'),
     )
 
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
     is_first_login = models.BooleanField(default=True)
+    
+    # Student specific fields
+    enrollment_no = models.CharField(max_length=50, unique=True, null=True, blank=True)
+    branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, blank=True)
+    semester = models.ForeignKey(Semester, on_delete=models.SET_NULL, null=True, blank=True)
 
     def __str__(self):
         return f"{self.username} ({self.role})"
@@ -22,6 +44,20 @@ class Subject(models.Model):
     name = models.CharField(max_length=100)
     code = models.CharField(max_length=10, unique=True)
 
+    branch = models.ForeignKey(
+        Branch,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="subjects"
+    )
+    semester = models.ForeignKey(
+        Semester,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="subjects"
+    )
     teacher = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -34,6 +70,36 @@ class Subject(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.code})"
+
+
+class Enrollment(models.Model):
+    """Links a student to a subject. Only HOD/admin can create."""
+
+    student = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        limit_choices_to={'role': 'student'},
+        related_name="enrollments"
+    )
+    subject = models.ForeignKey(
+        Subject,
+        on_delete=models.CASCADE,
+        related_name="enrollments"
+    )
+    assigned_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="assigned_enrollments"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('student', 'subject')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.student.username} → {self.subject.name}"
 
 
 class Feedback(models.Model):

@@ -19,10 +19,11 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from django.db.models import Manager
 
-from .models import User, Subject, Feedback, FeedbackWindow
+from .models import User, Subject, Feedback, FeedbackWindow, Enrollment
 from .serializers import (
     SubjectSerializer, FeedbackSerializer,
-    LoginSerializer, FeedbackWindowSerializer
+    LoginSerializer, FeedbackWindowSerializer,
+    ChangePasswordSerializer, EnrollmentSerializer
 )
 from .sentiment import analyze_sentiment
 
@@ -98,8 +99,15 @@ class FeedbackViewSet(viewsets.ModelViewSet):
                 status=400
             )
 
-        # Check duplicate
+        # Check enrollment — student must be enrolled in this subject
         subject_id = request.data.get('subject')
+        if not Enrollment.objects.filter(student=request.user, subject_id=subject_id).exists():
+            return Response(
+                {'error': 'You are not enrolled in this subject'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Check duplicate
         if Feedback.objects.filter(student=request.user, subject_id=subject_id).exists():
             return Response(
                 {'error': 'You have already submitted feedback for this subject'},
@@ -150,7 +158,8 @@ def login_view(request):
                 'email': user.email,
                 'role': user.role,
                 'first_name': user.first_name,
-                'last_name': user.last_name
+                'last_name': user.last_name,
+                'is_first_login': user.is_first_login
             }
         })
 
@@ -184,6 +193,39 @@ def logout_view(request):
             {'error': f'Logout failed: {str(e)}'},
             status=status.HTTP_400_BAD_REQUEST
         )
+
+
+@swagger_auto_schema(method='post', request_body=ChangePasswordSerializer)
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def change_password(request):
+    user = request.user
+    old_password = request.data.get('old_password')
+    new_password = request.data.get('new_password')
+
+    if not old_password or not new_password:
+        return Response(
+            {'error': 'Please provide both old and new passwords'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    if not user.check_password(old_password):
+        return Response(
+            {'error': 'Incorrect old password'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    if len(new_password) < 6:
+        return Response(
+            {'error': 'Password must be at least 6 characters long.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    user.set_password(new_password)
+    user.is_first_login = False
+    user.save()
+
+    return Response({'message': 'Password changed successfully'})
 
 
 @api_view(['GET'])
@@ -221,7 +263,8 @@ def user_profile(request):
             'email': request.user.email,
             'role': request.user.role,
             'first_name': request.user.first_name,
-            'last_name': request.user.last_name
+            'last_name': request.user.last_name,
+            'is_first_login': request.user.is_first_login
         }
     })
 
@@ -233,12 +276,17 @@ def user_profile(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def student_subjects(request):
+    """Return ONLY subjects the student is enrolled in."""
     if request.user.role != 'student':
         return Response({'error': 'Only students allowed'}, status=403)
 
-    subjects = Subject.objects.select_related('teacher').all()
+    enrollments = Enrollment.objects.filter(
+        student=request.user
+    ).select_related('subject__teacher')
+
     data = []
-    for subject in subjects:
+    for enrollment in enrollments:
+        subject = enrollment.subject
         given = Feedback.objects.filter(
             student=request.user, subject=subject
         ).exists()
@@ -1123,3 +1171,374 @@ def export_report(request):
     p.showPage()
     p.save()
     return response
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def hod_teacher_report(request, pk):
+    if request.user.role != 'hod':
+        return Response({'error': 'Only HOD allowed'}, status=403)
+    
+    try:
+        teacher = User.objects.get(pk=pk, role='teacher')
+    except User.DoesNotExist:
+        return Response({'error': 'Teacher not found'}, status=404)
+
+    subjects = Subject.objects.filter(teacher=teacher)
+    all_feedback = Feedback.objects.filter(subject__teacher=teacher)
+    
+    overall_avg = all_feedback.aggregate(avg=Avg('overall_rating'))['avg']
+    total_feedback = all_feedback.count()
+    
+    # Rating distribution
+    rating_dist = {}
+    for i in range(1, 6):
+        rating_dist[str(i)] = all_feedback.filter(
+            overall_rating__gte=i - 0.5, overall_rating__lt=i + 0.5
+        ).count()
+        
+    # Performance trend (monthly)
+    try:
+        monthly = (
+            all_feedback
+            .annotate(month=TruncMonth('created_at'))
+            .values('month')
+            .annotate(avg_rating=Avg('overall_rating'))
+            .order_by('month')
+        )
+        trend_labels = []
+        trend_values = []
+        for entry in monthly[-6:]:
+            if entry['month']:
+                trend_labels.append(entry['month'].strftime('%b %Y'))
+                trend_values.append(round(entry['avg_rating'] or 0, 2))
+    except Exception:
+        trend_labels = []
+        trend_values = []
+
+    # Strengths & Weaknesses based on category averages
+    cat_agg = all_feedback.aggregate(
+        punctuality=Avg('punctuality_rating'),
+        teaching=Avg('teaching_rating'),
+        clarity=Avg('clarity_rating'),
+        interaction=Avg('interaction_rating'),
+        behavior=Avg('behavior_rating'),
+    )
+    
+    categories = []
+    for k, v in cat_agg.items():
+        if v is not None:
+            categories.append({"name": k.replace('_rating', '').capitalize(), "score": v})
+            
+    categories.sort(key=lambda x: x['score'], reverse=True)
+    strengths = [c['name'] for c in categories[:2]] if categories else []
+    weaknesses = [c['name'] for c in categories[-2:]] if len(categories) >= 3 else []
+    
+    return Response({
+        "teacher": {
+            "name": teacher.get_full_name() or teacher.username,
+            "email": teacher.email,
+        },
+        "subjects": [{"name": s.name, "code": s.code} for s in subjects],
+        "total_feedback_count": total_feedback,
+        "average_rating": round(overall_avg, 2) if overall_avg else 0,
+        "performance_label": _get_performance_label(overall_avg),
+        "rating_distribution": rating_dist,
+        "performance_trend": {
+            "labels": trend_labels,
+            "values": trend_values,
+        },
+        "strengths": strengths,
+        "weaknesses": weaknesses,
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def hod_department_report(request):
+    if request.user.role != 'hod':
+        return Response({'error': 'Only HOD allowed'}, status=403)
+        
+    all_feedback = Feedback.objects.all()
+    teachers = User.objects.filter(role='teacher')
+    
+    # Teachers list with avg rating
+    teachers_list = []
+    for teacher in teachers:
+        fbs = Feedback.objects.filter(subject__teacher=teacher)
+        avg = fbs.aggregate(avg=Avg('overall_rating'))['avg']
+        teachers_list.append({
+            "name": teacher.get_full_name() or teacher.username,
+            "email": teacher.email,
+            "avg_rating": round(avg, 2) if avg else 0,
+            "feedback_count": fbs.count(),
+        })
+        
+    teachers_list.sort(key=lambda x: x['avg_rating'], reverse=True)
+    
+    dept_avg = all_feedback.aggregate(avg=Avg('overall_rating'))['avg']
+    total_feedback = all_feedback.count()
+    
+    # Subject-wise
+    subjects = Subject.objects.all()
+    subject_perf = []
+    for subject in subjects:
+        fbs = Feedback.objects.filter(subject=subject)
+        avg = fbs.aggregate(avg=Avg('overall_rating'))['avg']
+        subject_perf.append({
+            "name": subject.name,
+            "code": subject.code,
+            "avg_rating": round(avg, 2) if avg else 0,
+            "feedback_count": fbs.count(),
+        })
+        
+    # Sentiment
+    sentiment = _get_sentiment_summary(all_feedback)
+    
+    # Growth Indicator
+    now = timezone.now()
+    last_month = now - timezone.timedelta(days=30)
+    
+    recent_feedbacks = all_feedback.filter(created_at__gte=last_month)
+    older_feedbacks = all_feedback.filter(created_at__lt=last_month)
+    
+    recent_avg = recent_feedbacks.aggregate(avg=Avg('overall_rating'))['avg'] or 0
+    older_avg = older_feedbacks.aggregate(avg=Avg('overall_rating'))['avg'] or 0
+    
+    if older_avg > 0:
+        if recent_avg > older_avg + 0.1:
+            growth = "Improving"
+        elif recent_avg < older_avg - 0.1:
+            growth = "Declining"
+        else:
+            growth = "Stable"
+    else:
+        growth = "Stable"
+        
+    return Response({
+        "teachers": teachers_list,
+        "department_average": round(dept_avg, 2) if dept_avg else 0,
+        "total_feedback": total_feedback,
+        "subject_performance": subject_perf,
+        "sentiment_analysis": sentiment,
+        "growth_indicator": growth,
+        "recent_avg": round(recent_avg, 2),
+        "older_avg": round(older_avg, 2),
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def hod_send_report_emails(request):
+    """Send emails to multiple recipients with a report summary or message"""
+    if request.user.role != 'hod':
+        return Response({'error': 'Only HOD can send emails'}, status=403)
+
+    emails = request.data.get('emails', [])
+    subject = request.data.get('subject')
+    message = request.data.get('message')
+    
+    if not emails or not subject or not message:
+        return Response({
+            'error': 'emails, subject, and message are required'
+        }, status=400)
+
+    try:
+        # Django send_mail can alternatively be used, but EmailMessage is better for multiple
+        email_msg = EmailMessage(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            emails,
+        )
+        email_msg.content_subtype = "html" # Optional: allows HTML templates
+        email_msg.send()
+        return Response({
+            'message': f'Email sent successfully to {len(emails)} recipients'
+        })
+    except Exception as e:
+        return Response({
+            'error': f'Failed to send email: {str(e)}'
+        }, status=500)
+
+
+# ============================================================
+# ENROLLMENT VIEWS
+# ============================================================
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def enroll_student(request):
+    """Enroll a single student in a subject (HOD/Admin only)."""
+    if request.user.role not in ('hod', 'admin'):
+        return Response({'error': 'Only HOD/Admin can assign enrollments'}, status=403)
+
+    student_id = request.data.get('student')
+    subject_id = request.data.get('subject')
+
+    if not student_id or not subject_id:
+        return Response({'error': 'student and subject are required'}, status=400)
+
+    try:
+        student = User.objects.get(pk=student_id, role='student')
+    except User.DoesNotExist:
+        return Response({'error': 'Student not found'}, status=404)
+
+    try:
+        subject = Subject.objects.get(pk=subject_id)
+    except Subject.DoesNotExist:
+        return Response({'error': 'Subject not found'}, status=404)
+
+    # Branch / Semester validation
+    if subject.branch and student.branch and student.branch != subject.branch:
+        return Response(
+            {'error': f'Branch mismatch: student is in {student.branch.name} but subject belongs to {subject.branch.name}'},
+            status=400
+        )
+    if subject.semester and student.semester and student.semester != subject.semester:
+        return Response(
+            {'error': f'Semester mismatch: student is in semester {student.semester.number} but subject belongs to semester {subject.semester.number}'},
+            status=400
+        )
+
+    # Duplicate check
+    if Enrollment.objects.filter(student=student, subject=subject).exists():
+        return Response({'error': 'Student is already enrolled in this subject'}, status=400)
+
+    enrollment = Enrollment.objects.create(
+        student=student,
+        subject=subject,
+        assigned_by=request.user,
+    )
+    serializer = EnrollmentSerializer(enrollment)
+    return Response(serializer.data, status=201)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def bulk_enroll(request):
+    """Enroll multiple students in one subject (HOD/Admin only)."""
+    if request.user.role not in ('hod', 'admin'):
+        return Response({'error': 'Only HOD/Admin can assign enrollments'}, status=403)
+
+    student_ids = request.data.get('students', [])
+    subject_id = request.data.get('subject')
+
+    if not student_ids or not subject_id:
+        return Response({'error': 'students (list) and subject are required'}, status=400)
+
+    try:
+        subject = Subject.objects.get(pk=subject_id)
+    except Subject.DoesNotExist:
+        return Response({'error': 'Subject not found'}, status=404)
+
+    created = []
+    errors = []
+
+    for sid in student_ids:
+        try:
+            student = User.objects.get(pk=sid, role='student')
+        except User.DoesNotExist:
+            errors.append({'student_id': sid, 'error': 'Student not found'})
+            continue
+
+        # Branch validation
+        if subject.branch and student.branch and student.branch != subject.branch:
+            errors.append({
+                'student_id': sid,
+                'error': f'Branch mismatch ({student.branch.name} vs {subject.branch.name})'
+            })
+            continue
+
+        # Semester validation
+        if subject.semester and student.semester and student.semester != subject.semester:
+            errors.append({
+                'student_id': sid,
+                'error': f'Semester mismatch (sem {student.semester.number} vs sem {subject.semester.number})'
+            })
+            continue
+
+        # Duplicate check
+        if Enrollment.objects.filter(student=student, subject=subject).exists():
+            errors.append({'student_id': sid, 'error': 'Already enrolled'})
+            continue
+
+        enrollment = Enrollment.objects.create(
+            student=student,
+            subject=subject,
+            assigned_by=request.user,
+        )
+        created.append(EnrollmentSerializer(enrollment).data)
+
+    return Response({
+        'created': created,
+        'errors': errors,
+        'created_count': len(created),
+        'error_count': len(errors),
+    }, status=201 if created else 400)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_enrollments(request):
+    """List all enrollments (HOD/Admin only)."""
+    if request.user.role not in ('hod', 'admin'):
+        return Response({'error': 'Only HOD/Admin can view enrollments'}, status=403)
+
+    subject_id = request.GET.get('subject')
+    queryset = Enrollment.objects.select_related(
+        'student', 'subject', 'assigned_by'
+    ).all()
+
+    if subject_id:
+        queryset = queryset.filter(subject_id=subject_id)
+
+    serializer = EnrollmentSerializer(queryset, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_enrollment(request, pk):
+    """Remove an enrollment (HOD/Admin only)."""
+    if request.user.role not in ('hod', 'admin'):
+        return Response({'error': 'Only HOD/Admin can remove enrollments'}, status=403)
+
+    try:
+        enrollment = Enrollment.objects.get(pk=pk)
+    except Enrollment.DoesNotExist:
+        return Response({'error': 'Enrollment not found'}, status=404)
+
+    enrollment.delete()
+    return Response({'message': 'Enrollment removed successfully'}, status=200)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def enrollment_form_data(request):
+    """Return students and subjects for the enrollment form (HOD/Admin only)."""
+    if request.user.role not in ('hod', 'admin'):
+        return Response({'error': 'Only HOD/Admin allowed'}, status=403)
+
+    students = User.objects.filter(role='student').values(
+        'id', 'username', 'first_name', 'last_name',
+        'enrollment_no', 'branch_id', 'semester_id'
+    )
+    subjects = Subject.objects.select_related('teacher', 'branch', 'semester').all()
+    subject_data = []
+    for s in subjects:
+        subject_data.append({
+            'id': s.id,
+            'name': s.name,
+            'code': s.code,
+            'teacher_name': s.teacher.get_full_name() or s.teacher.username,
+            'branch_id': s.branch_id,
+            'branch_name': s.branch.name if s.branch else None,
+            'semester_id': s.semester_id,
+            'semester_number': s.semester.number if s.semester else None,
+        })
+
+    return Response({
+        'students': list(students),
+        'subjects': subject_data,
+    })

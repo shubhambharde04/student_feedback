@@ -35,3 +35,15 @@ class IsHOD(BasePermission):
             and request.user.is_authenticated
             and request.user.role == 'hod'
         )
+
+
+class IsAdminOrHOD(BasePermission):
+    """Allow access to users with 'admin' or 'hod' role."""
+
+    def has_permission(self, request, view):
+        return (
+            request.user
+            and request.user.is_authenticated
+            and request.user.role in ('admin', 'hod')
+        )
+

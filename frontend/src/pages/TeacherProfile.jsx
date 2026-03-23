@@ -61,7 +61,7 @@ export default function TeacherProfile() {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `Teacher_Report_${teacher.name.replace(/\s+/g, '_')}.pdf`);
+      link.setAttribute('download', `Teacher_Report_${teacher.teacher.name.replace(/\s+/g, '_')}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.parentNode.removeChild(link);
@@ -98,10 +98,10 @@ export default function TeacherProfile() {
   }
 
   const performanceClass = 
-    teacher.performance_label === "Excellent" ? "badge-excellent" :
-    teacher.performance_label === "Good" ? "badge-good" :
-    teacher.performance_label === "Average" ? "badge-average" :
-    teacher.performance_label === "Poor" ? "badge-poor" : "badge-neutral";
+    teacher.overall_performance === "Excellent" ? "badge-excellent" :
+    teacher.overall_performance === "Good" ? "badge-good" :
+    teacher.overall_performance === "Average" ? "badge-average" :
+    teacher.overall_performance === "Poor" ? "badge-poor" : "badge-neutral";
 
   return (
     <div className="min-h-screen bg-mesh pb-12">
@@ -131,27 +131,27 @@ export default function TeacherProfile() {
         {/* Profile Card */}
         <div className="glass-card p-8 mb-8 flex flex-col md:flex-row gap-8 items-start md:items-center">
           <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-primary-500 to-accent-violet flex items-center justify-center text-4xl text-white font-bold flex-shrink-0 shadow-lg shadow-primary-500/20">
-            {teacher.name.charAt(0)}
+            {teacher.teacher.name.charAt(0)}
           </div>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-surface-100 font-display">{teacher.name}</h1>
+            <h1 className="text-3xl font-bold text-surface-100 font-display">{teacher.teacher.name}</h1>
             <p className="text-surface-400 mt-1 flex items-center gap-2">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
-              {teacher.email}
+              {teacher.teacher.email}
             </p>
             <div className="flex flex-wrap gap-4 mt-4">
               <div className="bg-surface-800/50 px-4 py-2 rounded-lg border border-surface-700/50">
                 <p className="text-xs text-surface-500 mb-0.5">Overall Avg</p>
-                <p className="text-lg font-bold text-primary-400">{teacher.overall_avg_rating} ⭐</p>
+                <p className="text-lg font-bold text-primary-400">{teacher.overall_avg} ⭐</p>
               </div>
               <div className="bg-surface-800/50 px-4 py-2 rounded-lg border border-surface-700/50">
                 <p className="text-xs text-surface-500 mb-0.5">Total Feedback</p>
                 <p className="text-lg font-bold text-surface-100">{teacher.total_feedback}</p>
               </div>
               <div className="bg-surface-800/50 px-4 py-2 rounded-lg border border-surface-700/50 flex items-center">
-                <span className={`badge ${performanceClass} text-sm py-1`}>{teacher.performance_label}</span>
+                <span className={`badge ${performanceClass} text-sm py-1`}>{teacher.overall_performance}</span>
               </div>
             </div>
           </div>
@@ -182,7 +182,7 @@ export default function TeacherProfile() {
         <h2 className="text-xl font-bold text-surface-100 font-display mb-6">Subject Breakdown</h2>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 stagger">
-          {teacher.subject_metrics.map((sub) => {
+          {teacher.subjects.map((sub) => {
              const radarData = [
               { category: 'Punctuality', rating: sub.avg_punctuality },
               { category: 'Teaching', rating: sub.avg_teaching },
@@ -223,19 +223,19 @@ export default function TeacherProfile() {
                   <div className="bg-surface-800/50 rounded-lg p-2 text-center">
                     <div className="text-sm text-surface-500 mb-1">Passionate (Pos)</div>
                     <div className="text-lg font-bold text-accent-emerald flex items-center justify-center gap-1">
-                      <span>😊</span> {sub.sentiment_counts?.positive || 0}
+                      <span>😊</span> {sub.sentiment_summary?.positive || 0}
                     </div>
                   </div>
                   <div className="bg-surface-800/50 rounded-lg p-2 text-center">
                     <div className="text-sm text-surface-500 mb-1">Neutral</div>
                     <div className="text-lg font-bold text-surface-400 flex items-center justify-center gap-1">
-                      <span>😐</span> {sub.sentiment_counts?.neutral || 0}
+                      <span>😐</span> {sub.sentiment_summary?.neutral || 0}
                     </div>
                   </div>
                   <div className="bg-surface-800/50 rounded-lg p-2 text-center">
                     <div className="text-sm text-surface-500 mb-1">Critical (Neg)</div>
                     <div className="text-lg font-bold text-accent-rose flex items-center justify-center gap-1">
-                      <span>😞</span> {sub.sentiment_counts?.negative || 0}
+                      <span>😞</span> {sub.sentiment_summary?.negative || 0}
                     </div>
                   </div>
                 </div>
@@ -244,7 +244,7 @@ export default function TeacherProfile() {
           })}
         </div>
 
-        {teacher.subject_metrics.length === 0 && (
+        {teacher.subjects.length === 0 && (
           <div className="glass-card p-12 text-center text-surface-500">
             This teacher is not assigned to any subjects yet.
           </div>

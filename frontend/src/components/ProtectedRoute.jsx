@@ -1,4 +1,4 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import API from "../api";
 
@@ -6,6 +6,8 @@ export default function ProtectedRoute({ children, allowedRoles }) {
   const [isValidating, setIsValidating] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userRole, setUserRole] = useState(null);
+  const [needsPasswordChange, setNeedsPasswordChange] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
     const validateToken = async () => {
@@ -21,6 +23,10 @@ export default function ProtectedRoute({ children, allowedRoles }) {
         const response = await API.get("auth/profile/");
         const user = response.data.user;
         setUserRole(user.role);
+        
+        if (user.role === 'student' && user.is_first_login && location.pathname !== '/change-password') {
+          setNeedsPasswordChange(true);
+        }
         
         // Check if user role is allowed
         if (allowedRoles && !allowedRoles.includes(user.role)) {
@@ -47,6 +53,10 @@ export default function ProtectedRoute({ children, allowedRoles }) {
         <div className="text-lg">Loading...</div>
       </div>
     );
+  }
+
+  if (needsPasswordChange) {
+    return <Navigate to="/change-password" />;
   }
 
   if (!isAuthenticated) {

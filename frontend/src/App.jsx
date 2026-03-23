@@ -4,12 +4,15 @@ import Login from "./pages/Login";
 import StudentDashboard from "./pages/StudentDashboard";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import HODDashboard from "./pages/HODDashboard";
+import EnrollmentPage from "./pages/EnrollmentPage";
 import TeacherProfile from "./pages/TeacherProfile";
+import ReportsPage from "./pages/ReportsPage";
 import Feedback from "./pages/Feedback";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ErrorBoundary from "./components/ErrorBoundary";
 import BackendStatusNotification from "./components/BackendStatusNotification";
 import BackendStatusDemo from "./components/BackendStatusDemo";
+import ChangePassword from "./pages/ChangePassword";
 import { checkBackendHealth } from "./api";
 
 function App() {
@@ -94,6 +97,33 @@ function App() {
             } 
           />
 
+          <Route 
+            path="/hod/reports" 
+            element={
+              <ProtectedRoute allowedRoles={['hod']}>
+                <ReportsPage />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/hod/enrollments" 
+            element={
+              <ProtectedRoute allowedRoles={['hod']}>
+                <EnrollmentPage />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/change-password" 
+            element={
+              <ProtectedRoute allowedRoles={['student', 'teacher', 'hod', 'admin']}>
+                <ChangePassword />
+              </ProtectedRoute>
+            } 
+          />
+
           {/* Dashboard redirector */}
           <Route 
             path="/dashboard" 
@@ -123,6 +153,11 @@ function DashboardRedirector() {
   
   try {
     const user = JSON.parse(userStr);
+    
+    if (user.role === 'student' && user.is_first_login) {
+      return <Navigate to="/change-password" />;
+    }
+    
     if (user.role === "student") return <Navigate to="/student-dashboard" />;
     if (user.role === "teacher") return <Navigate to="/teacher-dashboard" />;
     if (user.role === "hod") return <Navigate to="/hod-dashboard" />;

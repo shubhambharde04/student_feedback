@@ -1,0 +1,533 @@
+[2026-03-22 01:44:14,510] WARNING django.server "GET / HTTP/1.1" 404 2836
+[2026-03-22 01:44:14,653] WARNING django.server "GET /favicon.ico HTTP/1.1" 404 2887
+[2026-03-22 03:34:18,568] WARNING django.server "GET / HTTP/1.1" 404 2836
+[2026-03-22 03:34:18,655] WARNING django.server "GET /favicon.ico HTTP/1.1" 404 2887
+[2026-03-22 10:04:25,541] WARNING django.server "GET / HTTP/1.1" 404 2836
+[2026-03-22 10:04:25,613] WARNING django.server "GET /favicon.ico HTTP/1.1" 404 2887
+[2026-03-22 10:09:12,424] WARNING django.server "GET / HTTP/1.1" 404 2836
+[2026-03-22 10:09:12,530] WARNING django.server "GET /favicon.ico HTTP/1.1" 404 2887
+[2026-03-22 10:09:27,563] WARNING django.server "GET /accounts/login/?next=/swagger/ HTTP/1.1" 404 2914
+[2026-03-22 10:09:33,930] WARNING django.server "GET /accounts/login/?next=/swagger/ HTTP/1.1" 404 2914
+[2026-03-22 10:13:35,441] WARNING django.server "GET / HTTP/1.1" 404 2836
+[2026-03-22 10:13:35,545] WARNING django.server "GET /favicon.ico HTTP/1.1" 404 2887
+[2026-03-22 10:13:54,763] WARNING django.server "GET /accounts/login/?next=/swagger/ HTTP/1.1" 404 2914
+[2026-03-22 10:15:44,703] WARNING django.server "POST /api/auth/logout/ HTTP/1.1" 401 58
+[2026-03-22 10:16:35,260] WARNING django.server "POST /api/auth/logout/ HTTP/1.1" 401 58
+[2026-03-22 10:16:40,247] WARNING django.server "POST /api/auth/logout/ HTTP/1.1" 401 58
+[2026-03-22 10:44:04,330] WARNING django.server "GET / HTTP/1.1" 404 2836
+[2026-03-22 10:44:42,050] WARNING django.server "POST /api/auth/logout/ HTTP/1.1" 401 58
+[2026-03-22 10:44:53,032] WARNING django.server "GET /api/auth/profile/ HTTP/1.1" 401 58
+[2026-03-22 11:19:04,366] WARNING django.server "GET / HTTP/1.1" 404 2836
+[2026-03-22 11:19:04,447] WARNING django.server "GET /favicon.ico HTTP/1.1" 404 2887
+[2026-03-22 11:22:09,042] WARNING django.server "GET / HTTP/1.1" 404 2836
+[2026-03-22 11:22:09,120] WARNING django.server "GET /favicon.ico HTTP/1.1" 404 2887
+[2026-03-22 11:22:54,596] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 31
+[2026-03-22 11:23:15,260] WARNING django.server "POST /api/auth/logout/ HTTP/1.1" 401 58
+[2026-03-22 11:23:21,638] WARNING django.server "POST /api/auth/logout/ HTTP/1.1" 401 58
+[2026-03-22 11:26:03,174] WARNING django.server "GET /api/auth/profile/ HTTP/1.1" 401 58
+[2026-03-22 11:44:55,896] WARNING django.server "GET / HTTP/1.1" 404 2836
+[2026-03-22 11:44:56,003] WARNING django.server "GET /favicon.ico HTTP/1.1" 404 2887
+[2026-03-22 11:45:57,955] WARNING django.server "POST /api/auth/logout/ HTTP/1.1" 401 58
+[2026-03-22 11:46:05,334] WARNING django.server "POST /api/auth/logout/ HTTP/1.1" 401 58
+[2026-03-22 11:46:06,826] WARNING django.server "POST /api/auth/logout/ HTTP/1.1" 401 58
+[2026-03-22 11:46:07,617] WARNING django.server "POST /api/auth/logout/ HTTP/1.1" 401 58
+[2026-03-22 11:46:57,573] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 404 39
+[2026-03-22 11:47:05,262] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 404 39
+[2026-03-22 11:47:06,601] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 404 39
+[2026-03-22 11:47:13,185] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 404 39
+[2026-03-22 11:47:20,772] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 404 39
+[2026-03-22 11:47:26,579] WARNING django.server "GET /api/feedback/ HTTP/1.1" 401 58
+[2026-03-22 11:51:12,969] WARNING django.server "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 2998
+[2026-03-22 13:40:05,278] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 31
+[2026-03-22 13:50:48,411] WARNING django.server "GET / HTTP/1.1" 404 2836
+[2026-03-22 13:50:48,622] WARNING django.server "GET /favicon.ico HTTP/1.1" 404 2887
+[2026-03-22 13:51:43,803] WARNING django.server "POST /api/auth/logout/ HTTP/1.1" 401 58
+[2026-03-22 13:51:49,812] WARNING django.server "POST /api/auth/logout/ HTTP/1.1" 401 58
+[2026-03-22 13:51:50,931] WARNING django.server "POST /api/auth/logout/ HTTP/1.1" 401 58
+[2026-03-22 13:51:56,095] WARNING django.server "GET /api/auth/profile/ HTTP/1.1" 401 58
+[2026-03-22 13:52:43,397] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 404 39
+[2026-03-22 13:52:43,401] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 404 39
+[2026-03-22 13:52:52,179] WARNING django.server "POST /api/auth/logout/ HTTP/1.1" 400 25
+[2026-03-22 13:52:58,280] ERROR django.request Internal Server Error: /api/teacher/performance-charts/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\feedback_system\users\views.py", line 415, in teacher_performance_charts
+    for entry in monthly[-6:]:
+                 ~~~~~~~^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 417, in __getitem__
+    raise ValueError("Negative indexing is not supported.")
+ValueError: Negative indexing is not supported.
+[2026-03-22 13:52:58,286] ERROR django.server "GET /api/teacher/performance-charts/ HTTP/1.1" 500 20007
+[2026-03-22 13:52:58,328] ERROR django.request Internal Server Error: /api/teacher/performance-charts/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\feedback_system\users\views.py", line 415, in teacher_performance_charts
+    for entry in monthly[-6:]:
+                 ~~~~~~~^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 417, in __getitem__
+    raise ValueError("Negative indexing is not supported.")
+ValueError: Negative indexing is not supported.
+[2026-03-22 13:52:58,332] ERROR django.server "GET /api/teacher/performance-charts/ HTTP/1.1" 500 20007
+[2026-03-22 13:53:13,324] WARNING django.server "POST /api/auth/logout/ HTTP/1.1" 400 25
+[2026-03-22 13:58:45,345] WARNING django.server "POST /api/auth/logout/ HTTP/1.1" 400 25
+[2026-03-22 13:58:57,350] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 31
+[2026-03-22 14:01:44,786] WARNING django.server "POST /api/auth/logout/ HTTP/1.1" 400 25
+[2026-03-22 14:01:50,773] ERROR django.request Internal Server Error: /api/teacher/performance-charts/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\feedback_system\users\views.py", line 415, in teacher_performance_charts
+    for entry in monthly[-6:]:
+                 ~~~~~~~^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 417, in __getitem__
+    raise ValueError("Negative indexing is not supported.")
+ValueError: Negative indexing is not supported.
+[2026-03-22 14:01:50,776] ERROR django.server "GET /api/teacher/performance-charts/ HTTP/1.1" 500 20007
+[2026-03-22 14:01:50,826] ERROR django.request Internal Server Error: /api/teacher/performance-charts/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\feedback_system\users\views.py", line 415, in teacher_performance_charts
+    for entry in monthly[-6:]:
+                 ~~~~~~~^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 417, in __getitem__
+    raise ValueError("Negative indexing is not supported.")
+ValueError: Negative indexing is not supported.
+[2026-03-22 14:01:50,834] ERROR django.server "GET /api/teacher/performance-charts/ HTTP/1.1" 500 20007
+[2026-03-22 14:02:24,298] WARNING django.server "POST /api/auth/logout/ HTTP/1.1" 400 25
+[2026-03-22 14:07:52,923] WARNING django.server "POST /api/auth/logout/ HTTP/1.1" 400 25
+[2026-03-22 14:08:01,411] WARNING django.server "POST /api/auth/logout/ HTTP/1.1" 400 25
+[2026-03-22 14:09:49,554] WARNING django.server "POST /api/auth/logout/ HTTP/1.1" 400 25
+[2026-03-22 14:14:51,418] WARNING django.server "GET / HTTP/1.1" 404 2836
+[2026-03-22 14:14:51,574] WARNING django.server "GET /favicon.ico HTTP/1.1" 404 2887
+[2026-03-22 14:15:33,758] WARNING django.server "GET /api/auth/login/ HTTP/1.1" 405 5682
+[2026-03-22 14:16:52,889] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 400 5734
+[2026-03-22 15:40:49,777] WARNING django.server "GET / HTTP/1.1" 404 2836
+[2026-03-22 15:40:50,030] WARNING django.server "GET /favicon.ico HTTP/1.1" 404 2887
+[2026-03-22 15:42:21,555] WARNING django.server "GET /api/auth/login/ HTTP/1.1" 405 5682
+[2026-03-22 15:44:02,302] WARNING django.server "GET /api/auth/logout/ HTTP/1.1" 401 3864
+[2026-03-22 15:44:46,731] WARNING django.server "GET /api/auth/login/ HTTP/1.1" 405 5682
+[2026-03-22 16:09:37,809] WARNING django.server "GET / HTTP/1.1" 404 2836
+[2026-03-22 16:09:37,925] WARNING django.server "GET /favicon.ico HTTP/1.1" 404 2887
+[2026-03-22 16:09:54,150] WARNING django.server "GET /api/ HTTP/1.1" 401 5009
+[2026-03-22 16:18:41,424] WARNING django.server "GET / HTTP/1.1" 404 2836
+[2026-03-22 16:19:03,352] WARNING django.server "GET /api/auth/login/ HTTP/1.1" 405 5682
+[2026-03-22 16:20:35,017] WARNING django.server "GET /api/auth/logout/ HTTP/1.1" 401 3864
+[2026-03-22 16:25:12,823] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 31
+[2026-03-22 16:25:37,251] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 31
+[2026-03-22 16:25:59,052] WARNING django.server "POST /api/auth/logout/ HTTP/1.1" 400 77
+[2026-03-22 16:27:02,328] ERROR django.request Internal Server Error: /api/hod/send-email/
+[2026-03-22 16:27:02,328] ERROR django.server "POST /api/hod/send-email/ HTTP/1.1" 500 221
+[2026-03-22 16:28:52,294] WARNING django.server "GET / HTTP/1.1" 404 2836
+[2026-03-22 16:29:42,511] WARNING django.server "POST /api/auth/logout/ HTTP/1.1" 401 58
+[2026-03-22 16:29:53,915] WARNING django.server "GET /api/auth/profile/ HTTP/1.1" 401 58
+[2026-03-22 16:30:19,349] WARNING django.server "GET /api/auth/logout/ HTTP/1.1" 401 3864
+[2026-03-22 16:30:28,392] WARNING django.server "GET /api/auth/login/ HTTP/1.1" 405 5682
+[2026-03-22 16:31:24,075] WARNING django.server "GET /api/auth/logout/ HTTP/1.1" 401 3864
+[2026-03-22 16:32:14,691] ERROR django.request Internal Server Error: /api/teacher/performance-charts/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\feedback_system\users\views.py", line 428, in teacher_performance_charts
+    for entry in monthly[-6:]:
+                 ~~~~~~~^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 417, in __getitem__
+    raise ValueError("Negative indexing is not supported.")
+ValueError: Negative indexing is not supported.
+[2026-03-22 16:32:14,700] ERROR django.server "GET /api/teacher/performance-charts/ HTTP/1.1" 500 20202
+[2026-03-22 16:32:14,765] ERROR django.request Internal Server Error: /api/teacher/performance-charts/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\feedback_system\users\views.py", line 428, in teacher_performance_charts
+    for entry in monthly[-6:]:
+                 ~~~~~~~^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 417, in __getitem__
+    raise ValueError("Negative indexing is not supported.")
+ValueError: Negative indexing is not supported.
+[2026-03-22 16:32:14,772] ERROR django.server "GET /api/teacher/performance-charts/ HTTP/1.1" 500 20202
+[2026-03-22 16:35:43,856] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 31
+[2026-03-22 16:37:20,936] ERROR django.request Internal Server Error: /api/teacher/performance-charts/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\feedback_system\users\views.py", line 428, in teacher_performance_charts
+    for entry in monthly[-6:]:
+                 ~~~~~~~^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 417, in __getitem__
+    raise ValueError("Negative indexing is not supported.")
+ValueError: Negative indexing is not supported.
+[2026-03-22 16:37:20,939] ERROR django.server "GET /api/teacher/performance-charts/ HTTP/1.1" 500 20202
+[2026-03-22 16:37:20,995] ERROR django.request Internal Server Error: /api/teacher/performance-charts/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\feedback_system\users\views.py", line 428, in teacher_performance_charts
+    for entry in monthly[-6:]:
+                 ~~~~~~~^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 417, in __getitem__
+    raise ValueError("Negative indexing is not supported.")
+ValueError: Negative indexing is not supported.
+[2026-03-22 16:37:21,000] ERROR django.server "GET /api/teacher/performance-charts/ HTTP/1.1" 500 20202
+[2026-03-22 16:46:02,461] WARNING django.server "GET /api/teacher/performance-charts/ HTTP/1.1" 403 33
+[2026-03-22 16:46:02,468] WARNING django.server "GET /api/teacher/dashboard/ HTTP/1.1" 403 33
+[2026-03-22 16:46:27,466] ERROR django.request Internal Server Error: /api/teacher/performance-charts/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\feedback_system\users\views.py", line 428, in teacher_performance_charts
+    for entry in monthly[-6:]:
+                 ~~~~~~~^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 417, in __getitem__
+    raise ValueError("Negative indexing is not supported.")
+ValueError: Negative indexing is not supported.
+[2026-03-22 16:46:27,468] ERROR django.server "GET /api/teacher/performance-charts/ HTTP/1.1" 500 106242
+[2026-03-22 16:46:50,854] ERROR django.request Internal Server Error: /api/teacher/performance-charts/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\feedback_system\users\views.py", line 428, in teacher_performance_charts
+    for entry in monthly[-6:]:
+                 ~~~~~~~^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 417, in __getitem__
+    raise ValueError("Negative indexing is not supported.")
+ValueError: Negative indexing is not supported.
+[2026-03-22 16:46:50,855] ERROR django.server "GET /api/teacher/performance-charts/ HTTP/1.1" 500 107708
+[2026-03-22 16:48:01,804] ERROR django.request Internal Server Error: /api/teacher/performance-charts/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\feedback_system\users\views.py", line 428, in teacher_performance_charts
+    for entry in monthly[-6:]:
+                 ~~~~~~~^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 417, in __getitem__
+    raise ValueError("Negative indexing is not supported.")
+ValueError: Negative indexing is not supported.
+[2026-03-22 16:48:01,808] ERROR django.server "GET /api/teacher/performance-charts/ HTTP/1.1" 500 107836
+[2026-03-22 16:49:06,751] ERROR django.request Internal Server Error: /api/teacher/performance-charts/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\feedback_system\users\views.py", line 428, in teacher_performance_charts
+    for entry in monthly[-6:]:
+                 ~~~~~~~^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 417, in __getitem__
+    raise ValueError("Negative indexing is not supported.")
+ValueError: Negative indexing is not supported.
+[2026-03-22 16:49:06,757] ERROR django.server "GET /api/teacher/performance-charts/ HTTP/1.1" 500 107832
+[2026-03-22 16:51:07,590] ERROR django.request Internal Server Error: /api/hod/send-email/
+[2026-03-22 16:51:07,592] ERROR django.server "POST /api/hod/send-email/ HTTP/1.1" 500 221
+[2026-03-22 16:55:28,060] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 31
+[2026-03-22 16:55:38,354] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 31
+[2026-03-23 07:00:52,416] WARNING django.server "GET /api/auth/profile/ HTTP/1.1" 401 172
+[2026-03-23 07:00:52,419] WARNING django.server "GET /api/auth/profile/ HTTP/1.1" 401 172
+[2026-03-23 07:03:49,470] WARNING django.server "GET / HTTP/1.1" 404 2836
+[2026-03-23 07:03:49,679] WARNING django.server "GET /favicon.ico HTTP/1.1" 404 2887
+[2026-03-23 08:28:28,962] WARNING django.server "GET / HTTP/1.1" 404 2836
+[2026-03-23 08:28:29,063] WARNING django.server "GET /favicon.ico HTTP/1.1" 404 2887
+[2026-03-23 10:06:17,056] WARNING django.server "GET / HTTP/1.1" 404 2836
+[2026-03-23 10:06:17,135] WARNING django.server "GET /favicon.ico HTTP/1.1" 404 2887
+[2026-03-23 17:24:11,543] ERROR django.request Internal Server Error: /api/hod/send-report/
+[2026-03-23 17:24:11,544] ERROR django.server "POST /api/hod/send-report/ HTTP/1.1" 500 221
+[2026-03-23 17:24:23,556] ERROR django.request Internal Server Error: /api/hod/send-report/
+[2026-03-23 17:24:23,557] ERROR django.server "POST /api/hod/send-report/ HTTP/1.1" 500 222
+[2026-03-23 17:24:29,331] WARNING django.server "GET /api/hod/export-report/?type=teacher&id=3&format=pdf HTTP/1.1" 404 23
+[2026-03-23 17:24:33,307] WARNING django.server "GET /api/hod/export-report/?type=teacher&id=3&format=pdf HTTP/1.1" 404 23
+[2026-03-23 17:27:19,635] ERROR django.request Internal Server Error: /api/hod/send-report-emails/
+[2026-03-23 17:27:19,637] ERROR django.server "POST /api/hod/send-report-emails/ HTTP/1.1" 500 221
+[2026-03-23 17:31:49,268] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 404 39
+[2026-03-23 17:31:49,272] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 404 39
+[2026-03-23 17:49:35,456] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 404 39
+[2026-03-23 17:49:35,462] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 404 39
+[2026-03-23 17:50:03,543] ERROR django.request Internal Server Error: /api/hod/send-report/
+[2026-03-23 17:50:03,543] ERROR django.server "POST /api/hod/send-report/ HTTP/1.1" 500 220
+[2026-03-23 17:50:06,402] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 404 39
+[2026-03-23 17:50:06,408] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 404 39
+[2026-03-23 17:58:59,670] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 404 39
+[2026-03-23 17:58:59,676] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 404 39
+[2026-03-23 17:59:18,915] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 404 39
+[2026-03-23 17:59:18,920] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 404 39
+[2026-03-23 17:59:46,920] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 404 39
+[2026-03-23 17:59:46,929] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 404 39
+[2026-03-23 18:00:10,785] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 404 39
+[2026-03-23 18:00:10,790] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 404 39
+[2026-03-23 18:00:29,946] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 404 39
+[2026-03-23 18:00:29,952] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 404 39

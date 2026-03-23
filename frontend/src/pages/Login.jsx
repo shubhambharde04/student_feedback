@@ -77,7 +77,11 @@ export default function Login() {
       localStorage.setItem("access_token", access);
       localStorage.setItem("refresh_token", refresh);
       localStorage.setItem("user", JSON.stringify(user));
-      navigate(`/${user.role}-dashboard`);
+      if (user.role === 'student' && user.is_first_login) {
+        navigate("/change-password");
+      } else {
+        navigate(`/${user.role}-dashboard`);
+      }
     } catch (err) {
       setError(
         err.response?.data?.error ||

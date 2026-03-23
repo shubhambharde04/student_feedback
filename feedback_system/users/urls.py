@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
     SubjectViewSet, FeedbackViewSet,
-    login_view, logout_view, user_profile,
+    login_view, logout_view, user_profile, change_password,
     student_subjects,
     teacher_analytics, teacher_dashboard, teacher_performance,
     teacher_performance_charts,
@@ -13,6 +13,9 @@ from .views import (
     feedback_window_manager, feedback_window_detail,
     current_feedback_window,
     health_check, test_endpoint,
+    hod_teacher_report, hod_department_report, hod_send_report_emails,
+    enroll_student, bulk_enroll, list_enrollments,
+    delete_enrollment, enrollment_form_data,
 )
 
 router = DefaultRouter()
@@ -28,6 +31,7 @@ urlpatterns = [
     path('auth/login/', login_view, name='login'),
     path('auth/logout/', logout_view, name='logout'),
     path('auth/profile/', user_profile, name='profile'),
+    path('auth/change-password/', change_password, name='change_password'),
 
     # Student
     path('student-subjects/', student_subjects, name='student_subjects'),
@@ -51,9 +55,20 @@ urlpatterns = [
     path('hod/analysis/', feedback_analysis, name='feedback_analysis'),
     path('hod/teacher-ranking/', teacher_ranking, name='teacher_ranking'),
     path('hod/export-report/', export_report, name='export_report'),
+    path('hod/teacher/<int:pk>/report/', hod_teacher_report, name='hod_teacher_report'),
+    path('hod/department/report/', hod_department_report, name='hod_department_report'),
+    path('hod/send-report-emails/', hod_send_report_emails, name='hod_send_report_emails'),
 
     # Feedback window management
     path('hod/feedback-windows/', feedback_window_manager, name='feedback_window_manager'),
     path('hod/feedback-windows/<int:pk>/', feedback_window_detail, name='feedback_window_detail'),
     path('feedback-window/current/', current_feedback_window, name='current_feedback_window'),
+
+    # Enrollment management
+    path('enrollments/', list_enrollments, name='list_enrollments'),
+    path('enrollments/enroll/', enroll_student, name='enroll_student'),
+    path('enrollments/bulk-enroll/', bulk_enroll, name='bulk_enroll'),
+    path('enrollments/<int:pk>/', delete_enrollment, name='delete_enrollment'),
+    path('enrollments/form-data/', enrollment_form_data, name='enrollment_form_data'),
 ]
+

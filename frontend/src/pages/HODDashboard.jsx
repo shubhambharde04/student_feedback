@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import API from "../api";
 import Sidebar from "../components/Sidebar";
 import FeedbackWindowManager from "../components/FeedbackWindowManager";
-import ReportGenerator from "../components/ReportGenerator";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
+import ChartModal from "../components/ChartModal";
+import { Maximize2 } from "lucide-react";
+import { motion } from "framer-motion";
 
 const CHART_COLORS = ['#6366f1', '#22d3ee', '#a78bfa', '#f59e0b', '#10b981', '#ef4444', '#ec4899', '#8b5cf6'];
 const PIE_COLORS = ['#10b981', '#94a3b8', '#ef4444'];
@@ -28,7 +30,12 @@ export default function HODDashboard() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeSection, setActiveSection] = useState("overview");
+  
+  const location = useLocation();
+  const [activeSection, setActiveSection] = useState(location.state?.activeSection || "overview");
+  
+  const [activeChart, setActiveChart] = useState(null);
+  const [expandedChart, setExpandedChart] = useState(null);
 
   const navigate = useNavigate();
 
@@ -267,8 +274,20 @@ export default function HODDashboard() {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8 stagger">
         {/* Teacher Comparison Bar Chart */}
-        <div className="glass-card p-6 animate-fade-in">
-          <h3 className="text-lg font-semibold text-surface-100 font-display mb-4">Teacher Comparison</h3>
+        <motion.div 
+          layoutId="chart-teacher-comparison"
+          className={`glass-card p-6 relative transition-all duration-300 ${activeChart && activeChart !== 'teacherComparison' ? 'opacity-50 grayscale-[50%]' : ''} ${activeChart === 'teacherComparison' ? 'ring-2 ring-primary-500 scale-[1.02]' : ''}`}
+          onClick={() => setActiveChart(activeChart === 'teacherComparison' ? null : 'teacherComparison')}
+        >
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-surface-100 font-display">Teacher Comparison</h3>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setExpandedChart('teacherComparison'); }}
+              className="text-surface-400 hover:text-primary-400 transition-colors"
+            >
+              <Maximize2 size={18} />
+            </button>
+          </div>
           {teacherComparisonData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={teacherComparisonData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
@@ -290,11 +309,23 @@ export default function HODDashboard() {
           ) : (
             <div className="h-[300px] flex items-center justify-center text-surface-500">No teacher data</div>
           )}
-        </div>
+        </motion.div>
 
         {/* Sentiment Distribution Pie */}
-        <div className="glass-card p-6 animate-fade-in">
-          <h3 className="text-lg font-semibold text-surface-100 font-display mb-4">Sentiment Distribution</h3>
+        <motion.div 
+          layoutId="chart-sentiment-distribution"
+          className={`glass-card p-6 relative transition-all duration-300 ${activeChart && activeChart !== 'sentimentDistribution' ? 'opacity-50 grayscale-[50%]' : ''} ${activeChart === 'sentimentDistribution' ? 'ring-2 ring-primary-500 scale-[1.02]' : ''}`}
+          onClick={() => setActiveChart(activeChart === 'sentimentDistribution' ? null : 'sentimentDistribution')}
+        >
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-surface-100 font-display">Sentiment Distribution</h3>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setExpandedChart('sentimentDistribution'); }}
+              className="text-surface-400 hover:text-primary-400 transition-colors"
+            >
+              <Maximize2 size={18} />
+            </button>
+          </div>
           {sentimentPieData.some(d => d.value > 0) ? (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
@@ -319,11 +350,23 @@ export default function HODDashboard() {
           ) : (
             <div className="h-[300px] flex items-center justify-center text-surface-500">No sentiment data</div>
           )}
-        </div>
+        </motion.div>
 
         {/* Rating Distribution Bar */}
-        <div className="glass-card p-6 animate-fade-in">
-          <h3 className="text-lg font-semibold text-surface-100 font-display mb-4">Rating Distribution</h3>
+        <motion.div 
+          layoutId="chart-rating-distribution"
+          className={`glass-card p-6 relative transition-all duration-300 ${activeChart && activeChart !== 'ratingDistribution' ? 'opacity-50 grayscale-[50%]' : ''} ${activeChart === 'ratingDistribution' ? 'ring-2 ring-primary-500 scale-[1.02]' : ''}`}
+          onClick={() => setActiveChart(activeChart === 'ratingDistribution' ? null : 'ratingDistribution')}
+        >
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-surface-100 font-display">Rating Distribution</h3>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setExpandedChart('ratingDistribution'); }}
+              className="text-surface-400 hover:text-primary-400 transition-colors"
+            >
+              <Maximize2 size={18} />
+            </button>
+          </div>
           {ratingDistData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={ratingDistData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
@@ -341,11 +384,23 @@ export default function HODDashboard() {
           ) : (
             <div className="h-[300px] flex items-center justify-center text-surface-500">No rating data</div>
           )}
-        </div>
+        </motion.div>
 
         {/* Subject Performance Bar */}
-        <div className="glass-card p-6 animate-fade-in">
-          <h3 className="text-lg font-semibold text-surface-100 font-display mb-4">Subject Performance</h3>
+        <motion.div 
+          layoutId="chart-subject-performance"
+          className={`glass-card p-6 relative transition-all duration-300 ${activeChart && activeChart !== 'subjectPerformance' ? 'opacity-50 grayscale-[50%]' : ''} ${activeChart === 'subjectPerformance' ? 'ring-2 ring-primary-500 scale-[1.02]' : ''}`}
+          onClick={() => setActiveChart(activeChart === 'subjectPerformance' ? null : 'subjectPerformance')}
+        >
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-surface-100 font-display">Subject Performance</h3>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setExpandedChart('subjectPerformance'); }}
+              className="text-surface-400 hover:text-primary-400 transition-colors"
+            >
+              <Maximize2 size={18} />
+            </button>
+          </div>
           {subjectPerfData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={subjectPerfData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
@@ -363,7 +418,7 @@ export default function HODDashboard() {
           ) : (
             <div className="h-[300px] flex items-center justify-center text-surface-500">No subject data</div>
           )}
-        </div>
+        </motion.div>
       </div>
 
       {/* Top & Low Performers Table */}
@@ -405,6 +460,99 @@ export default function HODDashboard() {
           </div>
         </div>
       )}
+
+      {/* Modals for Expanded Charts */}
+      <ChartModal 
+        isOpen={expandedChart === 'teacherComparison'} 
+        onClose={() => setExpandedChart(null)}
+        title="Teacher Comparison"
+      >
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={teacherComparisonData} margin={{ top: 20, right: 30, left: 20, bottom: 25 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" />
+            <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 14 }} />
+            <YAxis domain={[0, 5]} tick={{ fill: '#94a3b8', fontSize: 14 }} />
+            <Tooltip
+              contentStyle={chartTooltipStyle}
+              formatter={(value, name) => [value, name === 'rating' ? 'Avg Rating' : name]}
+              labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
+            />
+            <Bar dataKey="rating" radius={[6, 6, 0, 0]} barSize={50}>
+              {teacherComparisonData.map((_, i) => (
+                <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartModal>
+
+      <ChartModal 
+        isOpen={expandedChart === 'sentimentDistribution'} 
+        onClose={() => setExpandedChart(null)}
+        title="Sentiment Distribution"
+      >
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={sentimentPieData}
+              cx="50%"
+              cy="50%"
+              outerRadius={180}
+              innerRadius={90}
+              dataKey="value"
+              label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+              labelLine={{ stroke: '#94a3b8' }}
+            >
+              {sentimentPieData.map((_, i) => (
+                <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip contentStyle={chartTooltipStyle} />
+            <Legend wrapperStyle={{ color: '#94a3b8', fontSize: 14 }} />
+          </PieChart>
+        </ResponsiveContainer>
+      </ChartModal>
+
+      <ChartModal 
+        isOpen={expandedChart === 'ratingDistribution'} 
+        onClose={() => setExpandedChart(null)}
+        title="Rating Distribution"
+      >
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={ratingDistData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" />
+            <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 14 }} />
+            <YAxis tick={{ fill: '#94a3b8', fontSize: 14 }} />
+            <Tooltip contentStyle={chartTooltipStyle} />
+            <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={60}>
+              {ratingDistData.map((_, i) => (
+                <Cell key={i} fill={RATING_PIE_COLORS[i % RATING_PIE_COLORS.length]} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartModal>
+
+      <ChartModal 
+        isOpen={expandedChart === 'subjectPerformance'} 
+        onClose={() => setExpandedChart(null)}
+        title="Subject Performance"
+      >
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={subjectPerfData} margin={{ top: 20, right: 30, left: 20, bottom: 25 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" />
+            <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 14 }} />
+            <YAxis domain={[0, 5]} tick={{ fill: '#94a3b8', fontSize: 14 }} />
+            <Tooltip contentStyle={chartTooltipStyle} />
+            <Bar dataKey="rating" fill="#a78bfa" radius={[6, 6, 0, 0]} barSize={50}>
+              {subjectPerfData.map((_, i) => (
+                <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartModal>
+
     </div>
   );
 
@@ -503,17 +651,7 @@ export default function HODDashboard() {
   };
 
   // ============================================================
-  // REPORTS SECTION
-  // ============================================================
-  const renderReports = () => (
-    <div className="animate-fade-in">
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-surface-100 font-display">Reports</h2>
-        <p className="text-surface-400 text-sm mt-1">Generate and send performance reports to teachers.</p>
-      </div>
-      <ReportGenerator teachers={teachers} subjects={analytics?.subject_performance || []} />
-    </div>
-  );
+
 
   // ============================================================
   // FEEDBACK WINDOWS SECTION
@@ -542,7 +680,6 @@ export default function HODDashboard() {
           {activeSection === "teachers" && renderTeachers()}
           {activeSection === "analytics" && renderAnalytics()}
           {activeSection === "statistics" && renderStatistics()}
-          {activeSection === "reports" && renderReports()}
           {activeSection === "windows" && renderWindows()}
         </div>
       </main>

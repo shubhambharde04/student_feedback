@@ -7,12 +7,13 @@ const TEACHER_MENU = [
 ];
 
 const HOD_MENU = [
-  { key: "overview", label: "Dashboard Overview", icon: "grid" },
-  { key: "teachers", label: "Teachers", icon: "users" },
-  { key: "analytics", label: "Performance Analytics", icon: "chart" },
-  { key: "statistics", label: "Feedback Statistics", icon: "bar" },
-  { key: "reports", label: "Reports", icon: "doc" },
-  { key: "windows", label: "Feedback Windows", icon: "clock" },
+  { key: "overview", label: "Dashboard Overview", icon: "grid", path: "/hod-dashboard" },
+  { key: "teachers", label: "Teachers", icon: "users", path: "/hod-dashboard" },
+  { key: "analytics", label: "Performance Analytics", icon: "chart", path: "/hod-dashboard" },
+  { key: "statistics", label: "Feedback Statistics", icon: "bar", path: "/hod-dashboard" },
+  { key: "enrollments", label: "Enrollments", icon: "users", path: "/hod/enrollments" },
+  { key: "reports", label: "Reports", icon: "doc", path: "/hod/reports" },
+  { key: "windows", label: "Feedback Windows", icon: "clock", path: "/hod-dashboard" },
 ];
 
 const icons = {
@@ -58,6 +59,14 @@ export default function Sidebar({ role, activeSection, onSectionChange, user }) 
   const navigate = useNavigate();
   const menu = role === "hod" ? HOD_MENU : TEACHER_MENU;
 
+  const handleNavClick = (item) => {
+    if (item.path && window.location.pathname !== item.path) {
+      navigate(item.path, { state: { activeSection: item.key } });
+    } else if (onSectionChange) {
+      onSectionChange(item.key);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       const refreshToken = localStorage.getItem("refresh_token");
@@ -96,8 +105,10 @@ export default function Sidebar({ role, activeSection, onSectionChange, user }) 
         {menu.map((item) => (
           <button
             key={item.key}
-            onClick={() => onSectionChange(item.key)}
-            className={`sidebar-item w-full text-left ${activeSection === item.key ? "active" : ""}`}
+            onClick={() => handleNavClick(item)}
+            className={`sidebar-item w-full text-left ${
+              (activeSection === item.key || (window.location.pathname === item.path && !activeSection)) ? "active" : ""
+            }`}
           >
             {icons[item.icon]}
             <span>{item.label}</span>
