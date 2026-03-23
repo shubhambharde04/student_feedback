@@ -62,7 +62,7 @@ class FeedbackViewSet(viewsets.ModelViewSet):
         context.update({"request": self.request})
         return context
 
-    def get_queryset(self):
+    def get_queryset(self): # type: ignore
         if getattr(self, 'swagger_fake_view', False):
             return Feedback.objects.none()
             
