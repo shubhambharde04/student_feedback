@@ -68,7 +68,7 @@ urlpatterns = [
     path('enrollments/', list_enrollments, name='list_enrollments'),
     path('enrollments/enroll/', enroll_student, name='enroll_student'),
     path('enrollments/bulk-enroll/', bulk_enroll, name='bulk_enroll'),
-    path('enrollments/<int:pk>/', delete_enrollment, name='delete_enrollment'),
+    path('enrollments/<str:pk>/', delete_enrollment, name='delete_enrollment'),
     path('enrollments/form-data/', enrollment_form_data, name='enrollment_form_data'),
 ]
 

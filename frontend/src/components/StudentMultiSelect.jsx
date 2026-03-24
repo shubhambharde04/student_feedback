@@ -13,7 +13,9 @@ export default function StudentMultiSelect({
     if (!selectedSubject) return students;
     return students.filter((s) => {
       const branchMatch =
-        !selectedSubject.branch_id || s.branch_id === selectedSubject.branch_id;
+        !selectedSubject.branch_ids || 
+        selectedSubject.branch_ids.length === 0 || 
+        selectedSubject.branch_ids.includes(s.branch_id);
       const semMatch =
         !selectedSubject.semester_id || s.semester_id === selectedSubject.semester_id;
       return branchMatch && semMatch;

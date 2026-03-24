@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.forms import UserCreationForm
 from django import forms
-from .models import Feedback, Subject, User, FeedbackWindow, Enrollment, Branch, Semester
+from .models import Feedback, Subject, User, FeedbackWindow, Branch, Semester
 
 class CustomUserCreationForm(UserCreationForm):
     class Meta:
@@ -49,16 +49,14 @@ class CustomUserAdmin(UserAdmin):
     )
 
 
-class EnrollmentAdmin(admin.ModelAdmin):
-    list_display = ('student', 'subject', 'assigned_by', 'created_at')
-    list_filter = ('subject', 'created_at')
-    search_fields = ('student__username', 'subject__name')
+class SubjectAdmin(admin.ModelAdmin):
+    list_display = ('name', 'code', 'teacher', 'semester')
+    filter_horizontal = ('branches', 'students')
 
 
 admin.site.register(User, CustomUserAdmin)
-admin.site.register(Subject)
+admin.site.register(Subject, SubjectAdmin)
 admin.site.register(Feedback)
 admin.site.register(FeedbackWindow)
-admin.site.register(Enrollment, EnrollmentAdmin)
 admin.site.register(Branch)
 admin.site.register(Semester)

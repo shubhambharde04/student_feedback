@@ -35,9 +35,12 @@ export default function SubjectDropdown({ subjects, value, onChange }) {
           <span>
             <span className="text-surface-100 font-medium">{selected.name}</span>
             <span className="text-surface-500 ml-2">({selected.code})</span>
-            {selected.branch_name && (
+            {selected.semester_number && (
               <span className="text-xs text-primary-400 ml-2">
-                {selected.branch_name} · Sem {selected.semester_number}
+                {selected.branch_ids && selected.branch_ids.length > 0 
+                  ? `${selected.branch_ids.length} Branch(es) · ` 
+                  : ""}
+                Sem {selected.semester_number}
               </span>
             )}
           </span>
@@ -86,9 +89,12 @@ export default function SubjectDropdown({ subjects, value, onChange }) {
                   <span className="text-surface-500 ml-2">({s.code})</span>
                   <div className="flex items-center gap-3 mt-0.5">
                     <span className="text-xs text-surface-500">👨‍🏫 {s.teacher_name}</span>
-                    {s.branch_name && (
+                    {s.semester_number && (
                       <span className="text-xs text-primary-400/70">
-                        {s.branch_name} · Sem {s.semester_number}
+                        {s.branch_ids && s.branch_ids.length > 0 
+                          ? `${s.branch_ids.length} Branch(es) · ` 
+                          : ""}
+                        Sem {s.semester_number}
                       </span>
                     )}
                   </div>

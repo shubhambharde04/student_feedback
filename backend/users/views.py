@@ -19,11 +19,11 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from django.db.models import Manager
 
-from .models import User, Subject, Feedback, FeedbackWindow, Enrollment
+from .models import User, Subject, Feedback, FeedbackWindow
 from .serializers import (
     SubjectSerializer, FeedbackSerializer,
     LoginSerializer, FeedbackWindowSerializer,
-    ChangePasswordSerializer, EnrollmentSerializer
+    ChangePasswordSerializer
 )
 from .sentiment import analyze_sentiment
 
@@ -101,7 +101,12 @@ class FeedbackViewSet(viewsets.ModelViewSet):
 
         # Check enrollment — student must be enrolled in this subject
         subject_id = request.data.get('subject')
-        if not Enrollment.objects.filter(student=request.user, subject_id=subject_id).exists():
+        try:
+            subject = Subject.objects.get(pk=subject_id)
+        except Subject.DoesNotExist:
+            return Response({'error': 'Subject not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not subject.students.filter(id=request.user.id).exists():
             return Response(
                 {'error': 'You are not enrolled in this subject'},
                 status=status.HTTP_403_FORBIDDEN
@@ -280,13 +285,10 @@ def student_subjects(request):
     if request.user.role != 'student':
         return Response({'error': 'Only students allowed'}, status=403)
 
-    enrollments = Enrollment.objects.filter(
-        student=request.user
-    ).select_related('subject__teacher')
+    subjects = request.user.enrolled_subjects.select_related('teacher')
 
     data = []
-    for enrollment in enrollments:
-        subject = enrollment.subject
+    for subject in subjects:
         given = Feedback.objects.filter(
             student=request.user, subject=subject
         ).exists()
@@ -1390,9 +1392,9 @@ def enroll_student(request):
         return Response({'error': 'Subject not found'}, status=404)
 
     # Branch / Semester validation
-    if subject.branch and student.branch and student.branch != subject.branch:
+    if student.branch and subject.branches.exists() and not subject.branches.filter(id=student.branch.id).exists():
         return Response(
-            {'error': f'Branch mismatch: student is in {student.branch.name} but subject belongs to {subject.branch.name}'},
+            {'error': f'Branch mismatch: student is in {student.branch.name} but subject is not offered to this branch'},
             status=400
         )
     if subject.semester and student.semester and student.semester != subject.semester:
@@ -1402,16 +1404,11 @@ def enroll_student(request):
         )
 
     # Duplicate check
-    if Enrollment.objects.filter(student=student, subject=subject).exists():
+    if subject.students.filter(id=student.id).exists():
         return Response({'error': 'Student is already enrolled in this subject'}, status=400)
 
-    enrollment = Enrollment.objects.create(
-        student=student,
-        subject=subject,
-        assigned_by=request.user,
-    )
-    serializer = EnrollmentSerializer(enrollment)
-    return Response(serializer.data, status=201)
+    subject.students.add(student)
+    return Response({'message': 'Successfully enrolled'}, status=201)
 
 
 @api_view(['POST'])
@@ -1432,7 +1429,7 @@ def bulk_enroll(request):
     except Subject.DoesNotExist:
         return Response({'error': 'Subject not found'}, status=404)
 
-    created = []
+    created_count = 0
     errors = []
 
     for sid in student_ids:
@@ -1443,10 +1440,10 @@ def bulk_enroll(request):
             continue
 
         # Branch validation
-        if subject.branch and student.branch and student.branch != subject.branch:
+        if student.branch and subject.branches.exists() and not subject.branches.filter(id=student.branch.id).exists():
             errors.append({
                 'student_id': sid,
-                'error': f'Branch mismatch ({student.branch.name} vs {subject.branch.name})'
+                'error': f'Branch mismatch ({student.branch.name} vs subject branches)'
             })
             continue
 
@@ -1459,23 +1456,18 @@ def bulk_enroll(request):
             continue
 
         # Duplicate check
-        if Enrollment.objects.filter(student=student, subject=subject).exists():
+        if subject.students.filter(id=student.id).exists():
             errors.append({'student_id': sid, 'error': 'Already enrolled'})
             continue
 
-        enrollment = Enrollment.objects.create(
-            student=student,
-            subject=subject,
-            assigned_by=request.user,
-        )
-        created.append(EnrollmentSerializer(enrollment).data)
+        subject.students.add(student)
+        created_count += 1
 
     return Response({
-        'created': created,
+        'created_count': created_count,
         'errors': errors,
-        'created_count': len(created),
         'error_count': len(errors),
-    }, status=201 if created else 400)
+    }, status=201 if created_count > 0 else 400)
 
 
 @api_view(['GET'])
@@ -1486,30 +1478,49 @@ def list_enrollments(request):
         return Response({'error': 'Only HOD/Admin can view enrollments'}, status=403)
 
     subject_id = request.GET.get('subject')
-    queryset = Enrollment.objects.select_related(
-        'student', 'subject', 'assigned_by'
-    ).all()
+    queryset = Subject.objects.prefetch_related('students').all()
 
     if subject_id:
-        queryset = queryset.filter(subject_id=subject_id)
+        queryset = queryset.filter(id=subject_id)
 
-    serializer = EnrollmentSerializer(queryset, many=True)
-    return Response(serializer.data)
+    data = []
+    from django.utils import timezone
+    now = timezone.now().isoformat()
+    for subject in queryset:
+        for student in subject.students.all():
+            data.append({
+                'id': f"{subject.id}-{student.id}",
+                'student': student.id,
+                'subject': subject.id,
+                'student_name': student.get_full_name() or student.username,
+                'student_enrollment_no': student.enrollment_no,
+                'subject_name': subject.name,
+                'subject_code': subject.code,
+                'created_at': now,
+            })
+
+    return Response(data)
 
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def delete_enrollment(request, pk):
-    """Remove an enrollment (HOD/Admin only)."""
+    """Remove an enrollment (HOD/Admin only). pk is format: subject_id-student_id"""
     if request.user.role not in ('hod', 'admin'):
         return Response({'error': 'Only HOD/Admin can remove enrollments'}, status=403)
 
     try:
-        enrollment = Enrollment.objects.get(pk=pk)
-    except Enrollment.DoesNotExist:
+        pk_str = str(pk)
+        if '-' in pk_str:
+            subject_id, student_id = pk_str.split('-')
+            subject = Subject.objects.get(pk=int(subject_id))
+            student = User.objects.get(pk=int(student_id))
+        else:
+            return Response({'error': 'Invalid format'}, status=400)
+    except (ValueError, Subject.DoesNotExist, User.DoesNotExist):
         return Response({'error': 'Enrollment not found'}, status=404)
 
-    enrollment.delete()
+    subject.students.remove(student)
     return Response({'message': 'Enrollment removed successfully'}, status=200)
 
 
@@ -1524,16 +1535,16 @@ def enrollment_form_data(request):
         'id', 'username', 'first_name', 'last_name',
         'enrollment_no', 'branch_id', 'semester_id'
     )
-    subjects = Subject.objects.select_related('teacher', 'branch', 'semester').all()
+    subjects = Subject.objects.select_related('teacher', 'semester').prefetch_related('branches').all()
     subject_data = []
     for s in subjects:
+        branch_ids = [b.id for b in s.branches.all()]
         subject_data.append({
             'id': s.id,
             'name': s.name,
             'code': s.code,
             'teacher_name': s.teacher.get_full_name() or s.teacher.username,
-            'branch_id': s.branch_id,
-            'branch_name': s.branch.name if s.branch else None,
+            'branch_ids': branch_ids,
             'semester_id': s.semester_id,
             'semester_number': s.semester.number if s.semester else None,
         })
