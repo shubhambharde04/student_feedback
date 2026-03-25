@@ -1,7 +1,4 @@
 {
-    "python.defaultInterpreterPath": "",
-    "python-envs.defaultEnvManager": "ms-python.python:venv",
-    "python-envs.workspaceSearchPaths": [
-        "C:\\Users\\shubh\\AppData\\Roaming\\uv\\python\\cpython-3.14.3-windows-x86_64-none\\python.exe"
-    ]
+    "python.defaultInterpreterPath": "C:\\Program Files\\Python311\\python.exe",
+    "python-envs.defaultEnvManager": "ms-python.python:venv"
 }
