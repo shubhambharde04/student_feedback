@@ -10,21 +10,36 @@ export default function ProtectedRoute({ children, allowedRoles }) {
   const location = useLocation();
 
   useEffect(() => {
+    let cancelled = false;
+
     const validateToken = async () => {
       const token = localStorage.getItem("access_token");
       const userStr = localStorage.getItem("user");
       
       if (!token || !userStr) {
-        setIsValidating(false);
+        if (!cancelled) setIsValidating(false);
         return;
       }
 
       try {
+        // Parse stored user data for quick role check
+        const storedUser = JSON.parse(userStr);
+
+        // Quick local validation first — only call API if token exists
         const response = await API.get("auth/profile/");
-        const user = response.data.user;
+        const user = response.data?.user;
+
+        if (cancelled) return;
+
+        if (!user) {
+          setIsAuthenticated(false);
+          setIsValidating(false);
+          return;
+        }
+
         setUserRole(user.role);
         
-        if (user.role === 'student' && user.is_first_login && location.pathname !== '/change-password') {
+        if (user.is_first_login && location.pathname !== '/change-password') {
           setNeedsPasswordChange(true);
         }
         
@@ -35,22 +50,35 @@ export default function ProtectedRoute({ children, allowedRoles }) {
           setIsAuthenticated(true);
         }
       } catch (error) {
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
-        localStorage.removeItem("user");
-        setIsAuthenticated(false);
+        if (cancelled) return;
+
+        // If the error is a 403 and indicates a forced password change, don't logout
+        if (error.response?.status === 403 && error.response?.data?.force_password_change) {
+          setNeedsPasswordChange(true);
+          setIsAuthenticated(true);
+        } else {
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("refresh_token");
+          localStorage.removeItem("user");
+          setIsAuthenticated(false);
+        }
       } finally {
-        setIsValidating(false);
+        if (!cancelled) setIsValidating(false);
       }
     };
 
     validateToken();
-  }, [allowedRoles]);
+
+    return () => { cancelled = true; };
+  }, [allowedRoles, location.pathname]);
 
   if (isValidating) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Loading...</div>
+      <div className="min-h-screen bg-mesh flex items-center justify-center">
+        <div className="text-center">
+          <div className="spinner mx-auto mb-3" />
+          <p className="text-surface-400 text-sm">Verifying session...</p>
+        </div>
       </div>
     );
   }

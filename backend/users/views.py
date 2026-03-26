@@ -1,3 +1,4 @@
+# type: ignore  # Django ORM uses dynamic attributes that static type checkers cannot validate
 from rest_framework import viewsets, status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.decorators import api_view, permission_classes
@@ -6,12 +7,14 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.db import connection
-from django.db.models import Avg, Count
+from django.db.models import Avg, Count, Q
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
 from django.http import HttpResponse
 from django.core.mail import EmailMessage
 from django.conf import settings
+import csv
+import io
 from drf_yasg.utils import swagger_auto_schema
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
@@ -19,11 +22,18 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from django.db.models import Manager
 
-from .models import User, Subject, Feedback, FeedbackWindow
+from .models import (
+    User, Subject, SubjectOffering, SubjectAssignment, 
+    Feedback, FeedbackWindow, Branch, Semester,
+    Department, StudentSemester
+)
 from .serializers import (
-    SubjectSerializer, FeedbackSerializer,
+    BranchSerializer, SemesterSerializer, SubjectSerializer,
+    SubjectOfferingSerializer, SubjectAssignmentSerializer,
+    UserSerializer, FeedbackSerializer, FeedbackWindowSerializer,
     LoginSerializer, FeedbackWindowSerializer,
-    ChangePasswordSerializer
+    ChangePasswordSerializer, SubjectOfferingCreateSerializer,
+    TeacherAssignmentSerializer
 )
 from .sentiment import analyze_sentiment
 
@@ -71,60 +81,16 @@ class FeedbackViewSet(viewsets.ModelViewSet):
         if user.role == 'hod':
             return Feedback.objects.all().order_by('-created_at')
         if user.role == 'teacher':
-            return Feedback.objects.filter(subject__teacher=user).order_by('-created_at')
+            return Feedback.objects.filter(offering__assignment__teacher=user).order_by('-created_at')
         if user.role == 'student':
             return Feedback.objects.filter(student=user).order_by('-created_at')
         return Feedback.objects.none()
 
-    def create(self, request, *args, **kwargs):
-        if request.user.role != 'student':
-            return Response(
-                {'error': 'Only students can submit feedback'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        # Check feedback window
-        window = FeedbackWindow.objects.filter(is_active=True).first()
-        now = timezone.now()
-        if not window:
-            return Response(
-                {"error": "No feedback window is currently active"},
-                status=400
-            )
-        if not (window.start_date <= now <= window.end_date):
-            return Response(
-                {"error": f"Feedback submission is only allowed from "
-                          f"{window.start_date.strftime('%Y-%m-%d %H:%M')} to "
-                          f"{window.end_date.strftime('%Y-%m-%d %H:%M')}"},
-                status=400
-            )
-
-        # Check enrollment — student must be enrolled in this subject
-        subject_id = request.data.get('subject')
-        try:
-            subject = Subject.objects.get(pk=subject_id)
-        except Subject.DoesNotExist:
-            return Response({'error': 'Subject not found'}, status=status.HTTP_404_NOT_FOUND)
-
-        if not subject.students.filter(id=request.user.id).exists():
-            return Response(
-                {'error': 'You are not enrolled in this subject'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        # Check duplicate
-        if Feedback.objects.filter(student=request.user, subject_id=subject_id).exists():
-            return Response(
-                {'error': 'You have already submitted feedback for this subject'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        return super().create(request, *args, **kwargs)
 
     def perform_create(self, serializer):
         comment = serializer.validated_data.get('comment', '')
         sentiment = analyze_sentiment(comment)
-        serializer.save(student=self.request.user, sentiment=sentiment)
+        serializer.save(sentiment=sentiment)
 
     def perform_update(self, serializer):
         raise PermissionDenied("Feedback cannot be edited once submitted")
@@ -133,7 +99,35 @@ class FeedbackViewSet(viewsets.ModelViewSet):
         raise PermissionDenied("Feedback cannot be deleted")
 
 
-# ============================================================
+@swagger_auto_schema(method='post', request_body=FeedbackSerializer)
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def feedback_submit(request):
+    """
+    Robust feedback submission endpoint.
+    Checks window, branch/semester, teacher assignment, and duplicates via serializer.
+    """
+    if request.user.role != 'student':
+        return Response({'error': 'Only students can submit feedback'}, status=status.HTTP_403_FORBIDDEN)
+
+    serializer = FeedbackSerializer(data=request.data, context={'request': request})
+    if serializer.is_valid():
+        comment = serializer.validated_data.get('comment', '')
+        sentiment = analyze_sentiment(comment)
+        
+        # Save feedback (Logic for student assignment is in serializer.validate)
+        feedback = serializer.save(sentiment=sentiment)
+        
+        return Response({
+            "message": "Feedback submitted successfully",
+            "data": {
+                "subject": feedback.offering.subject.name,
+                "teacher": serializer.get_teacher_name(feedback),
+                "overall_rating": feedback.overall_rating
+            }
+        }, status=status.HTTP_201_CREATED)
+        
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 # AUTH VIEWS
 # ============================================================
 
@@ -280,26 +274,53 @@ def user_profile(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def student_subjects(request):
-    """Return ONLY subjects the student is enrolled in."""
+def get_student_subjects(request):
+    """
+    Return ONLY subjects the student is enrolled in dynamically based on branch and semester.
+    """
     if request.user.role != 'student':
         return Response({'error': 'Only students allowed'}, status=403)
 
-    subjects = request.user.enrolled_subjects.select_related('teacher')
+    try:
+        profile = request.user.student_profile
+    except StudentSemester.DoesNotExist:
+        return Response([], status=200)  # Return empty array, not error
+    
+    if not profile.branch or not profile.semester:
+        return Response([], status=200)
+
+    offerings = SubjectOffering.objects.filter(
+        branch=profile.branch,
+        semester=profile.semester,
+        is_active=True
+    ).select_related('subject', 'branch', 'semester')
 
     data = []
-    for subject in subjects:
+    for offering in offerings:
         given = Feedback.objects.filter(
-            student=request.user, subject=subject
+            student=request.user, offering=offering
         ).exists()
+        
+        teacher_name = "Unassigned"
+        try:
+            assignment = offering.assignment if hasattr(offering, 'assignment') and offering.assignment.is_active else None
+            teacher_name = (assignment.teacher.get_full_name() or assignment.teacher.username) if assignment else "Unassigned"
+        except Exception:
+            teacher_name = "Unassigned"
+
         data.append({
-            "subject_id": subject.id,
-            "subject_name": subject.name,
-            "subject_code": subject.code,
-            "teacher": subject.teacher.get_full_name() or subject.teacher.username,
+            "subject_id": offering.subject.id,
+            "offering_id": offering.id,
+            "id": offering.id,
+            "subject_name": offering.subject.name,
+            "subject_code": offering.subject.code,
+            "teacher": teacher_name,
+            "branch": offering.branch.name,
+            "semester": offering.semester.number,
             "feedback_submitted": given
         })
 
+    print(f"[student/subjects] Returning {len(data)} subjects for {request.user.username}")
     return Response(data)
 
 
@@ -331,37 +352,43 @@ def _get_sentiment_summary(feedbacks):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def teacher_dashboard(request):
-    if request.user.role != 'teacher':
-        return Response({'error': 'Only teachers allowed'}, status=403)
-
-    subjects = Subject.objects.filter(teacher=request.user)
+    if request.user.role != 'teacher': return Response({'error': 'Only teachers allowed'}, status=403)
+    offerings = SubjectOffering.objects.filter(assignment__teacher=request.user, assignment__is_active=True)
+    view_mode = request.query_params.get('view', 'combined')
     data = []
 
-    for subject in subjects:
-        feedbacks = Feedback.objects.filter(subject=subject)
-        agg = feedbacks.aggregate(
-            avg_punctuality=Avg('punctuality_rating'),
-            avg_teaching=Avg('teaching_rating'),
-            avg_clarity=Avg('clarity_rating'),
-            avg_interaction=Avg('interaction_rating'),
-            avg_behavior=Avg('behavior_rating'),
-            avg_overall=Avg('overall_rating'),
-        )
-
-        data.append({
-            "subject_id": subject.id,
-            "subject_name": subject.name,
-            "subject_code": subject.code,
-            "feedback_count": feedbacks.count(),
-            "avg_punctuality": round(agg['avg_punctuality'] or 0, 2),
-            "avg_teaching": round(agg['avg_teaching'] or 0, 2),
-            "avg_clarity": round(agg['avg_clarity'] or 0, 2),
-            "avg_interaction": round(agg['avg_interaction'] or 0, 2),
-            "avg_behavior": round(agg['avg_behavior'] or 0, 2),
-            "avg_overall": round(agg['avg_overall'] or 0, 2),
-            "performance": _get_performance_label(agg['avg_overall']),
-            "sentiment_summary": _get_sentiment_summary(feedbacks),
-        })
+    if view_mode == 'combined':
+        subjects = Subject.objects.filter(offerings__in=offerings).distinct()
+        for subject in subjects:
+            feedbacks = Feedback.objects.filter(offering__in=offerings, offering__subject=subject)
+            agg = feedbacks.aggregate(
+                avg_punctuality=Avg('punctuality_rating'), avg_teaching=Avg('teaching_rating'),
+                avg_clarity=Avg('clarity_rating'), avg_interaction=Avg('interaction_rating'),
+                avg_behavior=Avg('behavior_rating'), avg_overall=Avg('overall_rating')
+            )
+            data.append({
+                "subject_id": subject.id,
+                "subject_name": subject.name, "subject_code": subject.code,
+                "feedback_count": feedbacks.count(), "performance": _get_performance_label(agg['avg_overall']),
+                "sentiment_summary": _get_sentiment_summary(feedbacks),
+                **{k: round(v or 0, 2) for k, v in agg.items()}
+            })
+    else:
+        for offering in offerings:
+            feedbacks = Feedback.objects.filter(offering=offering)
+            agg = feedbacks.aggregate(
+                avg_punctuality=Avg('punctuality_rating'), avg_teaching=Avg('teaching_rating'),
+                avg_clarity=Avg('clarity_rating'), avg_interaction=Avg('interaction_rating'),
+                avg_behavior=Avg('behavior_rating'), avg_overall=Avg('overall_rating')
+            )
+            name_suffix = f" ({offering.branch.code} Sem {offering.semester.number})"
+            data.append({
+                "subject_id": offering.id,
+                "subject_name": offering.subject.name + name_suffix, "subject_code": offering.subject.code,
+                "feedback_count": feedbacks.count(), "performance": _get_performance_label(agg['avg_overall']),
+                "sentiment_summary": _get_sentiment_summary(feedbacks),
+                **{k: round(v or 0, 2) for k, v in agg.items()}
+            })
 
     return Response(data)
 
@@ -369,26 +396,34 @@ def teacher_dashboard(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def teacher_performance(request):
-    if request.user.role != 'teacher':
-        return Response({'error': 'Only teachers allowed'}, status=403)
-
-    subjects = Subject.objects.filter(teacher=request.user)
+    if request.user.role != 'teacher': return Response({'error': 'Only teachers allowed'}, status=403)
+    offerings = SubjectOffering.objects.filter(assignment__teacher=request.user, assignment__is_active=True)
+    all_feedback = Feedback.objects.filter(offering__in=offerings)
+    
+    overall_avg = round(all_feedback.aggregate(avg=Avg('overall_rating'))['avg'] or 0, 2)
+    view_mode = request.query_params.get('view', 'combined')
     subject_performance = []
-
-    all_feedback = Feedback.objects.filter(subject__teacher=request.user)
-    overall_agg = all_feedback.aggregate(avg_overall=Avg('overall_rating'))
-    overall_avg = round(overall_agg['avg_overall'] or 0, 2)
-
-    for subject in subjects:
-        feedbacks = Feedback.objects.filter(subject=subject)
-        avg = feedbacks.aggregate(avg_overall=Avg('overall_rating'))['avg_overall']
-        subject_performance.append({
-            "subject_name": subject.name,
-            "subject_code": subject.code,
-            "avg_overall": round(avg or 0, 2),
-            "feedback_count": feedbacks.count(),
-            "performance": _get_performance_label(avg),
-        })
+    
+    if view_mode == 'combined':
+        subjects = Subject.objects.filter(offerings__in=offerings).distinct()
+        for subject in subjects:
+            feedbacks = Feedback.objects.filter(offering__in=offerings, offering__subject=subject)
+            avg = feedbacks.aggregate(avg=Avg('overall_rating'))['avg']
+            subject_performance.append({
+                "subject_name": subject.name, "subject_code": subject.code,
+                "avg_overall": round(avg or 0, 2), "feedback_count": feedbacks.count(),
+                "performance": _get_performance_label(avg),
+            })
+    else:
+        for offering in offerings:
+            feedbacks = Feedback.objects.filter(offering=offering)
+            avg = feedbacks.aggregate(avg=Avg('overall_rating'))['avg']
+            name_suffix = f" ({offering.branch.code} Sem {offering.semester.number})"
+            subject_performance.append({
+                "subject_name": offering.subject.name + name_suffix, "subject_code": offering.subject.code,
+                "avg_overall": round(avg or 0, 2), "feedback_count": feedbacks.count(),
+                "performance": _get_performance_label(avg),
+            })
 
     return Response({
         "subject_performance": subject_performance,
@@ -401,22 +436,18 @@ def teacher_performance(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def teacher_analytics(request):
-    if request.user.role != 'teacher':
-        return Response({'error': 'Only teachers allowed'}, status=403)
-
-    subjects = Subject.objects.filter(teacher=request.user)
+    if request.user.role != 'teacher': return Response({'error': 'Only teachers allowed'}, status=403)
+    offerings = SubjectOffering.objects.filter(assignment__teacher=request.user, assignment__is_active=True)
     data = []
-
-    for subject in subjects:
-        feedbacks = Feedback.objects.filter(subject=subject)
+    for offering in offerings:
+        feedbacks = Feedback.objects.filter(offering=offering)
         avg = feedbacks.aggregate(Avg('overall_rating'))['overall_rating__avg']
         data.append({
-            "subject_name": subject.name,
-            "subject_code": subject.code,
+            "subject_name": f"{offering.subject.name} ({offering.branch.code} Sem {offering.semester.number})",
+            "subject_code": offering.subject.code,
             "average_rating": round(avg, 2) if avg else None,
             "feedback_count": feedbacks.count()
         })
-
     return Response(data)
 
 
@@ -424,88 +455,51 @@ def teacher_analytics(request):
 @permission_classes([IsAuthenticated])
 def teacher_performance_charts(request):
     """Return chart-ready data for the teacher performance dashboard."""
-    if request.user.role != 'teacher':
-        return Response({'error': 'Only teachers allowed'}, status=403)
+    if request.user.role != 'teacher': return Response({'error': 'Only teachers allowed'}, status=403)
+    offerings = SubjectOffering.objects.filter(assignment__teacher=request.user, assignment__is_active=True)
+    all_feedback = Feedback.objects.filter(offering__in=offerings)
+    view_mode = request.query_params.get('view', 'combined')
 
+    subject_labels, subject_values = [], []
+    if view_mode == 'combined':
+        subjects = Subject.objects.filter(offerings__in=offerings).distinct()
+        for subject in subjects:
+            avg = Feedback.objects.filter(offering__in=offerings, offering__subject=subject).aggregate(avg=Avg('overall_rating'))['avg']
+            subject_labels.append(subject.name)
+            subject_values.append(round(avg or 0, 2))
+    else:
+        for offering in offerings:
+            avg = Feedback.objects.filter(offering=offering).aggregate(avg=Avg('overall_rating'))['avg']
+            name_suffix = f" {offering.branch.code} S{offering.semester.number}"
+            subject_labels.append(offering.subject.name + name_suffix)
+            subject_values.append(round(avg or 0, 2))
 
-
-    subjects = Subject.objects.filter(teacher=request.user)
-    all_feedback = Feedback.objects.filter(subject__teacher=request.user)
-
-    # 1. Subject-wise average ratings (bar chart)
-    subject_labels = []
-    subject_values = []
-    for subject in subjects:
-        feedbacks = Feedback.objects.filter(subject=subject)
-        avg = feedbacks.aggregate(avg=Avg('overall_rating'))['avg']
-        subject_labels.append(subject.name)
-        subject_values.append(round(avg or 0, 2))
-
-    # 2. Category-wise averages across all subjects (radar/bar)
     cat_agg = all_feedback.aggregate(
-        avg_punctuality=Avg('punctuality_rating'),
-        avg_teaching=Avg('teaching_rating'),
-        avg_clarity=Avg('clarity_rating'),
-        avg_interaction=Avg('interaction_rating'),
-        avg_behavior=Avg('behavior_rating'),
+        avg_punctuality=Avg('punctuality_rating'), avg_teaching=Avg('teaching_rating'),
+        avg_clarity=Avg('clarity_rating'), avg_interaction=Avg('interaction_rating'),
+        avg_behavior=Avg('behavior_rating')
     )
     category_labels = ['Punctuality', 'Teaching', 'Clarity', 'Interaction', 'Behavior']
-    category_values = [
-        round(cat_agg['avg_punctuality'] or 0, 2),
-        round(cat_agg['avg_teaching'] or 0, 2),
-        round(cat_agg['avg_clarity'] or 0, 2),
-        round(cat_agg['avg_interaction'] or 0, 2),
-        round(cat_agg['avg_behavior'] or 0, 2),
-    ]
+    category_values = [round(cat_agg[f'avg_{k.lower()}'] or 0, 2) for k in category_labels]
 
-    # 3. Rating distribution (pie chart: Excellent/Good/Average/Poor)
     total = all_feedback.count()
     excellent = all_feedback.filter(overall_rating__gte=4).count()
     good = all_feedback.filter(overall_rating__gte=3, overall_rating__lt=4).count()
     average = all_feedback.filter(overall_rating__gte=2, overall_rating__lt=3).count()
     poor = all_feedback.filter(overall_rating__lt=2).count()
 
-    # 4. Monthly trend (last 6 months)
     try:
-        monthly = (
-            all_feedback
-            .annotate(month=TruncMonth('created_at'))
-            .values('month')
-            .annotate(avg_rating=Avg('overall_rating'), count=Count('id'))
-            .order_by('month')
-        )
-        trend_labels = []
-        trend_values = []
-        for entry in monthly[-6:]:
-            trend_labels.append(entry['month'].strftime('%b %Y'))
-            trend_values.append(round(entry['avg_rating'] or 0, 2))
+        monthly = all_feedback.annotate(month=TruncMonth('created_at')).values('month').annotate(avg_rating=Avg('overall_rating')).order_by('month')
+        trend_labels = [entry['month'].strftime('%b %Y') for entry in monthly[-6:]]
+        trend_values = [round(entry['avg_rating'] or 0, 2) for entry in monthly[-6:]]
     except Exception:
-        # Fallback if there's any issue with the monthly query
-        trend_labels = ['No Data']
-        trend_values = [0]
-
-    # Handle empty data gracefully
-    if not trend_labels:
-        trend_labels = ['No Data']
-        trend_values = [0]
+        trend_labels, trend_values = ['No Data'], [0]
 
     return Response({
-        'subject_ratings': {
-            'labels': subject_labels,
-            'values': subject_values,
-        },
-        'category_averages': {
-            'labels': category_labels,
-            'values': category_values,
-        },
-        'rating_distribution': {
-            'labels': ['Excellent (4-5)', 'Good (3-4)', 'Average (2-3)', 'Poor (1-2)'],
-            'values': [excellent, good, average, poor],
-        },
-        'monthly_trend': {
-            'labels': trend_labels,
-            'values': trend_values,
-        },
+        'subject_ratings': {'labels': subject_labels, 'values': subject_values},
+        'category_averages': {'labels': category_labels, 'values': category_values},
+        'rating_distribution': {'labels': ['Excellent (4-5)', 'Good (3-4)', 'Average (2-3)', 'Poor (1-2)'], 'values': [excellent, good, average, poor]},
+        'monthly_trend': {'labels': trend_labels or ['No Data'], 'values': trend_values or [0]},
         'total_feedback': total,
     })
 
@@ -606,7 +600,8 @@ def hod_dashboard_overview(request):
     teacher_ratings = []
     for teacher in teachers:
         t_avg = Feedback.objects.filter(
-            subject__teacher=teacher
+            offering__assignment__teacher=teacher,
+            offering__assignment__is_active=True
         ).aggregate(avg=Avg('overall_rating'))['avg']
         if t_avg is not None:
             teacher_ratings.append({
@@ -638,8 +633,8 @@ def hod_teachers(request):
     data = []
 
     for teacher in teachers:
-        subjects = Subject.objects.filter(teacher=teacher)
-        feedbacks = Feedback.objects.filter(subject__teacher=teacher)
+        subjects = Subject.objects.filter(offerings__assignment__teacher=teacher, offerings__assignment__is_active=True).distinct()
+        feedbacks = Feedback.objects.filter(offering__assignment__teacher=teacher, offering__assignment__is_active=True)
         avg = feedbacks.aggregate(avg=Avg('overall_rating'))['avg']
 
         data.append({
@@ -667,14 +662,14 @@ def hod_teacher_detail(request, pk):
     except User.DoesNotExist:
         return Response({'error': 'Teacher not found'}, status=404)
 
-    subjects = Subject.objects.filter(teacher=teacher)
+    subjects = Subject.objects.filter(offerings__assignment__teacher=teacher, offerings__assignment__is_active=True).distinct()
     subject_data = []
 
-    all_feedback = Feedback.objects.filter(subject__teacher=teacher)
+    all_feedback = Feedback.objects.filter(offering__assignment__teacher=teacher, offering__assignment__is_active=True)
     overall_avg = all_feedback.aggregate(avg=Avg('overall_rating'))['avg']
 
     for subject in subjects:
-        feedbacks = Feedback.objects.filter(subject=subject)
+        feedbacks = Feedback.objects.filter(offering__subject=subject, offering__assignment__teacher=teacher, offering__assignment__is_active=True)
         agg = feedbacks.aggregate(
             avg_punctuality=Avg('punctuality_rating'),
             avg_teaching=Avg('teaching_rating'),
@@ -729,8 +724,8 @@ def hod_send_report(request):
     except User.DoesNotExist:
         return Response({'error': 'Teacher not found'}, status=404)
 
-    subjects = Subject.objects.filter(teacher=teacher)
-    all_feedback = Feedback.objects.filter(subject__teacher=teacher)
+    subjects = Subject.objects.filter(offerings__assignment__teacher=teacher, offerings__assignment__is_active=True).distinct()
+    all_feedback = Feedback.objects.filter(offering__assignment__teacher=teacher, offering__assignment__is_active=True)
     overall_avg = all_feedback.aggregate(avg=Avg('overall_rating'))['avg']
 
     # Build email body
@@ -741,7 +736,7 @@ def hod_send_report(request):
     ]
 
     for subject in subjects:
-        feedbacks = Feedback.objects.filter(subject=subject)
+        feedbacks = Feedback.objects.filter(offering__subject=subject, offering__assignment__teacher=teacher, offering__assignment__is_active=True)
         avg = feedbacks.aggregate(avg=Avg('overall_rating'))['avg']
         sentiment = _get_sentiment_summary(feedbacks)
         performance = _get_performance_label(avg)
@@ -834,7 +829,7 @@ def hod_analytics(request):
     teachers = User.objects.filter(role='teacher')
     ranking = []
     for teacher in teachers:
-        feedbacks = Feedback.objects.filter(subject__teacher=teacher)
+        feedbacks = Feedback.objects.filter(offering__assignment__teacher=teacher, offering__assignment__is_active=True)
         avg = feedbacks.aggregate(avg=Avg('overall_rating'))['avg']
         if avg is not None:
             ranking.append({
@@ -847,15 +842,21 @@ def hod_analytics(request):
     ranking.sort(key=lambda x: x['avg_rating'], reverse=True)
 
     # Subject performance
-    subjects = Subject.objects.all()
+    subjects = Subject.objects.prefetch_related('offerings__assignment__teacher').all()
     subject_performance = []
     for subject in subjects:
-        feedbacks = Feedback.objects.filter(subject=subject)
+        feedbacks = Feedback.objects.filter(offering__subject=subject)
         avg = feedbacks.aggregate(avg=Avg('overall_rating'))['avg']
+        teachers = list(set(
+            assign.teacher.get_full_name() or assign.teacher.username 
+            for off in subject.offerings.all() 
+            for assign in ([off.assignment] if hasattr(off, 'assignment') and off.assignment.is_active else [])
+        ))
+        teacher_names = ", ".join(teachers) if teachers else "Unassigned"
         subject_performance.append({
             'subject_name': subject.name,
             'subject_code': subject.code,
-            'teacher': subject.teacher.get_full_name() or subject.teacher.username,
+            'teacher': teacher_names,
             'avg_rating': round(avg, 2) if avg else 0,
             'feedback_count': feedbacks.count(),
         })
@@ -890,11 +891,11 @@ def hod_statistics(request):
     if request.user.role != 'hod':
         return Response({'error': 'Only HOD allowed'}, status=403)
 
-    subjects = Subject.objects.all()
+    subjects = Subject.objects.prefetch_related('offerings__assignment__teacher').all()
     stats = []
 
     for subject in subjects:
-        feedbacks = Feedback.objects.filter(subject=subject)
+        feedbacks = Feedback.objects.filter(offering__subject=subject)
         agg = feedbacks.aggregate(
             avg_overall=Avg('overall_rating'),
             avg_punctuality=Avg('punctuality_rating'),
@@ -903,11 +904,17 @@ def hod_statistics(request):
             avg_interaction=Avg('interaction_rating'),
             avg_behavior=Avg('behavior_rating'),
         )
+        teachers = list(set(
+            assign.teacher.get_full_name() or assign.teacher.username 
+            for off in subject.offerings.all() 
+            for assign in ([off.assignment] if hasattr(off, 'assignment') and off.assignment.is_active else [])
+        ))
+        teacher_names = ", ".join(teachers) if teachers else "Unassigned"
 
         stats.append({
             "subject": subject.name,
             "subject_code": subject.code,
-            "teacher": subject.teacher.get_full_name() or subject.teacher.username,
+            "teacher": teacher_names,
             "total_feedback": feedbacks.count(),
             "avg_overall": round(agg['avg_overall'] or 0, 2),
             "avg_punctuality": round(agg['avg_punctuality'] or 0, 2),
@@ -948,18 +955,20 @@ def hod_report(request):
     if request.user.role != 'hod':
         return Response({'error': 'Only HOD allowed'}, status=403)
 
-    subjects = Subject.objects.select_related('teacher').all()
+    offerings = SubjectOffering.objects.prefetch_related('assignment__teacher').all()
     report = []
 
-    for subject in subjects:
-        feedbacks = Feedback.objects.filter(subject=subject)
+    for offering in offerings:
+        feedbacks = Feedback.objects.filter(offering=offering)
         avg = feedbacks.aggregate(avg=Avg('overall_rating'))['avg']
+        assignment = offering.assignment if hasattr(offering, 'assignment') and offering.assignment.is_active else None
+        teacher = assignment.teacher if assignment else None
 
         report.append({
-            "subject": subject.name,
-            "subject_code": subject.code,
-            "teacher": subject.teacher.get_full_name() or subject.teacher.username,
-            "teacher_email": subject.teacher.email,
+            "subject": f"{offering.subject.name} ({offering.branch.code} Sem {offering.semester.number})",
+            "subject_code": offering.subject.code,
+            "teacher": teacher.get_full_name() or teacher.username if teacher else "Unassigned",
+            "teacher_email": teacher.email if teacher else "",
             "feedback_count": feedbacks.count(),
             "average_rating": round(avg, 2) if avg else None,
             "performance": _get_performance_label(avg),
@@ -1028,18 +1037,24 @@ def feedback_analysis(request):
     if request.user.role != 'hod':
         return Response({'error': 'Only HOD allowed'}, status=403)
 
-    subjects = Subject.objects.all()
+    subjects = Subject.objects.prefetch_related('offerings__assignment__teacher').all()
     analysis = []
 
     for subject in subjects:
-        feedbacks = Feedback.objects.filter(subject=subject)
+        feedbacks = Feedback.objects.filter(offering__subject=subject)
         avg = feedbacks.aggregate(Avg('overall_rating'))['overall_rating__avg']
         total = feedbacks.count()
+        teachers = list(set(
+            assign.teacher.get_full_name() or assign.teacher.username 
+            for off in subject.offerings.all() 
+            for assign in ([off.assignment] if hasattr(off, 'assignment') and off.assignment.is_active else [])
+        ))
+        teacher_names = ", ".join(teachers) if teachers else "Unassigned"
 
         analysis.append({
             "subject": subject.name,
             "subject_code": subject.code,
-            "teacher": subject.teacher.get_full_name() or subject.teacher.username,
+            "teacher": teacher_names,
             "total_feedback": total,
             "average_rating": round(avg, 2) if avg else None,
             "performance": _get_performance_label(avg),
@@ -1126,10 +1141,10 @@ def export_report(request):
 
     y = height - 110
 
-    subjects = Subject.objects.select_related('teacher').all()
+    offerings = SubjectOffering.objects.prefetch_related('assignment__teacher').all()
 
-    for subject in subjects:
-        feedbacks = Feedback.objects.filter(subject=subject)
+    for offering in offerings:
+        feedbacks = Feedback.objects.filter(offering=offering)
         agg = feedbacks.aggregate(
             avg_overall=Avg('overall_rating'),
             avg_punctuality=Avg('punctuality_rating'),
@@ -1147,11 +1162,16 @@ def export_report(request):
             y = height - 50
 
         p.setFont("Helvetica-Bold", 12)
-        p.drawString(60, y, f"Subject: {subject.name} ({subject.code})")
+        suffix = f"({offering.branch.code} Sem {offering.semester.number})"
+        p.drawString(60, y, f"Subject: {offering.subject.name} {suffix}")
         y -= 18
 
+        assignment = offering.assignment if hasattr(offering, 'assignment') and offering.assignment.is_active else None
+        teacher = assignment.teacher if assignment else None
+        teacher_name = teacher.get_full_name() or teacher.username if teacher else "Unassigned"
+
         p.setFont("Helvetica", 10)
-        p.drawString(80, y, f"Teacher: {subject.teacher.get_full_name() or subject.teacher.username}")
+        p.drawString(80, y, f"Teacher: {teacher_name}")
         y -= 16
         p.drawString(80, y, f"Total Feedback: {count}")
         y -= 16
@@ -1186,8 +1206,8 @@ def hod_teacher_report(request, pk):
     except User.DoesNotExist:
         return Response({'error': 'Teacher not found'}, status=404)
 
-    subjects = Subject.objects.filter(teacher=teacher)
-    all_feedback = Feedback.objects.filter(subject__teacher=teacher)
+    subjects = Subject.objects.filter(offerings__assignment__teacher=teacher, offerings__assignment__is_active=True).distinct()
+    all_feedback = Feedback.objects.filter(offering__assignment__teacher=teacher, offering__assignment__is_active=True)
     
     overall_avg = all_feedback.aggregate(avg=Avg('overall_rating'))['avg']
     total_feedback = all_feedback.count()
@@ -1267,7 +1287,7 @@ def hod_department_report(request):
     # Teachers list with avg rating
     teachers_list = []
     for teacher in teachers:
-        fbs = Feedback.objects.filter(subject__teacher=teacher)
+        fbs = Feedback.objects.filter(offering__assignment__teacher=teacher, offering__assignment__is_active=True)
         avg = fbs.aggregate(avg=Avg('overall_rating'))['avg']
         teachers_list.append({
             "name": teacher.get_full_name() or teacher.username,
@@ -1281,11 +1301,47 @@ def hod_department_report(request):
     dept_avg = all_feedback.aggregate(avg=Avg('overall_rating'))['avg']
     total_feedback = all_feedback.count()
     
+    # Year Performance
+    year_perf = {}
+    for sem in Semester.objects.all():
+        year_num = (sem.number + 1) // 2
+        fbs = all_feedback.filter(offering__semester=sem)
+        avg = fbs.aggregate(avg=Avg('overall_rating'))['avg']
+        count = fbs.count()
+        if count > 0:
+            key = str(year_num)
+            if key not in year_perf:
+                year_perf[key] = {"total_rating": 0, "count": 0}
+            year_perf[key]["total_rating"] += (avg or 0) * count
+            year_perf[key]["count"] += count
+            
+    year_performance = []
+    for y, data in year_perf.items():
+        year_performance.append({
+            "year": f"Year {y}",
+            "avg_rating": round(data["total_rating"] / data["count"], 2),
+            "feedback_count": data["count"]
+        })
+    year_performance.sort(key=lambda x: x["year"])
+
+    # Branch Performance
+    branches = Branch.objects.all()
+    branch_performance = []
+    for branch in branches:
+        fbs = all_feedback.filter(offering__branch=branch)
+        avg = fbs.aggregate(avg=Avg('overall_rating'))['avg']
+        if fbs.exists():
+            branch_performance.append({
+                "name": branch.code,
+                "avg_rating": round(avg or 0, 2),
+                "feedback_count": fbs.count()
+            })
+
     # Subject-wise
     subjects = Subject.objects.all()
     subject_perf = []
     for subject in subjects:
-        fbs = Feedback.objects.filter(subject=subject)
+        fbs = Feedback.objects.filter(offering__subject=subject)
         avg = fbs.aggregate(avg=Avg('overall_rating'))['avg']
         subject_perf.append({
             "name": subject.name,
@@ -1326,6 +1382,8 @@ def hod_department_report(request):
         "growth_indicator": growth,
         "recent_avg": round(recent_avg, 2),
         "older_avg": round(older_avg, 2),
+        "year_performance": year_performance,
+        "branch_performance": branch_performance,
     })
 
 
@@ -1392,14 +1450,14 @@ def enroll_student(request):
         return Response({'error': 'Subject not found'}, status=404)
 
     # Branch / Semester validation
-    if student.branch and subject.branches.exists() and not subject.branches.filter(id=student.branch.id).exists():
+    if student.student_profile.branch and subject.branches.exists() and not subject.branches.filter(id=student.student_profile.branch.id).exists():
         return Response(
-            {'error': f'Branch mismatch: student is in {student.branch.name} but subject is not offered to this branch'},
+            {'error': f'Branch mismatch: student is in {student.student_profile.branch.name} but subject is not offered to this branch'},
             status=400
         )
-    if subject.semester and student.semester and student.semester != subject.semester:
+    if subject.semester and student.student_profile.semester and student.student_profile.semester != subject.semester:
         return Response(
-            {'error': f'Semester mismatch: student is in semester {student.semester.number} but subject belongs to semester {subject.semester.number}'},
+            {'error': f'Semester mismatch: student is in semester {student.student_profile.semester.number} but subject belongs to semester {subject.semester.number}'},
             status=400
         )
 
@@ -1440,18 +1498,18 @@ def bulk_enroll(request):
             continue
 
         # Branch validation
-        if student.branch and subject.branches.exists() and not subject.branches.filter(id=student.branch.id).exists():
+        if student.student_profile.branch and subject.branches.exists() and not subject.branches.filter(id=student.student_profile.branch.id).exists():
             errors.append({
                 'student_id': sid,
-                'error': f'Branch mismatch ({student.branch.name} vs subject branches)'
+                'error': f'Branch mismatch ({student.student_profile.branch.name} vs subject branches)'
             })
             continue
 
         # Semester validation
-        if subject.semester and student.semester and student.semester != subject.semester:
+        if subject.semester and student.student_profile.semester and student.student_profile.semester != subject.semester:
             errors.append({
                 'student_id': sid,
-                'error': f'Semester mismatch (sem {student.semester.number} vs sem {subject.semester.number})'
+                'error': f'Semester mismatch (sem {student.student_profile.semester.number} vs sem {subject.semester.number})'
             })
             continue
 
@@ -1531,25 +1589,568 @@ def enrollment_form_data(request):
     if request.user.role not in ('hod', 'admin'):
         return Response({'error': 'Only HOD/Admin allowed'}, status=403)
 
-    students = User.objects.filter(role='student').values(
-        'id', 'username', 'first_name', 'last_name',
-        'enrollment_no', 'branch_id', 'semester_id'
-    )
-    subjects = Subject.objects.select_related('teacher', 'semester').prefetch_related('branches').all()
-    subject_data = []
-    for s in subjects:
-        branch_ids = [b.id for b in s.branches.all()]
-        subject_data.append({
+    # Build student list with nested student_profile
+    students_qs = User.objects.filter(role='student').select_related(
+        'student_profile__branch', 'student_profile__semester'
+    ).order_by('username')
+    
+    students_data = []
+    for s in students_qs:
+        profile = None
+        if hasattr(s, 'student_profile'):
+            try:
+                sp = s.student_profile
+                profile = {
+                    'branch_code': sp.branch.code if sp.branch else None,
+                    'semester_number': sp.semester.number if sp.semester else None,
+                }
+            except Exception:
+                profile = None
+        
+        full_name = f"{s.first_name} {s.last_name}".strip() if s.first_name else s.username
+        students_data.append({
             'id': s.id,
-            'name': s.name,
-            'code': s.code,
-            'teacher_name': s.teacher.get_full_name() or s.teacher.username,
-            'branch_ids': branch_ids,
-            'semester_id': s.semester_id,
-            'semester_number': s.semester.number if s.semester else None,
+            'username': s.username,
+            'first_name': s.first_name,
+            'last_name': s.last_name,
+            'full_name': full_name,
+            'email': s.email,
+            'enrollment_no': s.enrollment_no,
+            'is_first_login': s.is_first_login,
+            'student_profile': profile,
+            # Also keep flat keys for backward compat
+            'branch_code': profile['branch_code'] if profile else None,
+            'semester_number': profile['semester_number'] if profile else None,
         })
 
+    offerings = SubjectOffering.objects.select_related('subject', 'branch', 'semester').all()
+    offering_data = []
+    for o in offerings:
+        teacher_name = "-"
+        try:
+            if hasattr(o, 'assignment') and o.assignment.is_active and o.assignment.teacher:
+                teacher_name = o.assignment.teacher.get_full_name() or o.assignment.teacher.username
+        except Exception:
+            teacher_name = "-"
+
+        offering_data.append({
+            'id': o.id,
+            'subject_name': o.subject.name,
+            'subject_code': o.subject.code,
+            'teacher_name': teacher_name,
+            'branch_id': o.branch.id,
+            'branch_code': o.branch.code,
+            'semester_id': o.semester.id,
+            'semester_number': o.semester.number,
+        })
+
+    print(f"[enrollment_form_data] Returning {len(students_data)} students, {len(offering_data)} offerings")
     return Response({
-        'students': list(students),
-        'subjects': subject_data,
+        'students': students_data,
+        'subjects': offering_data,
+    })
+
+
+# ============================================================
+# BULK OPERATIONS
+# ============================================================
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def bulk_upload_students(request):
+    """
+    HOD/Admin: Upload students via CSV
+    CSV Format: full_name, email, enrollment_no, department_name
+    """
+    if request.user.role not in ['hod', 'admin']:
+        return Response({'error': 'Only HOD/Admin can upload students'}, status=403)
+    
+    file = request.FILES.get('file')
+    if not file:
+        return Response({'error': 'Please provide a CSV file'}, status=400)
+    
+    try:
+        decoded_file = file.read().decode('utf-8')
+        io_string = io.StringIO(decoded_file)
+        reader = csv.DictReader(io_string)
+        
+        created_count = 0
+        skipped_count = 0
+        errors = []
+        
+        for row in reader:
+            try:
+                enrollment_no = row.get('enrollment_no')
+                email = row.get('email')
+                full_name = row.get('full_name', '')
+                dept_name = row.get('department_name')
+                
+                if not enrollment_no:
+                    errors.append({'row': row, 'error': 'Enrollment number is required'})
+                    continue
+                
+                if User.objects.filter(enrollment_no=enrollment_no).exists():
+                    skipped_count += 1
+                    continue
+                
+                # Split name
+                name_parts = full_name.split(' ', 1)
+                first_name = name_parts[0]
+                last_name = name_parts[1] if len(name_parts) > 1 else ''
+                
+                # Get department
+                dept = None
+                if dept_name:
+                    dept = Department.objects.filter(name__iexact=dept_name).first()
+                
+                user = User.objects.create_user(
+                    username=enrollment_no,
+                    email=email if email else f"{enrollment_no}@student.com",
+                    password=enrollment_no, # Default password
+                    first_name=first_name,
+                    last_name=last_name,
+                    role='student',
+                    enrollment_no=enrollment_no,
+                    department=dept,
+                    is_first_login=True
+                )
+                created_count += 1
+            except Exception as e:
+                errors.append({'row': row, 'error': str(e)})
+        
+        return Response({
+            'message': f'Successfully processed students',
+            'created': created_count,
+            'skipped': skipped_count,
+            'errors': errors
+        }, status=status.HTTP_201_CREATED)
+        
+    except Exception as e:
+        return Response({'error': f'Failed to parse CSV: {str(e)}'}, status=400)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def bulk_delete_students(request):
+    """
+    HOD/Admin: Delete multiple students
+    """
+    if request.user.role not in ['hod', 'admin']:
+        return Response({'error': 'Only HOD/Admin can delete students'}, status=403)
+    
+    student_ids = request.data.get('student_ids', [])
+    if not student_ids:
+        return Response({'error': 'Please provide a list of student IDs'}, status=400)
+    
+    deleted_count, _ = User.objects.filter(id__in=student_ids, role='student').delete()
+    return Response({'message': f'Successfully deleted {deleted_count} students'})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def bulk_enroll_students_semester(request):
+    """
+    HOD/Admin: Assign multiple students to a branch and semester (StudentSemester)
+    """
+    if request.user.role not in ['hod', 'admin']:
+        return Response({'error': 'Only HOD/Admin can enroll students'}, status=403)
+    
+    student_ids = request.data.get('student_ids', [])
+    branch_id = request.data.get('branch_id')
+    semester_id = request.data.get('semester_id')
+    
+    if not all([student_ids, branch_id, semester_id]):
+        return Response({'error': 'student_ids, branch_id, and semester_id are required'}, status=400)
+    
+    try:
+        branch = Branch.objects.get(pk=branch_id)
+        semester = Semester.objects.get(pk=semester_id)
+        
+        enrolled_count = 0
+        for sid in student_ids:
+            try:
+                student = User.objects.get(pk=sid, role='student')
+                StudentSemester.objects.update_or_create(
+                    student=student,
+                    defaults={'branch': branch, 'semester': semester}
+                )
+                enrolled_count += 1
+            except Exception:
+                continue
+                
+        return Response({'message': f'Successfully enrolled {enrolled_count} students in {branch.code} Semester {semester.number}'})
+    except (Branch.DoesNotExist, Semester.DoesNotExist):
+        return Response({'error': 'Invalid branch or semester'}, status=400)
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+
+
+# ============================================================
+# NEW ACADEMIC MODEL VIEWS
+# ============================================================
+
+class BranchViewSet(viewsets.ModelViewSet):
+    """CRUD for academic branches"""
+    queryset = Branch.objects.all()
+    serializer_class = BranchSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        """Only HOD/Admin can modify branches"""
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            if self.request.user.role not in ['hod', 'admin']:
+                raise PermissionDenied("Only HOD/Admin can manage branches")
+        return [permission() for permission in self.permission_classes]
+
+
+class SemesterViewSet(viewsets.ModelViewSet):
+    """CRUD for academic semesters"""
+    queryset = Semester.objects.all()
+    serializer_class = SemesterSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        """Only HOD/Admin can modify semesters"""
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            if self.request.user.role not in ['hod', 'admin']:
+                raise PermissionDenied("Only HOD/Admin can manage semesters")
+        return [permission() for permission in self.permission_classes]
+
+
+class SubjectOfferingViewSet(viewsets.ModelViewSet):
+    """CRITICAL: Subject + Branch + Semester combinations"""
+    queryset = SubjectOffering.objects.select_related(
+        'subject', 'branch', 'semester'
+    ).prefetch_related('assignment__teacher')
+    serializer_class = SubjectOfferingSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Filter based on user role"""
+        user = self.request.user
+        queryset = super().get_queryset()
+        
+        if user.role == 'student':
+            # Students see offerings for their branch + semester
+            return queryset.filter(
+                branch=user.student_profile.branch,
+                semester=user.student_profile.semester,
+                is_active=True
+            )
+        elif user.role == 'teacher':
+            # Teachers see offerings they're assigned to
+            return queryset.filter(
+                assignment__teacher=user,
+                assignment__is_active=True,
+                is_active=True
+            ).distinct()
+        elif user.role in ['hod', 'admin']:
+            # HOD/Admin see all offerings
+            return queryset
+        
+        return queryset.none()
+
+    def get_permissions(self):
+        """Only HOD/Admin can modify offerings"""
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            if self.request.user.role not in ['hod', 'admin']:
+                raise PermissionDenied("Only HOD/Admin can manage subject offerings")
+        return [permission() for permission in self.permission_classes]
+
+    def create(self, request, *args, **kwargs):
+        """Use special serializer for creation with validation"""
+        if request.user.role not in ['hod', 'admin']:
+            raise PermissionDenied("Only HOD/Admin can create subject offerings")
+        
+        serializer = SubjectOfferingCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class SubjectAssignmentViewSet(viewsets.ModelViewSet):
+    """Teacher assignments to subject offerings"""
+    queryset = SubjectAssignment.objects.select_related(
+        'offering__subject', 'offering__branch', 'offering__semester', 'teacher'
+    )
+    serializer_class = SubjectAssignmentSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Filter based on user role"""
+        user = self.request.user
+        queryset = super().get_queryset()
+        
+        if user.role == 'teacher':
+            # Teachers see their own assignments
+            return queryset.filter(teacher=user)
+        elif user.role == 'student':
+            # Students shouldn't see assignments
+            return queryset.none()
+        elif user.role in ['hod', 'admin']:
+            # HOD/Admin see all assignments
+            return queryset
+        
+        return queryset.none()
+
+    def get_permissions(self):
+        """Only HOD/Admin can manage assignments"""
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            if self.request.user.role not in ['hod', 'admin']:
+                raise PermissionDenied("Only HOD/Admin can manage teacher assignments")
+        return [permission() for permission in self.permission_classes]
+
+    def create(self, request, *args, **kwargs):
+        """Use special serializer for assignment with validation"""
+        if request.user.role not in ['hod', 'admin']:
+            raise PermissionDenied("Only HOD/Admin can assign teachers")
+        
+        serializer = TeacherAssignmentSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def student_subjects_v2(request):
+    """
+    CRITICAL: Student sees subjects for THEIR branch + semester ONLY
+    Query: SubjectOffering.objects.filter(
+        branch=student.student_profile.branch,
+        semester=student.student_profile.semester
+    )
+    """
+    if request.user.role != 'student':
+        return Response({'error': 'Only students can access their subjects'}, status=403)
+    
+    try:
+        profile = request.user.student_profile
+    except StudentSemester.DoesNotExist:
+        return Response({'error': 'Student academic profile not found. Please contact HOD.'}, status=400)
+    
+    if not profile.branch or not profile.semester:
+        return Response({'error': 'Student branch or semester not set'}, status=400)
+    
+    # CORE QUERY: Get offerings for student's branch + semester
+    offerings = SubjectOffering.objects.filter(
+        branch=profile.branch,
+        semester=profile.semester,
+        is_active=True
+    ).select_related(
+        'subject', 'branch', 'semester'
+    ).prefetch_related(
+        'assignment__teacher'
+    )
+    
+    # Format response with teacher information
+    subjects_data = []
+    for offering in offerings:
+        # Get teacher from assignment
+        teacher_name = "Unassigned"
+        assignment = offering.assignment if hasattr(offering, 'assignment') and offering.assignment.is_active else None
+        if assignment and assignment.teacher:
+            teacher_name = assignment.teacher.get_full_name() or assignment.teacher.username
+        
+        # Check if feedback already submitted
+        feedback_submitted = Feedback.objects.filter(
+            student=request.user,
+            offering=offering
+        ).exists()
+        
+        subjects_data.append({
+            'id': offering.id,
+            'offering_id': offering.id,
+            'subject_id': offering.subject.id,
+            'subject_name': offering.subject.name,
+            'subject_code': offering.subject.code,
+            'subject_credits': offering.subject.credits,
+            'branch_name': offering.branch.name,
+            'branch_code': offering.branch.code,
+            'branch': offering.branch.name,
+            'semester_number': offering.semester.number,
+            'semester': offering.semester.number,
+            'semester_name': offering.semester.name,
+            'teacher': teacher_name,
+            'max_students': offering.max_students,
+            'feedback_submitted': feedback_submitted
+        })
+    
+    # Return FLAT ARRAY - the frontend expects response.data to be an array
+    print(f"[student-subjects] Returning {len(subjects_data)} subjects for {request.user.username} ({profile.branch.code} Sem {profile.semester.number})")
+    return Response(subjects_data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def student_dashboard(request):
+    """
+    Student dashboard with subjects and summary information
+    """
+    if request.user.role != 'student':
+        return Response({'error': 'Only students can access dashboard'}, status=403)
+    
+    try:
+        profile = request.user.student_profile
+    except StudentSemester.DoesNotExist:
+        return Response({'error': 'Student academic profile not found. Please contact HOD.'}, status=400)
+    
+    if not profile.branch or not profile.semester:
+        return Response({'error': 'Student branch or semester not set'}, status=400)
+    
+    # Get subjects for student
+    offerings = SubjectOffering.objects.filter(
+        branch=profile.branch,
+        semester=profile.semester,
+        is_active=True
+    ).select_related(
+        'subject', 'branch', 'semester'
+    ).prefetch_related(
+        'assignment__teacher'
+    )
+    
+    # Format response
+    subjects_data = []
+    total_subjects = 0
+    subjects_with_teacher = 0
+    
+    for offering in offerings:
+        total_subjects += 1
+        teacher_info = None
+        assignment = offering.assignments.filter(is_active=True).first()
+        if assignment and assignment.teacher:
+            subjects_with_teacher += 1
+            teacher_info = {
+                'id': assignment.teacher.id,
+                'name': assignment.teacher.get_full_name() or assignment.teacher.username,
+                'username': assignment.teacher.username
+            }
+        
+        subjects_data.append({
+            'id': offering.id,
+            'subject_name': offering.subject.name,
+            'subject_code': offering.subject.code,
+            'teacher': teacher_info,
+        })
+    
+    return Response({
+        'subjects': subjects_data,
+        'summary': {
+            'total_subjects': total_subjects,
+            'subjects_with_teacher': subjects_with_teacher,
+            'branch': profile.branch.name,
+            'semester': profile.semester.number,
+            'enrollment_no': request.user.enrollment_no
+        }
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def teacher_assignments(request):
+    """
+    Teacher sees subjects they're assigned to teach
+    """
+    if request.user.role != 'teacher':
+        return Response({'error': 'Only teachers can access their assignments'}, status=403)
+    
+    # Get teacher's active assignments
+    assignments = SubjectAssignment.objects.filter(
+        teacher=request.user,
+        is_active=True
+    ).select_related(
+        'offering__subject', 'offering__branch', 'offering__semester'
+    )
+    
+    assignments_data = []
+    for assignment in assignments:
+        offering = assignment.offering
+        
+        # Get feedback count for this offering
+        feedback_count = Feedback.objects.filter(offering=offering).count()
+        
+        assignments_data.append({
+            'id': assignment.id,
+            'offering_id': offering.id,
+            'subject_name': offering.subject.name,
+            'subject_code': offering.subject.code,
+            'branch_name': offering.branch.name,
+            'semester_number': offering.semester.number,
+            'assigned_date': assignment.assigned_date,
+            'feedback_count': feedback_count,
+            'max_students': offering.max_students
+        })
+    
+    return Response({
+        'assignments': assignments_data,
+        'teacher_info': {
+            'name': request.user.get_full_name() or request.user.username,
+            'username': request.user.username
+        }
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def assign_teacher(request):
+    """
+    HOD/Admin: Assign teacher to SubjectOffering
+    Validation: Prevent duplicate assignments
+    """
+    if request.user.role not in ['hod', 'admin']:
+        return Response({'error': 'Only HOD/Admin can assign teachers'}, status=403)
+    
+    serializer = TeacherAssignmentSerializer(data=request.data)
+    if serializer.is_valid():
+        assignment = serializer.save()
+        return Response({
+            'message': 'Teacher assigned successfully',
+            'assignment': TeacherAssignmentSerializer(assignment).data
+        }, status=status.HTTP_201_CREATED)
+    
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_offering_details(request, pk):
+    """
+    Get detailed information about a subject offering
+    """
+    try:
+        offering = SubjectOffering.objects.get(pk=pk)
+    except SubjectOffering.DoesNotExist:
+        return Response({'error': 'Subject offering not found'}, status=404)
+    
+    # Check permissions
+    user = request.user
+    if user.role == 'student':
+        # Students can only see offerings for their branch + semester
+        if offering.branch != user.student_profile.branch or offering.semester != user.student_profile.semester:
+            return Response({'error': 'Access denied'}, status=403)
+    elif user.role == 'teacher':
+        # Teachers can only see offerings they're assigned to
+        if not (hasattr(offering, 'assignment') and offering.assignment.teacher == user and offering.assignment.is_active):
+            return Response({'error': 'Access denied'}, status=403)
+    
+    # Get detailed information
+    serializer = SubjectOfferingSerializer(offering)
+    
+    # Additional stats
+    feedback_count = Feedback.objects.filter(offering=offering).count()
+    enrolled_students = User.objects.filter(
+        role='student',
+        student_profile__branch=offering.branch,
+        student_profile__semester=offering.semester
+    ).count()
+    
+    return Response({
+        'offering': serializer.data,
+        'stats': {
+            'feedback_count': feedback_count,
+            'enrolled_students': enrolled_students,
+            'capacity_percentage': round((enrolled_students / offering.max_students) * 100, 1) if offering.max_students > 0 else 0
+        }
     })

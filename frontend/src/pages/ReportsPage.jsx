@@ -5,7 +5,7 @@ import API from '../api';
 import Sidebar from '../components/Sidebar';
 import ReportToggle from '../components/ReportToggle';
 import EmailComposer from '../components/EmailComposer';
-import ExpandableChart from '../components/ExpandableChart';
+import ExpandableChartModal from '../components/ExpandableChartModal';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, PieChart, Pie, Cell, Legend
@@ -290,36 +290,32 @@ export default function ReportsPage() {
                   </div>
 
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 pb-20">
-                    <ExpandableChart 
-                      title="Rating Distribution" 
-                      isActive={activeChart === null || activeChart === 'rating'} 
-                      onActivate={() => setActiveChart(activeChart === 'rating' ? null : 'rating')}
-                    >
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={Object.entries(reportData.rating_distribution).map(([k,v]) => ({name: `${k} Star`, value: v}))} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)"/>
-                          <XAxis dataKey="name" stroke="#94a3b8" />
-                          <Tooltip contentStyle={chartTooltipStyle}/>
-                          <Bar dataKey="value" fill={COLORS.primary} radius={[4,4,0,0]} barSize={50} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </ExpandableChart>
+                    <div className="h-[350px]">
+                      <ExpandableChartModal title="Rating Distribution">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={Object.entries(reportData.rating_distribution).map(([k,v]) => ({name: `${k} Star`, value: v}))} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)"/>
+                            <XAxis dataKey="name" stroke="#94a3b8" />
+                            <Tooltip contentStyle={chartTooltipStyle}/>
+                            <Bar dataKey="value" fill={COLORS.primary} radius={[4,4,0,0]} barSize={50} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </ExpandableChartModal>
+                    </div>
 
-                    <ExpandableChart 
-                      title="Performance Trend (Monthly)" 
-                      isActive={activeChart === null || activeChart === 'trend'} 
-                      onActivate={() => setActiveChart(activeChart === 'trend' ? null : 'trend')}
-                    >
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={reportData.performance_trend.labels.map((l, i) => ({name: l, value: reportData.performance_trend.values[i]}))} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)"/>
-                          <XAxis dataKey="name" stroke="#94a3b8" />
-                          <YAxis domain={[0, 5]} stroke="#94a3b8" />
-                          <Tooltip contentStyle={chartTooltipStyle}/>
-                          <Line type="monotone" dataKey="value" stroke={COLORS.success} strokeWidth={4} dot={{ r: 6, strokeWidth: 2 }} activeDot={{ r: 8 }} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </ExpandableChart>
+                    <div className="h-[350px]">
+                      <ExpandableChartModal title="Performance Trend (Monthly)">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={reportData.performance_trend.labels.map((l, i) => ({name: l, value: reportData.performance_trend.values[i]}))} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)"/>
+                            <XAxis dataKey="name" stroke="#94a3b8" />
+                            <YAxis domain={[0, 5]} stroke="#94a3b8" />
+                            <Tooltip contentStyle={chartTooltipStyle}/>
+                            <Line type="monotone" dataKey="value" stroke={COLORS.success} strokeWidth={4} dot={{ r: 6, strokeWidth: 2 }} activeDot={{ r: 8 }} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </ExpandableChartModal>
+                    </div>
                   </div>
                 </>
               ) : (
@@ -354,46 +350,72 @@ export default function ReportsPage() {
                   </div>
 
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 pb-20">
-                     <ExpandableChart 
-                        title="Teacher Performance Overview" 
-                        isActive={activeChart === null || activeChart === 'teachers'} 
-                        onActivate={() => setActiveChart(activeChart === 'teachers' ? null : 'teachers')}
-                      >
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={reportData.teachers} margin={{ top: 20, right: 30, left: 0, bottom: 25 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)"/>
-                            <XAxis dataKey="name" stroke="#94a3b8" />
-                            <YAxis domain={[0, 5]} stroke="#94a3b8" />
-                            <Tooltip contentStyle={chartTooltipStyle} />
-                            <Bar dataKey="avg_rating" fill={COLORS.primary} radius={[4,4,0,0]} barSize={40} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </ExpandableChart>
+                     <div className="h-[350px]">
+                       <ExpandableChartModal title="Teacher Performance Overview">
+                         <ResponsiveContainer width="100%" height="100%">
+                           <BarChart data={reportData.teachers} margin={{ top: 20, right: 30, left: 0, bottom: 25 }}>
+                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)"/>
+                             <XAxis dataKey="name" stroke="#94a3b8" />
+                             <YAxis domain={[0, 5]} stroke="#94a3b8" />
+                             <Tooltip contentStyle={chartTooltipStyle} />
+                             <Bar dataKey="avg_rating" fill={COLORS.primary} radius={[4,4,0,0]} barSize={40} />
+                           </BarChart>
+                         </ResponsiveContainer>
+                       </ExpandableChartModal>
+                     </div>
 
-                      <ExpandableChart 
-                        title="Department Sentiment Analysis" 
-                        isActive={activeChart === null || activeChart === 'sentiment'} 
-                        onActivate={() => setActiveChart(activeChart === 'sentiment' ? null : 'sentiment')}
-                      >
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={[
-                                {name: 'Positive', value: reportData.sentiment_analysis.positive},
-                                {name: 'Neutral', value: reportData.sentiment_analysis.neutral},
-                                {name: 'Negative', value: reportData.sentiment_analysis.negative}
-                              ]}
-                              cx="50%" cy="50%" outerRadius={110} innerRadius={60} dataKey="value"
-                              labelLine={{ stroke: '#94a3b8' }}
-                              label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                            >
-                              {PIE_COLORS.map((color, index) => <Cell key={index} fill={color} />)}
-                            </Pie>
-                            <Tooltip contentStyle={chartTooltipStyle}/>
-                            <Legend wrapperStyle={{ color: '#94a3b8' }}/>
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </ExpandableChart>
+                      <div className="h-[350px]">
+                        <ExpandableChartModal title="Department Sentiment Analysis">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={[
+                                  {name: 'Positive', value: reportData.sentiment_analysis.positive},
+                                  {name: 'Neutral', value: reportData.sentiment_analysis.neutral},
+                                  {name: 'Negative', value: reportData.sentiment_analysis.negative}
+                                ]}
+                                cx="50%" cy="50%" outerRadius={110} innerRadius={60} dataKey="value"
+                                labelLine={{ stroke: '#94a3b8' }}
+                                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                              >
+                                {PIE_COLORS.map((color, index) => <Cell key={index} fill={color} />)}
+                              </Pie>
+                              <Tooltip contentStyle={chartTooltipStyle}/>
+                              <Legend wrapperStyle={{ color: '#94a3b8' }}/>
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </ExpandableChartModal>
+                      </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 pb-20">
+                      <div className="h-[350px]">
+                        <ExpandableChartModal title="Year-wise Performance" subtitle="Average rating across academic years">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={reportData.year_performance} margin={{ top: 20, right: 30, left: 0, bottom: 25 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)"/>
+                              <XAxis dataKey="year" stroke="#94a3b8" />
+                              <YAxis domain={[0, 5]} stroke="#94a3b8" />
+                              <Tooltip contentStyle={chartTooltipStyle} />
+                              <Bar dataKey="avg_rating" fill={COLORS.success} radius={[4,4,0,0]} barSize={40} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </ExpandableChartModal>
+                      </div>
+
+                      <div className="h-[350px]">
+                        <ExpandableChartModal title="Branch Performance" subtitle="Average rating across branches">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={reportData.branch_performance} margin={{ top: 20, right: 30, left: 0, bottom: 25 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)"/>
+                              <XAxis dataKey="name" stroke="#94a3b8" />
+                              <YAxis domain={[0, 5]} stroke="#94a3b8" />
+                              <Tooltip contentStyle={chartTooltipStyle} />
+                              <Bar dataKey="avg_rating" fill={COLORS.warning} radius={[4,4,0,0]} barSize={40} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </ExpandableChartModal>
+                      </div>
                   </div>
                 </>
               )}

@@ -269,6 +269,13 @@ API.interceptors.response.use(
       error.message = "Could not connect to the server. Please ensure Django is running on port 8000.";
     }
 
+    // --- FIRST LOGIN / PASSWORD CHANGE HANDLING (403) ---
+    if (error.response?.status === 403 && error.response.data?.force_password_change) {
+      console.warn("🔐 Password change required. Redirecting...");
+      window.location.href = "/change-password";
+      return Promise.reject(error);
+    }
+
     return Promise.reject(error);
   }
 );

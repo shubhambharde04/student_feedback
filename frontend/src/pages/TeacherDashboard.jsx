@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import API from "../api";
 import Sidebar from "../components/Sidebar";
 import SubjectRadarChart from "../components/SubjectRadarChart";
+import ExpandableChartModal from "../components/ExpandableChartModal";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
@@ -28,35 +29,35 @@ export default function TeacherDashboard() {
   const [activeSection, setActiveSection] = useState("dashboard");
   const navigate = useNavigate();
 
+  const [viewMode, setViewMode] = useState('classwise');
+  const [isRefetching, setIsRefetching] = useState(false);
+
   useEffect(() => {
     const fetchData = async () => {
+      if (!user) setLoading(true);
+      else setIsRefetching(true);
+
       try {
+        const params = `?view=${viewMode}`;
         const results = await Promise.allSettled([
-          API.get("teacher/dashboard/"),
+          API.get(`teacher/dashboard/${params}`),
           API.get("teacher/performance/"),
-          API.get("teacher/performance-charts/"),
+          API.get(`teacher/performance-charts/${params}`),
           API.get("auth/profile/")
         ]);
         if (results[0].status === 'fulfilled') setDashboardData(results[0].value.data);
         if (results[1].status === 'fulfilled') setPerformanceData(results[1].value.data);
         if (results[2].status === 'fulfilled') setChartData(results[2].value.data);
         if (results[3].status === 'fulfilled') setUser(results[3].value.data.user);
-        
-        // Log any failures for debugging
-        results.forEach((r, i) => {
-          if (r.status === 'rejected') {
-            const names = ['dashboard', 'performance', 'charts', 'profile'];
-            console.error(`Failed to load ${names[i]}:`, r.reason);
-          }
-        });
       } catch (err) {
         console.error("Error fetching data:", err);
       } finally {
         setLoading(false);
+        setIsRefetching(false);
       }
     };
     fetchData();
-  }, []);
+  }, [viewMode]);
 
   if (loading) {
     return (
@@ -68,9 +69,29 @@ export default function TeacherDashboard() {
 
   const renderDashboard = () => (
     <div className="animate-fade-in">
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-surface-100 font-display">Dashboard Overview</h2>
-        <p className="text-surface-400 text-sm mt-1">Summary of your assigned subjects and feedback.</p>
+      <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-surface-100 font-display">Dashboard Overview</h2>
+          <p className="text-surface-400 text-sm mt-1">Summary of your assigned subjects and feedback.</p>
+        </div>
+        <div className="flex bg-surface-800 rounded-lg p-1">
+          <button
+            onClick={() => setViewMode('classwise')}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              viewMode === 'classwise' ? 'bg-primary-500 text-white' : 'text-surface-400 hover:text-surface-100'
+            }`}
+          >
+            Class-wise
+          </button>
+          <button
+            onClick={() => setViewMode('combined')}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              viewMode === 'combined' ? 'bg-primary-500 text-white' : 'text-surface-400 hover:text-surface-100'
+            }`}
+          >
+            Combined
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 stagger">
@@ -92,8 +113,8 @@ export default function TeacherDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 stagger">
-        {dashboardData.map((subject) => {
+        <div className={`grid grid-cols-1 xl:grid-cols-2 gap-6 stagger ${isRefetching ? 'opacity-50 pointer-events-none' : ''}`}>
+        {dashboardData.map((subject, index) => {
           const radarData = [
             { category: 'Punctuality', rating: subject.avg_punctuality },
             { category: 'Teaching', rating: subject.avg_teaching },
@@ -109,7 +130,7 @@ export default function TeacherDashboard() {
             subject.performance === "Poor" ? "badge-poor" : "badge-neutral";
 
           return (
-            <div key={subject.subject_id} className="glass-card p-6 animate-fade-in flex flex-col">
+            <div key={subject.subject_id || index} className="glass-card p-6 flex flex-col">
               <div className="flex justify-between items-start mb-4 pb-4 border-b border-surface-700/50">
                 <div className="min-w-0 pr-4">
                   <h3 className="text-lg font-bold text-surface-100 font-display truncate">
@@ -205,19 +226,23 @@ export default function TeacherDashboard() {
         <div className="glass-card p-6 animate-fade-in">
           <h3 className="text-lg font-semibold text-surface-100 font-display mb-4">Subject-wise Ratings</h3>
           {subjectBarData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={subjectBarData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" />
-                <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                <YAxis domain={[0, 5]} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                <Tooltip contentStyle={chartTooltipStyle} />
-                <Bar dataKey="rating" fill="#6366f1" radius={[6, 6, 0, 0]} barSize={40}>
-                  {subjectBarData.map((_, i) => (
-                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="h-[280px]">
+              <ExpandableChartModal title="Subject-wise Ratings" subtitle="Average rating per subject">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={subjectBarData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" />
+                    <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                    <YAxis domain={[0, 5]} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                    <Tooltip contentStyle={chartTooltipStyle} />
+                    <Bar dataKey="rating" fill="#6366f1" radius={[6, 6, 0, 0]} barSize={40}>
+                      {subjectBarData.map((_, i) => (
+                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </ExpandableChartModal>
+            </div>
           ) : (
             <div className="h-[280px] flex items-center justify-center text-surface-500">No data available</div>
           )}
@@ -227,28 +252,32 @@ export default function TeacherDashboard() {
         <div className="glass-card p-6 animate-fade-in">
           <h3 className="text-lg font-semibold text-surface-100 font-display mb-4">Rating Distribution</h3>
           {pieData.some(d => d.value > 0) ? (
-            <ResponsiveContainer width="100%" height={280}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  innerRadius={50}
-                  dataKey="value"
-                  label={({ name, percent }) => `${name.split(' ')[0]} ${(percent * 100).toFixed(0)}%`}
-                  labelLine={{ stroke: '#94a3b8' }}
-                >
-                  {pieData.map((_, i) => (
-                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={chartTooltipStyle} />
-                <Legend
-                  wrapperStyle={{ color: '#94a3b8', fontSize: 12 }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+            <div className="h-[280px]">
+              <ExpandableChartModal title="Rating Distribution" subtitle="Breakdown of student feedback categories">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={100}
+                      innerRadius={50}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name.split(' ')[0]} ${(percent * 100).toFixed(0)}%`}
+                      labelLine={{ stroke: '#94a3b8' }}
+                    >
+                      {pieData.map((_, i) => (
+                        <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={chartTooltipStyle} />
+                    <Legend
+                      wrapperStyle={{ color: '#94a3b8', fontSize: 12 }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </ExpandableChartModal>
+            </div>
           ) : (
             <div className="h-[280px] flex items-center justify-center text-surface-500">No data available</div>
           )}
@@ -258,19 +287,23 @@ export default function TeacherDashboard() {
         <div className="glass-card p-6 animate-fade-in">
           <h3 className="text-lg font-semibold text-surface-100 font-display mb-4">Category-wise Averages</h3>
           {categoryBarData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={categoryBarData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" />
-                <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                <YAxis domain={[0, 5]} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                <Tooltip contentStyle={chartTooltipStyle} />
-                <Bar dataKey="value" fill="#22d3ee" radius={[6, 6, 0, 0]} barSize={40}>
-                  {categoryBarData.map((_, i) => (
-                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="h-[280px]">
+              <ExpandableChartModal title="Category-wise Averages" subtitle="Performance across specific evaluation criteria">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={categoryBarData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" />
+                    <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                    <YAxis domain={[0, 5]} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                    <Tooltip contentStyle={chartTooltipStyle} />
+                    <Bar dataKey="value" fill="#22d3ee" radius={[6, 6, 0, 0]} barSize={40}>
+                      {categoryBarData.map((_, i) => (
+                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </ExpandableChartModal>
+            </div>
           ) : (
             <div className="h-[280px] flex items-center justify-center text-surface-500">No data available</div>
           )}
@@ -280,22 +313,26 @@ export default function TeacherDashboard() {
         <div className="glass-card p-6 animate-fade-in">
           <h3 className="text-lg font-semibold text-surface-100 font-display mb-4">Performance Trend</h3>
           {trendLineData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={trendLineData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" />
-                <XAxis dataKey="month" tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                <YAxis domain={[0, 5]} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                <Tooltip contentStyle={chartTooltipStyle} />
-                <Line
-                  type="monotone"
-                  dataKey="rating"
-                  stroke="#6366f1"
-                  strokeWidth={3}
-                  dot={{ fill: '#6366f1', r: 5 }}
-                  activeDot={{ r: 7, fill: '#a78bfa' }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            <div className="h-[280px]">
+              <ExpandableChartModal title="Performance Trend" subtitle="6-month rolling performance average">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={trendLineData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" />
+                    <XAxis dataKey="month" tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                    <YAxis domain={[0, 5]} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                    <Tooltip contentStyle={chartTooltipStyle} />
+                    <Line
+                      type="monotone"
+                      dataKey="rating"
+                      stroke="#6366f1"
+                      strokeWidth={3}
+                      dot={{ fill: '#6366f1', r: 5 }}
+                      activeDot={{ r: 7, fill: '#a78bfa' }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </ExpandableChartModal>
+            </div>
           ) : (
             <div className="h-[280px] flex items-center justify-center text-surface-500">No trend data yet</div>
           )}

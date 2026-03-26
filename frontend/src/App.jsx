@@ -13,6 +13,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import BackendStatusNotification from "./components/BackendStatusNotification";
 import BackendStatusDemo from "./components/BackendStatusDemo";
 import ChangePassword from "./pages/ChangePassword";
+import StudentManagement from "./pages/StudentManagement";
 import { checkBackendHealth } from "./api";
 
 function App() {
@@ -111,6 +112,15 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['hod']}>
                 <EnrollmentPage />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/hod/students" 
+            element={
+              <ProtectedRoute allowedRoles={['hod']}>
+                <StudentManagement />
               </ProtectedRoute>
             } 
           />

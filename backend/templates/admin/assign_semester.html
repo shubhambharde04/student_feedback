@@ -1,0 +1,31 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_modify %}
+
+{% block content %}
+    <div id="content-main">
+        <form action="" method="post">
+            {% csrf_token %}
+            <div>
+                <p>Select the Branch and Semester to assign to the selected students:</p>
+                <div class="form-row">
+                    {{ form.as_p }}
+                </div>
+                
+                <p><strong>Selected Students:</strong></p>
+                <ul>
+                    {% for student in students %}
+                        <li>{{ student.username }} - {{ student.get_full_name }} ({{ student.role }})</li>
+                    {% endfor %}
+                </ul>
+                
+                <input type="hidden" name="action" value="assign_students_to_semester" />
+                <input type="hidden" name="apply" value="yes" />
+                
+                <div class="submit-row">
+                    <input type="submit" value="{% trans 'Assign' %}" class="default" />
+                    <a href="." class="button cancel-link">{% trans 'No, take me back' %}</a>
+                </div>
+            </div>
+        </form>
+    </div>
+{% endblock %}

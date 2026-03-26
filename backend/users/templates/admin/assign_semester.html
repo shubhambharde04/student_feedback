@@ -1,0 +1,21 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+
+{% block content %}
+<p>Select the Branch and Semester to assign for the selected students:</p>
+
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    
+    <p>Selected Students:</p>
+    <ul>
+        {% for student in students %}
+            <li>{{ student.username }} ({{ student.get_full_name }})</li>
+        {% endfor %}
+    </ul>
+
+    <input type="submit" name="apply" value="Assign Students" />
+    <a href="." class="button cancel-link">Cancel</a>
+</form>
+{% endblock %}

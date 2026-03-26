@@ -1,9 +1,10 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    SubjectViewSet, FeedbackViewSet,
+    # Existing
+    SubjectViewSet, FeedbackViewSet, feedback_submit,
     login_view, logout_view, user_profile, change_password,
-    student_subjects,
+    student_subjects_v2,
     teacher_analytics, teacher_dashboard, teacher_performance,
     teacher_performance_charts,
     hod_report, hod_dashboard_overview, hod_teachers, hod_teacher_detail,
@@ -16,15 +17,28 @@ from .views import (
     hod_teacher_report, hod_department_report, hod_send_report_emails,
     enroll_student, bulk_enroll, list_enrollments,
     delete_enrollment, enrollment_form_data,
+    bulk_upload_students, bulk_delete_students, bulk_enroll_students_semester,
+    
+    # NEW ACADEMIC MODEL
+    BranchViewSet, SemesterViewSet, SubjectOfferingViewSet, SubjectAssignmentViewSet,
+    get_student_subjects, teacher_assignments, assign_teacher,
+    get_offering_details, student_dashboard,
 )
 
 router = DefaultRouter()
 router.register(r'subjects', SubjectViewSet)
 router.register(r'feedback', FeedbackViewSet)
 
+# NEW: Register academic model viewsets
+router.register(r'branches', BranchViewSet)
+router.register(r'semesters', SemesterViewSet)
+router.register(r'offerings', SubjectOfferingViewSet)
+router.register(r'assignments', SubjectAssignmentViewSet)
+
 urlpatterns = [
     path('', include(router.urls)),
     path('test/', test_endpoint, name='test'),
+    path('feedback/submit/', feedback_submit, name='feedback_submit'),
     path('health/', health_check, name='health'),
 
     # Auth
@@ -33,8 +47,19 @@ urlpatterns = [
     path('auth/profile/', user_profile, name='profile'),
     path('auth/change-password/', change_password, name='change_password'),
 
-    # Student
-    path('student-subjects/', student_subjects, name='student_subjects'),
+    # Student - CORE ACADEMIC MODEL
+    path('student/subjects/', get_student_subjects, name='student_subjects'),
+    path('student/dashboard/', student_dashboard, name='student_dashboard'),
+
+    # Teacher - CORE ACADEMIC MODEL
+    path('teacher/assignments/', teacher_assignments, name='teacher_assignments'),
+
+    # HOD/Admin - CORE ACADEMIC MODEL
+    path('assign-teacher/', assign_teacher, name='assign_teacher'),
+    path('offering/<int:pk>/', get_offering_details, name='get_offering_details'),
+
+    # Legacy endpoints (keep for compatibility)
+    path('student-subjects/', student_subjects_v2, name='student_subjects_legacy'),
 
     # Teacher
     path('teacher/analytics/', teacher_analytics, name='teacher_analytics'),
@@ -66,9 +91,14 @@ urlpatterns = [
 
     # Enrollment management
     path('enrollments/', list_enrollments, name='list_enrollments'),
+    path('enrollments/form-data/', enrollment_form_data, name='enrollment_form_data'),
     path('enrollments/enroll/', enroll_student, name='enroll_student'),
     path('enrollments/bulk-enroll/', bulk_enroll, name='bulk_enroll'),
     path('enrollments/<str:pk>/', delete_enrollment, name='delete_enrollment'),
-    path('enrollments/form-data/', enrollment_form_data, name='enrollment_form_data'),
+    
+    # Bulk Operations
+    path('students/bulk-upload/', bulk_upload_students, name='bulk_upload_students'),
+    path('students/bulk-delete/', bulk_delete_students, name='bulk_delete_students'),
+    path('students/bulk-enroll-semester/', bulk_enroll_students_semester, name='bulk_enroll_students_semester'),
 ]
 

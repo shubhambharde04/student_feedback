@@ -1,0 +1,200 @@
+{
+  "student_semester_count": 69,
+  "student_semester_sample": [
+    {
+      "student": "2307068",
+      "branch_id": 1,
+      "branch_code": "IT101",
+      "sem_id": 6,
+      "sem_num": 6
+    },
+    {
+      "student": "2307067",
+      "branch_id": 1,
+      "branch_code": "IT101",
+      "sem_id": 6,
+      "sem_num": 6
+    },
+    {
+      "student": "2307066",
+      "branch_id": 1,
+      "branch_code": "IT101",
+      "sem_id": 6,
+      "sem_num": 6
+    },
+    {
+      "student": "2307065",
+      "branch_id": 1,
+      "branch_code": "IT101",
+      "sem_id": 6,
+      "sem_num": 6
+    },
+    {
+      "student": "2307064",
+      "branch_id": 1,
+      "branch_code": "IT101",
+      "sem_id": 6,
+      "sem_num": 6
+    }
+  ],
+  "offering_count": 29,
+  "offering_sample": [
+    {
+      "id": 26,
+      "subj": "MH101H",
+      "branch_id": 2,
+      "branch": "AI101",
+      "sem_id": 1,
+      "sem": 1,
+      "active": true
+    },
+    {
+      "id": 28,
+      "subj": "MH102H",
+      "branch_id": 2,
+      "branch": "AI101",
+      "sem_id": 2,
+      "sem": 2,
+      "active": true
+    },
+    {
+      "id": 17,
+      "subj": "IT302H",
+      "branch_id": 2,
+      "branch": "AI101",
+      "sem_id": 4,
+      "sem": 4,
+      "active": true
+    },
+    {
+      "id": 6,
+      "subj": "AI303H",
+      "branch_id": 2,
+      "branch": "AI101",
+      "sem_id": 5,
+      "sem": 5,
+      "active": true
+    },
+    {
+      "id": 19,
+      "subj": "IT303H",
+      "branch_id": 2,
+      "branch": "AI101",
+      "sem_id": 6,
+      "sem": 6,
+      "active": true
+    },
+    {
+      "id": 20,
+      "subj": "IT304H",
+      "branch_id": 2,
+      "branch": "AI101",
+      "sem_id": 6,
+      "sem": 6,
+      "active": true
+    },
+    {
+      "id": 23,
+      "subj": "IT306H",
+      "branch_id": 2,
+      "branch": "AI101",
+      "sem_id": 6,
+      "sem": 6,
+      "active": true
+    },
+    {
+      "id": 7,
+      "subj": "CM151H",
+      "branch_id": 1,
+      "branch": "IT101",
+      "sem_id": 1,
+      "sem": 1,
+      "active": true
+    },
+    {
+      "id": 8,
+      "subj": "CM152H",
+      "branch_id": 1,
+      "branch": "IT101",
+      "sem_id": 1,
+      "sem": 1,
+      "active": true
+    },
+    {
+      "id": 9,
+      "subj": "EN101H",
+      "branch_id": 1,
+      "branch": "IT101",
+      "sem_id": 1,
+      "sem": 1,
+      "active": true
+    }
+  ],
+  "offering_branch_ids": [
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+  ],
+  "offering_semester_ids": [
+    1,
+    2,
+    4,
+    5,
+    6,
+    6,
+    6,
+    1,
+    1,
+    1,
+    1,
+    1,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    5,
+    5,
+    5,
+    5,
+    5,
+    6,
+    6,
+    6,
+    6,
+    6,
+    6
+  ],
+  "assignment_count": 14,
+  "test_student": "2307001",
+  "test_branch_id": 1,
+  "test_sem_id": 6,
+  "matching_offerings": 6
+}

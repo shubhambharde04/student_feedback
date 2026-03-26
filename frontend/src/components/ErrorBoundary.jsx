@@ -1,5 +1,4 @@
 import React, { Component } from 'react';
-import BackendStatusNotification, { useFailedRequestStore } from './BackendStatusNotification';
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -13,35 +12,30 @@ class ErrorBoundary extends Component {
   }
 
   static getDerivedStateFromError(error) {
-    // Update state so the next render will show the fallback UI
-    return { hasError: true };
+    const isNetworkError = 
+      error?.message?.includes('Network Error') ||
+      error?.message?.includes('ERR_NETWORK') ||
+      error?.message?.includes('ERR_CONNECTION_REFUSED') ||
+      error?.code === 'ERR_NETWORK' ||
+      error?.code === 'ECONNREFUSED' ||
+      error?.isBackendOffline;
+
+    return { hasError: true, error: error || null, isNetworkError };
   }
 
   componentDidCatch(error, errorInfo) {
-    // Log error details for debugging
     console.error('🚨 Error Boundary caught an error:', error, errorInfo);
     
-    // Check if it's a network/backend error
-    const isNetworkError = 
-      error.message?.includes('Network Error') ||
-      error.message?.includes('ERR_NETWORK') ||
-      error.message?.includes('ERR_CONNECTION_REFUSED') ||
-      error.code === 'ERR_NETWORK' ||
-      error.code === 'ECONNREFUSED' ||
-      error.isBackendOffline;
-
+    // Only update errorInfo — error is already set by getDerivedStateFromError
     this.setState({
-      error: error,
-      errorInfo: errorInfo,
-      isNetworkError
+      errorInfo: errorInfo || null,
     });
 
-    // Don't expose technical errors to users in production
     if (process.env.NODE_ENV === 'production') {
       console.error('Production error logged:', {
-        message: error.message,
-        stack: error.stack,
-        componentStack: errorInfo.componentStack
+        message: error?.message,
+        stack: error?.stack,
+        componentStack: errorInfo?.componentStack ?? 'N/A',
       });
     }
   }
@@ -57,7 +51,6 @@ class ErrorBoundary extends Component {
 
   render() {
     if (this.state.hasError) {
-      // For network errors, show a more user-friendly message
       if (this.state.isNetworkError) {
         return (
           <div className="min-h-screen bg-mesh flex items-center justify-center p-4">
@@ -78,7 +71,7 @@ class ErrorBoundary extends Component {
               
               <div className="space-y-3">
                 <button
-                  onClick={handleReset}
+                  onClick={this.handleReset}
                   className="btn-primary w-full"
                 >
                   Try Again
@@ -98,14 +91,14 @@ class ErrorBoundary extends Component {
                 </p>
               </div>
             </div>
-            
-            {/* Show backend status notification */}
-            <BackendStatusNotification />
           </div>
         );
       }
 
-      // For other errors, show a generic error message
+      // Safely extract error details — errorInfo may be null if componentDidCatch hasn't fired yet
+      const errorMessage = this.state.error?.toString?.() || 'Unknown error';
+      const componentStack = this.state.errorInfo?.componentStack || 'No component stack available';
+
       return (
         <div className="min-h-screen bg-mesh flex items-center justify-center p-4">
           <div className="glass-card p-8 max-w-md text-center">
@@ -125,7 +118,7 @@ class ErrorBoundary extends Component {
             
             <div className="space-y-3">
               <button
-                onClick={handleReset}
+                onClick={this.handleReset}
                 className="btn-primary w-full"
               >
                 Try Again
@@ -144,10 +137,10 @@ class ErrorBoundary extends Component {
                 <summary className="text-xs text-surface-500 cursor-pointer hover:text-surface-400">
                   Error Details (Development Only)
                 </summary>
-                <pre className="mt-2 text-xs text-surface-600 overflow-auto max-h-32">
-                  {this.state.error && this.state.error.toString()}
-                  <br />
-                  {this.state.errorInfo.componentStack}
+                <pre className="mt-2 text-xs text-surface-600 overflow-auto max-h-32 whitespace-pre-wrap">
+                  {errorMessage}
+                  {'\n'}
+                  {componentStack}
                 </pre>
               </details>
             )}
@@ -160,13 +153,11 @@ class ErrorBoundary extends Component {
   }
 }
 
-// Higher-order component to wrap components with error handling
 export const withErrorBoundary = (WrappedComponent) => {
   return function WithErrorBoundary(props) {
     return (
       <ErrorBoundary>
         <WrappedComponent {...props} />
-        <BackendStatusNotification />
       </ErrorBoundary>
     );
   };

@@ -59,6 +59,8 @@ MIDDLEWARE = [
     # 'django.middleware.csrf.CsrfViewMiddleware',
 
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'users.middleware.FirstLoginMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware', # redundant check, move it after
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -68,7 +70,7 @@ ROOT_URLCONF = 'feedback_system.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
