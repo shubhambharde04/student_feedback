@@ -1,0 +1,28 @@
+﻿Feedback ID: 12, Student: 2307008, Offering ID: 32, Subject: Indian Constitution, Teacher: LLBhadekar
+Feedback ID: 11, Student: 2307008, Offering ID: 22, Subject: Linux, Teacher: DPChanamanwar
+Feedback ID: 10, Student: 2307008, Offering ID: 24, Subject: Data Warehouse and Data Mining, Teacher: PKhobragade
+Feedback ID: 9, Student: 2307008, Offering ID: 18, Subject: Operating System, Teacher: ARMahajan
+Feedback ID: 8, Student: 2307008, Offering ID: 21, Subject: Adavance Java, Teacher: AGBarsagade
+Feedback ID: 7, Student: 2307008, Offering ID: 12, Subject: Entrenpreneurship, Teacher: SSelokar
+Feedback ID: 6, Student: 2307066, Offering ID: 32, Subject: Indian Constitution, Teacher: LLBhadekar
+Feedback ID: 5, Student: 2307066, Offering ID: 22, Subject: Linux, Teacher: DPChanamanwar
+Feedback ID: 4, Student: 2307066, Offering ID: 24, Subject: Data Warehouse and Data Mining, Teacher: PKhobragade
+Feedback ID: 3, Student: 2307066, Offering ID: 21, Subject: Adavance Java, Teacher: AGBarsagade
+Feedback ID: 2, Student: 2307066, Offering ID: 18, Subject: Operating System, Teacher: ARMahajan
+Feedback ID: 1, Student: 2307066, Offering ID: 12, Subject: Entrenpreneurship, Teacher: SSelokar
+
+--- Teacher Offerings ---
+Assignment ID: 18, Offering ID: 6, Teacher: AGBarsagade, IsActive: True
+Assignment ID: 17, Offering ID: 17, Teacher: ARMahajan, IsActive: True
+Assignment ID: 16, Offering ID: 28, Teacher: RLMeshram, IsActive: True
+Assignment ID: 15, Offering ID: 26, Teacher: LLBhadekar, IsActive: True
+Assignment ID: 14, Offering ID: 22, Teacher: DPChanamanwar, IsActive: True
+Assignment ID: 13, Offering ID: 12, Teacher: SSelokar, IsActive: True
+Assignment ID: 12, Offering ID: 18, Teacher: ARMahajan, IsActive: True
+Assignment ID: 11, Offering ID: 32, Teacher: LLBhadekar, IsActive: True
+Assignment ID: 10, Offering ID: 24, Teacher: PKhobragade, IsActive: True
+Assignment ID: 9, Offering ID: 19, Teacher: SSGharde, IsActive: True
+Assignment ID: 8, Offering ID: 23, Teacher: PKhobragade, IsActive: True
+Assignment ID: 7, Offering ID: 21, Teacher: AGBarsagade, IsActive: True
+Assignment ID: 6, Offering ID: 20, Teacher: AGBarsagade, IsActive: True
+Assignment ID: 5, Offering ID: 5, Teacher: SSGharde, IsActive: True

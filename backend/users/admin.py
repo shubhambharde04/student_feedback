@@ -92,8 +92,8 @@ class CustomUserAdmin(UserAdmin):
         }),
     )
 
-    def get_form(self, request, obj=None, change=False, **kwargs):
-        form = super().get_form(request, obj, change, **kwargs)
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
         if obj and obj.role != 'student':
             if hasattr(form, 'base_fields') and 'department' in form.base_fields:  # type: ignore
                 form.base_fields['department'].required = False  # type: ignore

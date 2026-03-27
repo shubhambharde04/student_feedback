@@ -110,6 +110,10 @@ def feedback_submit(request):
     if request.user.role != 'student':
         return Response({'error': 'Only students can submit feedback'}, status=status.HTTP_403_FORBIDDEN)
 
+    # DEBUG: Print submission data
+    print(f"[feedback_submit] Student: {request.user.username}")
+    print(f"[feedback_submit] Data: {request.data}")
+
     serializer = FeedbackSerializer(data=request.data, context={'request': request})
     if serializer.is_valid():
         comment = serializer.validated_data.get('comment', '')
@@ -117,6 +121,11 @@ def feedback_submit(request):
         
         # Save feedback (Logic for student assignment is in serializer.validate)
         feedback = serializer.save(sentiment=sentiment)
+        
+        # DEBUG: Print saved feedback
+        print(f"[feedback_submit] Saved feedback ID: {feedback.id}")
+        print(f"[feedback_submit] Offering: {feedback.offering.subject.name} ({feedback.offering.branch.code} Sem {feedback.offering.semester.number})")
+        print(f"[feedback_submit] Teacher: {feedback.teacher.username if feedback.teacher else 'None'}")
         
         return Response({
             "message": "Feedback submitted successfully",
@@ -127,6 +136,7 @@ def feedback_submit(request):
             }
         }, status=status.HTTP_201_CREATED)
         
+    print(f"[feedback_submit] Validation errors: {serializer.errors}")
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 # AUTH VIEWS
 # ============================================================
@@ -171,22 +181,28 @@ def login_view(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def logout_view(request):
+    """
+    Logout user by blacklisting the refresh token.
+    Accepts refresh token in request body.
+    """
     try:
-        # Get refresh token from request data or Authorization header
         refresh_token = request.data.get('refresh')
         
-        # If no refresh token in body, try to get it from cookies
-        if not refresh_token and hasattr(request, 'COOKIES'):
-            refresh_token = request.COOKIES.get('refresh_token')
+        if not refresh_token:
+            return Response(
+                {'error': 'Refresh token is required for logout'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
-        if refresh_token:
-            token = RefreshToken(refresh_token)
-            token.blacklist()
-            return Response({'message': 'Successfully logged out'})
-        else:
-            # If no refresh token provided, just clear session
-            return Response({'message': 'Successfully logged out (session cleared)'})
-            
+        # Blacklist the refresh token
+        token = RefreshToken(refresh_token)
+        token.blacklist()
+        
+        return Response({
+            'message': 'Successfully logged out',
+            'detail': 'Refresh token has been blacklisted'
+        })
+        
     except Exception as e:
         return Response(
             {'error': f'Logout failed: {str(e)}'},
@@ -255,6 +271,7 @@ def test_endpoint(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def user_profile(request):
+    """Get current user profile"""
     return Response({
         'user': {
             'id': request.user.id,
@@ -353,14 +370,28 @@ def _get_sentiment_summary(feedbacks):
 @permission_classes([IsAuthenticated])
 def teacher_dashboard(request):
     if request.user.role != 'teacher': return Response({'error': 'Only teachers allowed'}, status=403)
+    
+    # DEBUG: Print teacher info
+    print(f"[teacher_dashboard] Teacher: {request.user.username}")
+    
     offerings = SubjectOffering.objects.filter(assignment__teacher=request.user, assignment__is_active=True)
+    print(f"[teacher_dashboard] Found {offerings.count()} offerings for teacher")
+    
+    # DEBUG: Print offerings
+    for offering in offerings:
+        print(f"  - {offering.subject.name} ({offering.branch.code} Sem {offering.semester.number})")
+    
     view_mode = request.query_params.get('view', 'combined')
     data = []
 
     if view_mode == 'combined':
         subjects = Subject.objects.filter(offerings__in=offerings).distinct()
+        print(f"[teacher_dashboard] Found {subjects.count()} unique subjects")
+        
         for subject in subjects:
             feedbacks = Feedback.objects.filter(offering__in=offerings, offering__subject=subject)
+            print(f"[teacher_dashboard] Subject {subject.name}: {feedbacks.count()} feedbacks")
+            
             agg = feedbacks.aggregate(
                 avg_punctuality=Avg('punctuality_rating'), avg_teaching=Avg('teaching_rating'),
                 avg_clarity=Avg('clarity_rating'), avg_interaction=Avg('interaction_rating'),
@@ -376,6 +407,8 @@ def teacher_dashboard(request):
     else:
         for offering in offerings:
             feedbacks = Feedback.objects.filter(offering=offering)
+            print(f"[teacher_dashboard] Offering {offering.subject.name}: {feedbacks.count()} feedbacks")
+            
             agg = feedbacks.aggregate(
                 avg_punctuality=Avg('punctuality_rating'), avg_teaching=Avg('teaching_rating'),
                 avg_clarity=Avg('clarity_rating'), avg_interaction=Avg('interaction_rating'),
@@ -390,6 +423,7 @@ def teacher_dashboard(request):
                 **{k: round(v or 0, 2) for k, v in agg.items()}
             })
 
+    print(f"[teacher_dashboard] Returning {len(data)} items")
     return Response(data)
 
 

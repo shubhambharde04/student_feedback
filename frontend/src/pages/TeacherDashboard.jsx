@@ -29,7 +29,7 @@ export default function TeacherDashboard() {
   const [activeSection, setActiveSection] = useState("dashboard");
   const navigate = useNavigate();
 
-  const [viewMode, setViewMode] = useState('classwise');
+  const [viewMode, setViewMode] = useState('combined');
   const [isRefetching, setIsRefetching] = useState(false);
 
   useEffect(() => {
@@ -39,15 +39,25 @@ export default function TeacherDashboard() {
 
       try {
         const params = `?view=${viewMode}`;
+        console.log(`[TeacherDashboard] Fetching data with viewMode: ${viewMode}`);
         const results = await Promise.allSettled([
           API.get(`teacher/dashboard/${params}`),
           API.get("teacher/performance/"),
           API.get(`teacher/performance-charts/${params}`),
           API.get("auth/profile/")
         ]);
-        if (results[0].status === 'fulfilled') setDashboardData(results[0].value.data);
-        if (results[1].status === 'fulfilled') setPerformanceData(results[1].value.data);
-        if (results[2].status === 'fulfilled') setChartData(results[2].value.data);
+        if (results[0].status === 'fulfilled') {
+          console.log('[TeacherDashboard] Dashboard data:', results[0].value.data);
+          setDashboardData(results[0].value.data);
+        }
+        if (results[1].status === 'fulfilled') {
+          console.log('[TeacherDashboard] Performance data:', results[1].value.data);
+          setPerformanceData(results[1].value.data);
+        }
+        if (results[2].status === 'fulfilled') {
+          console.log('[TeacherDashboard] Chart data:', results[2].value.data);
+          setChartData(results[2].value.data);
+        }
         if (results[3].status === 'fulfilled') setUser(results[3].value.data.user);
       } catch (err) {
         console.error("Error fetching data:", err);
