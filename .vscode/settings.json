@@ -1,4 +1,7 @@
 {
     "python.defaultInterpreterPath": "C:\\Program Files\\Python311\\python.exe",
-    "python-envs.defaultEnvManager": "ms-python.python:venv"
+    "python-envs.defaultEnvManager": "ms-python.python:venv",
+    "files.associations": {
+        "*.css": "tailwindcss"
+    }
 }
