@@ -14,6 +14,7 @@ import BackendStatusNotification from "./components/BackendStatusNotification";
 import BackendStatusDemo from "./components/BackendStatusDemo";
 import ChangePassword from "./pages/ChangePassword";
 import StudentManagement from "./pages/StudentManagement";
+import SubjectManagement from "./pages/SubjectManagement";
 import { checkBackendHealth } from "./api";
 
 function App() {
@@ -121,6 +122,15 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['hod']}>
                 <StudentManagement />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/hod/subjects" 
+            element={
+              <ProtectedRoute allowedRoles={['hod']}>
+                <SubjectManagement />
               </ProtectedRoute>
             } 
           />

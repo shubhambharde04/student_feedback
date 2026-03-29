@@ -1,9 +1,13 @@
 """Diagnose database relationships and data flow for student feedback system."""
-import os, sys
+import os
+import sys
+
+# Setup Django first
 os.environ['DJANGO_SETTINGS_MODULE'] = 'feedback_system.settings'
 import django
 django.setup()
 
+# Now import models after Django is ready
 from users.models import User, StudentSemester, SubjectOffering, SubjectAssignment, Branch, Semester, Subject
 
 print("=" * 60)

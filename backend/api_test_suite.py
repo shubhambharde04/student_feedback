@@ -31,6 +31,7 @@ class FeedbackTester:
     def test_endpoint(self, method, endpoint, payload=None, description=""):
         url = f"{BASE_URL}{endpoint}"
         print(f"Testing {description} ({method} {endpoint})...")
+        response = None  # Initialize response to prevent unbound variable error
         try:
             if method == "GET":
                 response = self.session.get(url, timeout=5)
@@ -38,6 +39,9 @@ class FeedbackTester:
                 response = self.session.post(url, json=payload, timeout=5)
             elif method == "DELETE":
                 response = self.session.delete(url, timeout=5)
+            else:
+                print(f"❌ Unsupported method: {method}")
+                return None
             
             if response.status_code in [200, 201]:
                 print(f"✅ Success: {response.status_code}")

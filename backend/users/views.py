@@ -16,6 +16,7 @@ from django.conf import settings
 import csv
 import io
 from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from typing import TYPE_CHECKING
@@ -145,8 +146,8 @@ def feedback_submit(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_view(request):
-    username = request.data.get('username')
-    password = request.data.get('password')
+    username = request.data.get('username', '').strip()
+    password = request.data.get('password', '').strip()
 
     if not username or not password:
         return Response(
@@ -154,10 +155,40 @@ def login_view(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+    print(f"LOGIN ATTEMPT: {username}")
+
     user = authenticate(request, username=username, password=password)
 
     if user:
+        if not user.is_active:
+            return Response(
+                {'error': 'User account is inactive'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+            
+        user.last_login = timezone.now()
+        user.save(update_fields=['last_login'])
+
         refresh = RefreshToken.for_user(user)
+        
+        # Enforce student first login password change
+        if user.role == 'student' and user.is_first_login:
+            return Response({
+                'error': 'Please change your password first',
+                'force_password_change': True,
+                'access': str(refresh.access_token),
+                'refresh': str(refresh),
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'role': user.role,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'is_first_login': user.is_first_login
+                }
+            }, status=status.HTTP_200_OK)
+
         return Response({
             'access': str(refresh.access_token),
             'refresh': str(refresh),
@@ -371,59 +402,112 @@ def _get_sentiment_summary(feedbacks):
 def teacher_dashboard(request):
     if request.user.role != 'teacher': return Response({'error': 'Only teachers allowed'}, status=403)
     
-    # DEBUG: Print teacher info
-    print(f"[teacher_dashboard] Teacher: {request.user.username}")
-    
-    offerings = SubjectOffering.objects.filter(assignment__teacher=request.user, assignment__is_active=True)
-    print(f"[teacher_dashboard] Found {offerings.count()} offerings for teacher")
-    
-    # DEBUG: Print offerings
-    for offering in offerings:
-        print(f"  - {offering.subject.name} ({offering.branch.code} Sem {offering.semester.number})")
-    
+    # PARAMETERS
     view_mode = request.query_params.get('view', 'combined')
+    curr_sem_id = request.query_params.get('curr_sem')
+    prev_sem_id = request.query_params.get('prev_sem')
+    
+    # Determine current semester if not provided
+    if not curr_sem_id:
+        active_assign = SubjectAssignment.objects.filter(teacher=request.user, is_active=True).first()
+        if active_assign:
+            curr_sem_id = active_assign.offering.semester.id
+
+    # Base offerings for comparison logic (for the teacher)
+    teacher_all_offerings = SubjectOffering.objects.filter(assignment__teacher=request.user)
+    
+    # Filter current offerings based on semester
+    if curr_sem_id:
+        current_offerings = teacher_all_offerings.filter(semester_id=curr_sem_id)
+    else:
+        current_offerings = teacher_all_offerings.filter(assignment__is_active=True)
+
     data = []
 
     if view_mode == 'combined':
-        subjects = Subject.objects.filter(offerings__in=offerings).distinct()
-        print(f"[teacher_dashboard] Found {subjects.count()} unique subjects")
+        # UNIQUE SUBJECTS in current semester
+        subjects = Subject.objects.filter(offerings__in=current_offerings).distinct()
         
         for subject in subjects:
-            feedbacks = Feedback.objects.filter(offering__in=offerings, offering__subject=subject)
-            print(f"[teacher_dashboard] Subject {subject.name}: {feedbacks.count()} feedbacks")
-            
-            agg = feedbacks.aggregate(
+            # CURRENT DATA
+            curr_feedbacks = Feedback.objects.filter(offering__in=current_offerings, offering__subject=subject)
+            curr_agg = curr_feedbacks.aggregate(
                 avg_punctuality=Avg('punctuality_rating'), avg_teaching=Avg('teaching_rating'),
                 avg_clarity=Avg('clarity_rating'), avg_interaction=Avg('interaction_rating'),
                 avg_behavior=Avg('behavior_rating'), avg_overall=Avg('overall_rating')
             )
+            curr_avg = curr_agg['avg_overall'] or 0
+
+            # PREVIOUS DATA
+            prev_avg = 0
+            if prev_sem_id:
+                prev_offerings = teacher_all_offerings.filter(semester_id=prev_sem_id, subject=subject)
+                prev_feedbacks = Feedback.objects.filter(offering__in=prev_offerings)
+                prev_avg = prev_feedbacks.aggregate(avg=Avg('overall_rating'))['avg'] or 0
+
+            # Calculate Trend
+            diff = round(curr_avg - prev_avg, 2) if (curr_avg and prev_avg) else 0
+            trend = "same"
+            if not prev_avg and curr_avg: trend = "new"
+            elif diff > 0.05: trend = "up"
+            elif diff < -0.05: trend = "down"
+
             data.append({
                 "subject_id": subject.id,
-                "subject_name": subject.name, "subject_code": subject.code,
-                "feedback_count": feedbacks.count(), "performance": _get_performance_label(agg['avg_overall']),
-                "sentiment_summary": _get_sentiment_summary(feedbacks),
-                **{k: round(v or 0, 2) for k, v in agg.items()}
+                "subject_name": subject.name, 
+                "subject_code": subject.code,
+                "feedback_count": curr_feedbacks.count(),
+                "performance": _get_performance_label(curr_avg if curr_avg > 0 else None),
+                "sentiment_summary": _get_sentiment_summary(curr_feedbacks),
+                "prev_avg": round(prev_avg, 2),
+                "difference": diff,
+                "trend": trend,
+                **{k: round(v or 0, 2) for k, v in curr_agg.items()}
             })
     else:
-        for offering in offerings:
-            feedbacks = Feedback.objects.filter(offering=offering)
-            print(f"[teacher_dashboard] Offering {offering.subject.name}: {feedbacks.count()} feedbacks")
-            
-            agg = feedbacks.aggregate(
+        # CLASS-WISE (per offering)
+        for offering in current_offerings:
+            # CURRENT DATA
+            curr_feedbacks = Feedback.objects.filter(offering=offering)
+            curr_agg = curr_feedbacks.aggregate(
                 avg_punctuality=Avg('punctuality_rating'), avg_teaching=Avg('teaching_rating'),
                 avg_clarity=Avg('clarity_rating'), avg_interaction=Avg('interaction_rating'),
                 avg_behavior=Avg('behavior_rating'), avg_overall=Avg('overall_rating')
             )
+            curr_avg = curr_agg['avg_overall'] or 0
+
+            # PREVIOUS DATA (Match by Subject + Branch in Previous Semester)
+            prev_avg = 0
+            if prev_sem_id:
+                prev_offering = teacher_all_offerings.filter(
+                    semester_id=prev_sem_id, 
+                    subject=offering.subject,
+                    branch=offering.branch
+                ).first()
+                if prev_offering:
+                    prev_avg = Feedback.objects.filter(offering=prev_offering).aggregate(avg=Avg('overall_rating'))['avg'] or 0
+
+            # Calculate Trend
+            diff = round(curr_avg - prev_avg, 2) if (curr_avg and prev_avg) else 0
+            trend = "same"
+            if not prev_avg and curr_avg: trend = "new"
+            elif diff > 0.05: trend = "up"
+            elif diff < -0.05: trend = "down"
+
             name_suffix = f" ({offering.branch.code} Sem {offering.semester.number})"
             data.append({
                 "subject_id": offering.id,
-                "subject_name": offering.subject.name + name_suffix, "subject_code": offering.subject.code,
-                "feedback_count": feedbacks.count(), "performance": _get_performance_label(agg['avg_overall']),
-                "sentiment_summary": _get_sentiment_summary(feedbacks),
-                **{k: round(v or 0, 2) for k, v in agg.items()}
+                "subject_name": offering.subject.name + name_suffix, 
+                "subject_code": offering.subject.code,
+                "feedback_count": curr_feedbacks.count(),
+                "performance": _get_performance_label(curr_avg if curr_avg > 0 else None),
+                "sentiment_summary": _get_sentiment_summary(curr_feedbacks),
+                "prev_avg": round(prev_avg, 2),
+                "difference": diff,
+                "trend": trend,
+                **{k: round(v or 0, 2) for k, v in curr_agg.items()}
             })
 
-    print(f"[teacher_dashboard] Returning {len(data)} items")
     return Response(data)
 
 
@@ -431,7 +515,17 @@ def teacher_dashboard(request):
 @permission_classes([IsAuthenticated])
 def teacher_performance(request):
     if request.user.role != 'teacher': return Response({'error': 'Only teachers allowed'}, status=403)
-    offerings = SubjectOffering.objects.filter(assignment__teacher=request.user, assignment__is_active=True)
+    
+    curr_sem_id = request.query_params.get('curr_sem')
+    
+    # Base filter
+    offerings_query = SubjectOffering.objects.filter(assignment__teacher=request.user)
+    
+    if curr_sem_id:
+        offerings = offerings_query.filter(semester_id=curr_sem_id)
+    else:
+        offerings = offerings_query.filter(assignment__is_active=True)
+        
     all_feedback = Feedback.objects.filter(offering__in=offerings)
     
     overall_avg = round(all_feedback.aggregate(avg=Avg('overall_rating'))['avg'] or 0, 2)
@@ -490,7 +584,15 @@ def teacher_analytics(request):
 def teacher_performance_charts(request):
     """Return chart-ready data for the teacher performance dashboard."""
     if request.user.role != 'teacher': return Response({'error': 'Only teachers allowed'}, status=403)
-    offerings = SubjectOffering.objects.filter(assignment__teacher=request.user, assignment__is_active=True)
+    
+    curr_sem_id = request.query_params.get('curr_sem')
+    offerings_query = SubjectOffering.objects.filter(assignment__teacher=request.user)
+    
+    if curr_sem_id:
+        offerings = offerings_query.filter(semester_id=curr_sem_id)
+    else:
+        offerings = offerings_query.filter(assignment__is_active=True)
+        
     all_feedback = Feedback.objects.filter(offering__in=offerings)
     view_mode = request.query_params.get('view', 'combined')
 
@@ -1161,6 +1263,9 @@ def export_report(request):
     if request.user.role != 'hod':
         return Response({'error': 'Only HOD allowed'}, status=403)
 
+    report_type = request.GET.get('type')
+    target_id = request.GET.get('id')
+
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = 'attachment; filename="feedback_report.pdf"'
 
@@ -1175,7 +1280,12 @@ def export_report(request):
 
     y = height - 110
 
-    offerings = SubjectOffering.objects.prefetch_related('assignment__teacher').all()
+    offerings = SubjectOffering.objects.prefetch_related('assignment__teacher')
+    
+    if report_type == 'teacher' and target_id:
+        offerings = offerings.filter(assignment__teacher_id=target_id)
+        
+    offerings = offerings.all()
 
     for offering in offerings:
         feedbacks = Feedback.objects.filter(offering=offering)
@@ -1189,7 +1299,9 @@ def export_report(request):
         )
         count = feedbacks.count()
         sentiment = _get_sentiment_summary(feedbacks)
-        suggestion = get_improvement(agg['avg_overall'])
+        
+        # Removed get_improvement call to prevent crashing
+        suggestion = "Focus on interactive methods" if (agg['avg_overall'] or 0) < 3.5 else "Keep up the good work"
 
         if y < 150:
             p.showPage()
@@ -1861,6 +1973,9 @@ class SubjectOfferingViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Filter based on user role"""
+        if getattr(self, 'swagger_fake_view', False):
+            return self.queryset.none()
+            
         user = self.request.user
         queryset = super().get_queryset()
         
@@ -1879,7 +1994,15 @@ class SubjectOfferingViewSet(viewsets.ModelViewSet):
                 is_active=True
             ).distinct()
         elif user.role in ['hod', 'admin']:
-            # HOD/Admin see all offerings
+            # HOD/Admin see all offerings, with optional filtering
+            semester_id = self.request.query_params.get('semester')
+            branch_id = self.request.query_params.get('branch')
+            
+            if semester_id:
+                queryset = queryset.filter(semester_id=semester_id)
+            if branch_id:
+                queryset = queryset.filter(branch_id=branch_id)
+                
             return queryset
         
         return queryset.none()
@@ -1913,6 +2036,9 @@ class SubjectAssignmentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Filter based on user role"""
+        if getattr(self, 'swagger_fake_view', False):
+            return self.queryset.none()
+            
         user = self.request.user
         queryset = super().get_queryset()
         
@@ -2188,3 +2314,365 @@ def get_offering_details(request, pk):
             'capacity_percentage': round((enrolled_students / offering.max_students) * 100, 1) if offering.max_students > 0 else 0
         }
     })
+
+
+# ============================================================
+# DEPARTMENT ANALYTICS
+# ============================================================
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+@swagger_auto_schema(
+    operation_description="Compare department-wise feedback performance across semesters",
+    manual_parameters=[
+        openapi.Parameter(
+            'department_id',
+            openapi.IN_QUERY,
+            description="ID of the department",
+            type=openapi.TYPE_INTEGER,
+            required=True
+        ),
+        openapi.Parameter(
+            'current_semester',
+            openapi.IN_QUERY,
+            description="Current semester number",
+            type=openapi.TYPE_INTEGER,
+            required=True
+        ),
+        openapi.Parameter(
+            'previous_semester',
+            openapi.IN_QUERY,
+            description="Previous semester number",
+            type=openapi.TYPE_INTEGER,
+            required=True
+        ),
+    ],
+    responses={
+        200: openapi.Response(
+            description="Department performance comparison data",
+            examples={
+                "application/json": {
+                    "department": "Information Technology",
+                    "department_id": 1,
+                    "current_semester": 4,
+                    "previous_semester": 3,
+                    "current_avg": 4.2,
+                    "previous_avg": 3.8,
+                    "improvement": 0.4,
+                    "total_feedback_current": 120,
+                    "total_feedback_previous": 98
+                }
+            }
+        ),
+        400: openapi.Response(
+            description="Bad request - missing or invalid parameters"
+        ),
+        403: openapi.Response(
+            description="Forbidden - only HOD or Admin allowed"
+        ),
+        404: openapi.Response(
+            description="Department not found"
+        )
+    }
+)
+def department_analytics(request):
+    """
+    Compare department-wise feedback performance across semesters.
+    
+    Query Params:
+    - department_id: ID of the department
+    - current_semester: Current semester number
+    - previous_semester: Previous semester number
+    
+    Returns department performance comparison between two semesters.
+    """
+    # Only HOD or Admin can access
+    if request.user.role not in ('hod', 'admin'):
+        return Response(
+            {'error': 'Only HOD or Admin allowed'}, 
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    # Get query parameters
+    department_id = request.query_params.get('department_id')
+    current_semester = request.query_params.get('current_semester')
+    previous_semester = request.query_params.get('previous_semester')
+    
+    # Validate required parameters
+    if not all([department_id, current_semester, previous_semester]):
+        return Response(
+            {
+                'error': 'Missing required parameters',
+                'required': ['department_id', 'current_semester', 'previous_semester']
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        # Convert to integers
+        department_id = int(department_id)
+        current_semester = int(current_semester)
+        previous_semester = int(previous_semester)
+    except ValueError:
+        return Response(
+            {'error': 'All parameters must be integers'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Get department name
+    try:
+        from users.models import Department
+        department = Department.objects.get(id=department_id)
+        department_name = department.name
+    except Department.DoesNotExist:
+        return Response(
+            {'error': f'Department with id {department_id} not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    # Filter feedback for the department with optimization
+    feedbacks = Feedback.objects.filter(
+        offering__branch__department_id=department_id
+    ).select_related(
+        'offering__branch__department', 
+        'offering__semester'
+    )
+    
+    # Separate current and previous semester feedbacks
+    current_feedback = feedbacks.filter(offering__semester__number=current_semester)
+    previous_feedback = feedbacks.filter(offering__semester__number=previous_semester)
+    
+    # Aggregate data for current semester
+    current_data = current_feedback.aggregate(
+        avg_rating=Avg('overall_rating'),
+        total_feedback=Count('id')
+    )
+    
+    # Aggregate data for previous semester
+    previous_data = previous_feedback.aggregate(
+        avg_rating=Avg('overall_rating'),
+        total_feedback=Count('id')
+    )
+    
+    # Calculate improvement
+    current_avg = current_data['avg_rating'] or 0
+    previous_avg = previous_data['avg_rating'] or 0
+    improvement = round(current_avg - previous_avg, 2) if current_avg and previous_avg else 0
+    
+    # Prepare response
+    response_data = {
+        'department': department_name,
+        'department_id': department_id,
+        'current_semester': current_semester,
+        'previous_semester': previous_semester,
+        'current_avg': round(current_avg, 2) if current_avg else 0,
+        'previous_avg': round(previous_avg, 2) if previous_avg else 0,
+        'improvement': improvement,
+        'total_feedback_current': current_data['total_feedback'] or 0,
+        'total_feedback_previous': previous_data['total_feedback'] or 0
+    }
+    
+    return Response(response_data)
+
+
+# ============================================================
+# BRANCH COMPARISON ANALYTICS
+# ============================================================
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+@swagger_auto_schema(
+    operation_description="Compare branch-wise feedback performance across semesters within a department",
+    manual_parameters=[
+        openapi.Parameter(
+            'department_id',
+            openapi.IN_QUERY,
+            description="ID of the department",
+            type=openapi.TYPE_INTEGER,
+            required=True
+        ),
+        openapi.Parameter(
+            'current_semester',
+            openapi.IN_QUERY,
+            description="Current semester number",
+            type=openapi.TYPE_INTEGER,
+            required=True
+        ),
+        openapi.Parameter(
+            'previous_semester',
+            openapi.IN_QUERY,
+            description="Previous semester number",
+            type=openapi.TYPE_INTEGER,
+            required=True
+        ),
+    ],
+    responses={
+        200: openapi.Response(
+            description="Branch-wise performance comparison data",
+            examples={
+                "application/json": [
+                    {
+                        "branch": "IT",
+                        "current_avg": 4.2,
+                        "previous_avg": 3.8,
+                        "improvement": 0.4,
+                        "current_total": 120,
+                        "previous_total": 98
+                    },
+                    {
+                        "branch": "CSE",
+                        "current_avg": 3.9,
+                        "previous_avg": 4.0,
+                        "improvement": -0.1,
+                        "current_total": 85,
+                        "previous_total": 92
+                    }
+                ]
+            }
+        ),
+        400: openapi.Response(
+            description="Bad request - missing or invalid parameters"
+        ),
+        403: openapi.Response(
+            description="Forbidden - only HOD or Admin allowed"
+        ),
+        404: openapi.Response(
+            description="Department not found"
+        )
+    }
+)
+def branch_comparison_analytics(request):
+    """
+    Compare branch-wise feedback performance across semesters within a department.
+    
+    Query Params:
+    - department_id: ID of the department
+    - current_semester: Current semester number
+    - previous_semester: Previous semester number
+    
+    Returns branch-wise performance comparison between two semesters.
+    """
+    # Only HOD or Admin can access
+    if request.user.role not in ('hod', 'admin'):
+        return Response(
+            {'error': 'Only HOD or Admin allowed'}, 
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    # Get query parameters
+    department_id = request.query_params.get('department_id')
+    current_semester = request.query_params.get('current_semester')
+    previous_semester = request.query_params.get('previous_semester')
+    
+    # Validate required parameters
+    if not all([department_id, current_semester, previous_semester]):
+        return Response(
+            {
+                'error': 'Missing required parameters',
+                'required': ['department_id', 'current_semester', 'previous_semester']
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        # Convert to integers
+        department_id = int(department_id)
+        current_semester = int(current_semester)
+        previous_semester = int(previous_semester)
+    except ValueError:
+        return Response(
+            {'error': 'All parameters must be integers'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Get department name
+    try:
+        from users.models import Department
+        department = Department.objects.get(id=department_id)
+        department_name = department.name
+    except Department.DoesNotExist:
+        return Response(
+            {'error': f'Department with id {department_id} not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    # Filter all feedback for the department with optimization
+    feedbacks = Feedback.objects.filter(
+        offering__branch__department_id=department_id
+    ).select_related(
+        'offering__branch',
+        'offering__semester'
+    )
+    
+    # Group by branch
+    branches_data = feedbacks.values(
+        'offering__branch__id',
+        'offering__branch__name'
+    ).distinct()
+    
+    comparison_data = []
+    
+    for branch_info in branches_data:
+        branch_id = branch_info['offering__branch__id']
+        branch_name = branch_info['offering__branch__name']
+        
+        # Filter feedbacks for this branch
+        branch_feedbacks = feedbacks.filter(offering__branch__id=branch_id)
+        
+        # Calculate current semester data
+        current_data = branch_feedbacks.filter(
+            offering__semester__number=current_semester
+        ).aggregate(
+            avg=Avg('overall_rating'),
+            total=Count('id')
+        )
+        
+        # Calculate previous semester data
+        previous_data = branch_feedbacks.filter(
+            offering__semester__number=previous_semester
+        ).aggregate(
+            avg=Avg('overall_rating'),
+            total=Count('id')
+        )
+        
+        # Handle null values and round to 2 decimal places
+        current_avg = round(current_data['avg'] or 0, 2)
+        previous_avg = round(previous_data['avg'] or 0, 2)
+        current_total = current_data['total'] or 0
+        previous_total = previous_data['total'] or 0
+        
+        # Calculate improvement
+        improvement = round(current_avg - previous_avg, 2) if current_avg and previous_avg else 0
+        
+        # Prepare branch data
+        branch_comparison = {
+            "branch": branch_name,
+            "branch_id": branch_id,
+            "current_avg": current_avg,
+            "previous_avg": previous_avg,
+            "improvement": improvement,
+            "current_total": current_total,
+            "previous_total": previous_total
+        }
+        
+        comparison_data.append(branch_comparison)
+    
+    # Sort by branch name for consistency
+    comparison_data.sort(key=lambda x: x['branch'])
+    
+    # Prepare final response
+    response_data = {
+        'department': department_name,
+        'department_id': department_id,
+        'current_semester': current_semester,
+        'previous_semester': previous_semester,
+        'branches': comparison_data,
+        'summary': {
+            'total_branches': len(comparison_data),
+            'branches_with_improvement': len([b for b in comparison_data if b['improvement'] > 0]),
+            'branches_with_decline': len([b for b in comparison_data if b['improvement'] < 0]),
+            'branches_no_change': len([b for b in comparison_data if b['improvement'] == 0])
+        }
+    }
+    
+    return Response(response_data)

@@ -266,8 +266,13 @@ class TeacherAssignmentSerializer(serializers.ModelSerializer):
         offering = attrs.get('offering')
         teacher = attrs.get('teacher')
         
-        # Check if teacher is already assigned to this offering
-        if SubjectAssignment.objects.filter(  # type: ignore
+        # Base query for duplicate checks
+        assignments = SubjectAssignment.objects.all()  # type: ignore
+        if self.instance:
+            assignments = assignments.exclude(pk=self.instance.pk)
+            
+        # 1. Check if this teacher is already assigned to this offering
+        if assignments.filter(
             offering=offering,
             teacher=teacher,
             is_active=True
@@ -276,11 +281,11 @@ class TeacherAssignmentSerializer(serializers.ModelSerializer):
                 "This teacher is already assigned to this subject offering."
             )
         
-        # Check if offering already has an active teacher
-        if SubjectAssignment.objects.filter(  # type: ignore
+        # 2. Check if offering already has an active teacher
+        if assignments.filter(
             offering=offering,
             is_active=True
-        ).exclude(teacher=teacher).exists():
+        ).exists():
             raise serializers.ValidationError(
                 "This subject offering already has an assigned teacher."
             )

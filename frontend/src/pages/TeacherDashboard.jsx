@@ -31,6 +31,30 @@ export default function TeacherDashboard() {
 
   const [viewMode, setViewMode] = useState('combined');
   const [isRefetching, setIsRefetching] = useState(false);
+  
+  // Semester comparison state
+  const [semesters, setSemesters] = useState([]);
+  const [currentSemester, setCurrentSemester] = useState("");
+  const [previousSemester, setPreviousSemester] = useState("");
+
+  // Fetch semesters once
+  useEffect(() => {
+    const fetchSemesters = async () => {
+      try {
+        const res = await API.get("semesters/");
+        setSemesters(res.data);
+        // Default current to the latest/active one if possible
+        if (res.data.length > 0) {
+          const sorted = [...res.data].sort((a, b) => b.number - a.number);
+          setCurrentSemester(sorted[0].id.toString());
+          if (sorted.length > 1) setPreviousSemester(sorted[1].id.toString());
+        }
+      } catch (err) {
+        console.error("Error fetching semesters:", err);
+      }
+    };
+    fetchSemesters();
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -38,12 +62,17 @@ export default function TeacherDashboard() {
       else setIsRefetching(true);
 
       try {
-        const params = `?view=${viewMode}`;
-        console.log(`[TeacherDashboard] Fetching data with viewMode: ${viewMode}`);
+        const queryParams = new URLSearchParams({
+          view: viewMode,
+          curr_sem: currentSemester,
+          prev_sem: previousSemester
+        }).toString();
+        
+        console.log(`[TeacherDashboard] Fetching data with params: ${queryParams}`);
         const results = await Promise.allSettled([
-          API.get(`teacher/dashboard/${params}`),
-          API.get("teacher/performance/"),
-          API.get(`teacher/performance-charts/${params}`),
+          API.get(`teacher/dashboard/?${queryParams}`),
+          API.get(`teacher/performance/?${queryParams}`),
+          API.get(`teacher/performance-charts/?${queryParams}`),
           API.get("auth/profile/")
         ]);
         if (results[0].status === 'fulfilled') {
@@ -66,8 +95,8 @@ export default function TeacherDashboard() {
         setIsRefetching(false);
       }
     };
-    fetchData();
-  }, [viewMode]);
+    if (activeSection !== 'profile') fetchData(); // Skip if purely profile section
+  }, [viewMode, currentSemester, previousSemester, activeSection]);
 
   if (loading) {
     return (
@@ -84,23 +113,51 @@ export default function TeacherDashboard() {
           <h2 className="text-2xl font-bold text-surface-100 font-display">Dashboard Overview</h2>
           <p className="text-surface-400 text-sm mt-1">Summary of your assigned subjects and feedback.</p>
         </div>
-        <div className="flex bg-surface-800 rounded-lg p-1">
-          <button
-            onClick={() => setViewMode('classwise')}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-              viewMode === 'classwise' ? 'bg-primary-500 text-white' : 'text-surface-400 hover:text-surface-100'
-            }`}
-          >
-            Class-wise
-          </button>
-          <button
-            onClick={() => setViewMode('combined')}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-              viewMode === 'combined' ? 'bg-primary-500 text-white' : 'text-surface-400 hover:text-surface-100'
-            }`}
-          >
-            Combined
-          </button>
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Semester Selectors */}
+          <div className="flex items-center gap-2 bg-surface-800/50 rounded-lg p-1 px-3 border border-surface-700/50">
+            <span className="text-xs text-surface-400 font-medium">Semester:</span>
+            <select 
+              value={currentSemester} 
+              onChange={(e) => setCurrentSemester(e.target.value)}
+              className="bg-transparent text-sm text-surface-100 border-none focus:ring-0 cursor-pointer"
+            >
+              <option value="">Current/Active</option>
+              {semesters.map(s => <option key={s.id} value={s.id}>{s.name} ({s.number})</option>)}
+            </select>
+          </div>
+          
+          <div className="flex items-center gap-2 bg-surface-800/50 rounded-lg p-1 px-3 border border-surface-700/50">
+            <span className="text-xs text-surface-400 font-medium">Compare with:</span>
+            <select 
+              value={previousSemester} 
+              onChange={(e) => setPreviousSemester(e.target.value)}
+              className="bg-transparent text-sm text-surface-100 border-none focus:ring-0 cursor-pointer"
+            >
+              <option value="">None</option>
+              {semesters.map(s => <option key={s.id} value={s.id}>{s.name} ({s.number})</option>)}
+            </select>
+          </div>
+
+          {/* View Toggle */}
+          <div className="flex bg-surface-800 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('classwise')}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                viewMode === 'classwise' ? 'bg-primary-500 text-white' : 'text-surface-400 hover:text-surface-100'
+              }`}
+            >
+              Class-wise
+            </button>
+            <button
+              onClick={() => setViewMode('combined')}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                viewMode === 'combined' ? 'bg-primary-500 text-white' : 'text-surface-400 hover:text-surface-100'
+              }`}
+            >
+              Combined
+            </button>
+          </div>
         </div>
       </div>
 
@@ -148,10 +205,25 @@ export default function TeacherDashboard() {
                   </h3>
                   <p className="text-sm text-surface-400">{subject.subject_code}</p>
                 </div>
-                <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                <div className="flex flex-col items-end gap-1 flex-shrink-0">
                   <span className={`badge ${performanceClass}`}>{subject.performance}</span>
-                  <div className="text-xl font-bold text-primary-400">
-                    {subject.avg_overall} <span className="text-sm text-surface-500 font-normal">/ 5.0</span>
+                  <div className="flex flex-col items-end">
+                    <div className="text-xl font-bold text-primary-400">
+                      {subject.avg_overall} <span className="text-sm text-surface-500 font-normal">/ 5.0</span>
+                    </div>
+                    {subject.trend && subject.trend !== 'new' && (
+                      <div className={`text-xs font-bold flex items-center gap-1 ${
+                        subject.trend === 'up' ? 'text-accent-emerald' : 
+                        subject.trend === 'down' ? 'text-accent-rose' : 'text-surface-400'
+                      }`}>
+                        {subject.trend === 'up' ? '▲' : subject.trend === 'down' ? '▼' : '●'}
+                        <span>{subject.difference > 0 ? `+${subject.difference}` : subject.difference}</span>
+                        <span className="text-[10px] text-surface-500 uppercase ml-0.5">from prev</span>
+                      </div>
+                    )}
+                    {subject.trend === 'new' && (
+                      <span className="text-[10px] font-bold text-primary-400/70 border border-primary-400/20 px-1.5 rounded uppercase">New Subject</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -361,12 +433,14 @@ export default function TeacherDashboard() {
                 <th className="p-4 font-medium">Subject Code</th>
                 <th className="p-4 font-medium">Subject Name</th>
                 <th className="p-4 font-medium">Feedback Count</th>
-                <th className="p-4 font-medium">Average Rating</th>
+                <th className="p-4 font-medium">Prev Avg</th>
+                <th className="p-4 font-medium">Current Avg</th>
+                <th className="p-4 font-medium">Change</th>
                 <th className="p-4 font-medium">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-surface-700/30">
-              {performanceData?.subject_performance?.map((sub, i) => {
+              {dashboardData.map((sub, i) => {
                 const performanceClass = 
                   sub.performance === "Excellent" ? "badge-excellent" :
                   sub.performance === "Good" ? "badge-good" :
@@ -378,7 +452,21 @@ export default function TeacherDashboard() {
                     <td className="p-4 text-surface-300 font-medium">{sub.subject_code}</td>
                     <td className="p-4 text-surface-100">{sub.subject_name}</td>
                     <td className="p-4 text-surface-300">{sub.feedback_count}</td>
+                    <td className="p-4 text-surface-400">{sub.prev_avg || '-'}</td>
                     <td className="p-4 text-primary-400 font-bold">{sub.avg_overall} / 5.0</td>
+                    <td className="p-4">
+                      {sub.trend && sub.trend !== 'new' ? (
+                        <div className={`flex items-center gap-1 font-bold ${
+                          sub.trend === 'up' ? 'text-accent-emerald' : 
+                          sub.trend === 'down' ? 'text-accent-rose' : 'text-surface-400'
+                        }`}>
+                          {sub.trend === 'up' ? '▲' : sub.trend === 'down' ? '▼' : '●'}
+                          {sub.difference > 0 ? `+${sub.difference}` : sub.difference}
+                        </div>
+                      ) : (
+                        <span className="text-surface-500 text-xs uppercase font-medium">New</span>
+                      )}
+                    </td>
                     <td className="p-4">
                       <span className={`badge ${performanceClass}`}>{sub.performance}</span>
                     </td>

@@ -68,7 +68,10 @@ export default function Login() {
     setLoading(true);
     setError("");
     try {
-      const response = await API.post("/auth/login/", { username, password });
+      const response = await API.post("/auth/login/", { 
+        username: username.trim(), 
+        password: password.trim() 
+      });
       const { access, refresh, user } = response.data;
       localStorage.setItem("access_token", access);
       localStorage.setItem("refresh_token", refresh);
@@ -171,7 +174,7 @@ export default function Login() {
 
             <form onSubmit={handleLogin} className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-surface-300 mb-2">Username</label>
+                <label className="block text-sm font-medium text-surface-300 mb-2">Enrollment No / Username</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-500">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -180,7 +183,7 @@ export default function Login() {
                   </span>
                   <input
                     type="text"
-                    placeholder="Enter your username"
+                    placeholder="Enter your enrollment no. or username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     className="input-dark pl-10"

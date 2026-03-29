@@ -31,6 +31,14 @@ export default function HODDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
+  // Comparison states
+  const [comparisonData, setComparisonData] = useState(null);
+  const [comparisonType, setComparisonType] = useState('department'); // 'department' or 'branch'
+  const [currentSemester, setCurrentSemester] = useState(6);
+  const [previousSemester, setPreviousSemester] = useState(5);
+  const [departmentId, setDepartmentId] = useState(1);
+  const [loadingComparison, setLoadingComparison] = useState(false);
+  
   const location = useLocation();
   const [activeSection, setActiveSection] = useState(location.state?.activeSection || "overview");
   
@@ -71,6 +79,33 @@ export default function HODDashboard() {
     };
     fetchData();
   }, []);
+
+  // Fetch comparison data when comparison section is active
+  useEffect(() => {
+    if (activeSection === 'comparison') {
+      fetchComparisonData();
+    }
+  }, [activeSection, comparisonType, currentSemester, previousSemester, departmentId]);
+
+  const fetchComparisonData = async () => {
+    setLoadingComparison(true);
+    try {
+      let url;
+      if (comparisonType === 'department') {
+        url = `/analytics/department/?department_id=${departmentId}&current_semester=${currentSemester}&previous_semester=${previousSemester}`;
+      } else {
+        url = `/analytics/branch-comparison/?department_id=${departmentId}&current_semester=${currentSemester}&previous_semester=${previousSemester}`;
+      }
+      
+      const response = await API.get(url);
+      setComparisonData(response.data);
+    } catch (err) {
+      console.error('Error fetching comparison data:', err);
+      setError('Failed to load comparison data');
+    } finally {
+      setLoadingComparison(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -149,6 +184,207 @@ export default function HODDashboard() {
           </div>
         )}
       </div>
+    </div>
+  );
+
+  // ============================================================
+  // COMPARISON SECTION
+  // ============================================================
+  const renderComparison = () => (
+    <div className="animate-fade-in">
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-surface-100 font-display">Feedback Comparison</h2>
+        <p className="text-surface-400 text-sm mt-1">Compare feedback performance across semesters.</p>
+      </div>
+
+      {/* Controls */}
+      <div className="glass-card p-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Toggle between department and branch comparison */}
+          <div>
+            <label className="block text-sm font-medium text-surface-400 mb-2">Comparison Type</label>
+            <div className="flex bg-surface-800 rounded-lg p-1">
+              <button
+                className={`flex-1 py-2 px-4 rounded-md transition-all ${
+                  comparisonType === 'department'
+                    ? 'bg-primary-500 text-white'
+                    : 'text-surface-400 hover:text-white'
+                }`}
+                onClick={() => setComparisonType('department')}
+              >
+                Department
+              </button>
+              <button
+                className={`flex-1 py-2 px-4 rounded-md transition-all ${
+                  comparisonType === 'branch'
+                    ? 'bg-primary-500 text-white'
+                    : 'text-surface-400 hover:text-white'
+                }`}
+                onClick={() => setComparisonType('branch')}
+              >
+                Branch-wise
+              </button>
+            </div>
+          </div>
+
+          {/* Department Selection */}
+          <div>
+            <label className="block text-sm font-medium text-surface-400 mb-2">Department</label>
+            <select
+              value={departmentId}
+              onChange={(e) => setDepartmentId(Number(e.target.value))}
+              className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <option value={1}>IT-AIML</option>
+              <option value={2}>Computer Science</option>
+            </select>
+          </div>
+
+          {/* Current Semester */}
+          <div>
+            <label className="block text-sm font-medium text-surface-400 mb-2">Current Semester</label>
+            <select
+              value={currentSemester}
+              onChange={(e) => setCurrentSemester(Number(e.target.value))}
+              className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => (
+                <option key={sem} value={sem}>Semester {sem}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Previous Semester */}
+          <div>
+            <label className="block text-sm font-medium text-surface-400 mb-2">Previous Semester</label>
+            <select
+              value={previousSemester}
+              onChange={(e) => setPreviousSemester(Number(e.target.value))}
+              className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => (
+                <option key={sem} value={sem}>Semester {sem}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Comparison Results */}
+      {loadingComparison ? (
+        <div className="glass-card p-12 text-center">
+          <div className="spinner mx-auto mb-4" />
+          <p className="text-surface-400">Loading comparison data...</p>
+        </div>
+      ) : comparisonData ? (
+        <div className="grid grid-cols-1 gap-6">
+          <div className="glass-card p-6">
+            <h3 className="text-lg font-semibold text-surface-100 mb-4">
+              {comparisonType === 'department' ? 'Department Performance' : 'Branch-wise Performance'}
+            </h3>
+            
+            {comparisonType === 'department' ? (
+              // Department Comparison View
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center p-4 bg-surface-800 rounded-lg">
+                    <p className="text-sm text-surface-400">Current Avg</p>
+                    <p className="text-2xl font-bold text-primary-400">{comparisonData.current_avg}</p>
+                  </div>
+                  <div className="text-center p-4 bg-surface-800 rounded-lg">
+                    <p className="text-sm text-surface-400">Previous Avg</p>
+                    <p className="text-2xl font-bold text-accent-cyan">{comparisonData.previous_avg}</p>
+                  </div>
+                  <div className="text-center p-4 bg-surface-800 rounded-lg">
+                    <p className="text-sm text-surface-400">Improvement</p>
+                    <p className={`text-2xl font-bold ${
+                      comparisonData.improvement > 0 ? 'text-accent-emerald' : 
+                      comparisonData.improvement < 0 ? 'text-accent-rose' : 'text-surface-400'
+                    }`}>
+                      {comparisonData.improvement > 0 ? '+' : ''}{comparisonData.improvement}
+                    </p>
+                  </div>
+                  <div className="text-center p-4 bg-surface-800 rounded-lg">
+                    <p className="text-sm text-surface-400">Total Feedback</p>
+                    <p className="text-2xl font-bold text-accent-violet">
+                      {comparisonData.total_feedback_current}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              // Branch Comparison View
+              <div>
+                {comparisonData.branches && comparisonData.branches.length > 0 ? (
+                  <div className="space-y-4">
+                    {comparisonData.branches.map((branch, index) => (
+                      <div key={branch.branch_id || index} className="p-4 bg-surface-800 rounded-lg">
+                        <div className="flex justify-between items-center mb-2">
+                          <h4 className="font-semibold text-surface-100">{branch.branch}</h4>
+                          <span className={`px-2 py-1 rounded text-sm font-medium ${
+                            branch.improvement > 0 ? 'bg-accent-emerald/20 text-accent-emerald' :
+                            branch.improvement < 0 ? 'bg-accent-rose/20 text-accent-rose' :
+                            'bg-surface-700 text-surface-400'
+                          }`}>
+                            {branch.improvement > 0 ? '+' : ''}{branch.improvement}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-4 gap-4 text-sm">
+                          <div>
+                            <p className="text-surface-400">Current</p>
+                            <p className="font-medium text-primary-400">{branch.current_avg}</p>
+                          </div>
+                          <div>
+                            <p className="text-surface-400">Previous</p>
+                            <p className="font-medium text-accent-cyan">{branch.previous_avg}</p>
+                          </div>
+                          <div>
+                            <p className="text-surface-400">Current Total</p>
+                            <p className="font-medium text-accent-violet">{branch.current_total}</p>
+                          </div>
+                          <div>
+                            <p className="text-surface-400">Previous Total</p>
+                            <p className="font-medium text-accent-amber">{branch.previous_total}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-surface-400 py-8">
+                    No branch data available for the selected semesters.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Summary Stats for Branch Comparison */}
+          {comparisonType === 'branch' && comparisonData.summary && (
+            <div className="glass-card p-6">
+              <h3 className="text-lg font-semibold text-surface-100 mb-4">Summary</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="text-center p-4 bg-surface-800 rounded-lg">
+                  <p className="text-sm text-surface-400">Total Branches</p>
+                  <p className="text-2xl font-bold text-primary-400">{comparisonData.summary.total_branches}</p>
+                </div>
+                <div className="text-center p-4 bg-surface-800 rounded-lg">
+                  <p className="text-sm text-surface-400">Improved</p>
+                  <p className="text-2xl font-bold text-accent-emerald">{comparisonData.summary.branches_with_improvement}</p>
+                </div>
+                <div className="text-center p-4 bg-surface-800 rounded-lg">
+                  <p className="text-sm text-surface-400">Declined</p>
+                  <p className="text-2xl font-bold text-accent-rose">{comparisonData.summary.branches_with_decline}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="glass-card p-12 text-center">
+          <p className="text-surface-400">No comparison data available.</p>
+        </div>
+      )}
     </div>
   );
 
@@ -680,6 +916,7 @@ export default function HODDashboard() {
           {activeSection === "teachers" && renderTeachers()}
           {activeSection === "analytics" && renderAnalytics()}
           {activeSection === "statistics" && renderStatistics()}
+          {activeSection === "comparison" && renderComparison()}
           {activeSection === "windows" && renderWindows()}
         </div>
       </main>

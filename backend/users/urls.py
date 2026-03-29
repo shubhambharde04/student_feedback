@@ -19,6 +19,10 @@ from .views import (
     delete_enrollment, enrollment_form_data,
     bulk_upload_students, bulk_delete_students, bulk_enroll_students_semester,
     
+    # Department Analytics
+    department_analytics,
+    branch_comparison_analytics,
+    
     # NEW ACADEMIC MODEL
     BranchViewSet, SemesterViewSet, SubjectOfferingViewSet, SubjectAssignmentViewSet,
     get_student_subjects, teacher_assignments, assign_teacher,
@@ -100,5 +104,9 @@ urlpatterns = [
     path('students/bulk-upload/', bulk_upload_students, name='bulk_upload_students'),
     path('students/bulk-delete/', bulk_delete_students, name='bulk_delete_students'),
     path('students/bulk-enroll-semester/', bulk_enroll_students_semester, name='bulk_enroll_students_semester'),
+    
+    # Analytics
+    path('analytics/department/', department_analytics, name='department_analytics'),
+    path('analytics/branch-comparison/', branch_comparison_analytics, name='branch_comparison_analytics'),
 ]
 
