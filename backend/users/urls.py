@@ -29,6 +29,28 @@ from .views import (
     get_offering_details, student_dashboard,
 )
 
+# Import session-based views from separate file
+from .session_views import (
+    FeedbackSessionViewSet, QuestionViewSet, FeedbackFormViewSet,
+    SessionOfferingViewSet,
+    get_active_feedback_form, submit_feedback,
+    teacher_analytics as teacher_analytics_new, 
+    hod_analytics as hod_analytics_new, 
+    generate_report,
+)
+
+# Import session analytics
+from .session_analytics import session_comparison_analytics
+
+# Import comprehensive analytics
+from .comprehensive_analytics import comprehensive_analytics, analytics_dashboard_data
+
+# Import student import system
+from .student_import import (
+    upload_students, get_student_upload_template, get_session_students,
+    assign_student_to_session, remove_student_from_session
+)
+
 router = DefaultRouter()
 router.register(r'subjects', SubjectViewSet)
 router.register(r'feedback', FeedbackViewSet)
@@ -38,6 +60,12 @@ router.register(r'branches', BranchViewSet)
 router.register(r'semesters', SemesterViewSet)
 router.register(r'offerings', SubjectOfferingViewSet)
 router.register(r'assignments', SubjectAssignmentViewSet)
+
+# NEW: Register session-based viewsets
+router.register(r'sessions', FeedbackSessionViewSet)
+router.register(r'questions', QuestionViewSet)
+router.register(r'feedback-forms', FeedbackFormViewSet)
+router.register(r'session-offerings', SessionOfferingViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -64,6 +92,7 @@ urlpatterns = [
 
     # Legacy endpoints (keep for compatibility)
     path('student-subjects/', student_subjects_v2, name='student_subjects_legacy'),
+    path('subject-offerings/', SubjectOfferingViewSet.as_view({'get': 'list', 'post': 'create'}), name='subject_offerings_alias'),
 
     # Teacher
     path('teacher/analytics/', teacher_analytics, name='teacher_analytics'),
@@ -108,5 +137,25 @@ urlpatterns = [
     # Analytics
     path('analytics/department/', department_analytics, name='department_analytics'),
     path('analytics/branch-comparison/', branch_comparison_analytics, name='branch_comparison_analytics'),
+    
+    # NEW: Session-based feedback system
+    path('feedback/active-form/', get_active_feedback_form, name='get_active_feedback_form'),
+    path('feedback/submit/', submit_feedback, name='submit_feedback'),
+    path('analytics/teacher/', teacher_analytics_new, name='teacher_analytics_new'),
+    path('analytics/hod/', hod_analytics_new, name='hod_analytics_new'),
+    path('analytics/session-comparison/', session_comparison_analytics, name='session_comparison_analytics'),
+    path('analytics/comprehensive/', comprehensive_analytics, name='comprehensive_analytics'),
+    path('analytics/dashboard/', analytics_dashboard_data, name='analytics_dashboard_data'),
+    path('reports/generate/', generate_report, name='generate_report'),
+    
+    # NEW: Student Import System
+    path('students/upload/', upload_students, name='upload_students'),
+    path('students/upload-template/', get_student_upload_template, name='get_student_upload_template'),
+    path('students/session/<int:session_id>/', get_session_students, name='get_session_students'),
+    path('students/assign/', assign_student_to_session, name='assign_student_to_session'),
+    path('students/session/<int:session_id>/remove/<int:student_id>/', remove_student_from_session, name='remove_student_from_session'),
+    
+    # Legacy endpoints (keep for compatibility)
+    path('subject-offerings/', SubjectOfferingViewSet.as_view({'get': 'list', 'post': 'create'}), name='subject_offerings_alias'),
 ]
 

@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 from .models import (
     User, Subject, SubjectOffering, SubjectAssignment, 
     Feedback, FeedbackWindow, Branch, Semester,
-    Department, StudentSemester
+    Department, StudentSemester, FeedbackSession
 )
 from .serializers import (
     BranchSerializer, SemesterSerializer, SubjectSerializer,
@@ -157,7 +157,24 @@ def login_view(request):
 
     print(f"LOGIN ATTEMPT: {username}")
 
-    user = authenticate(request, username=username, password=password)
+    # For students, try to find by enrollment_no first
+    user_obj = None
+    try:
+        # Check if this is an enrollment number (all digits)
+        if username.isdigit():
+            user_obj = User.objects.filter(enrollment_no=username).first()
+            if user_obj:
+                print(f"Found student by enrollment_no: {user_obj.username}")
+                user = authenticate(request, username=user_obj.username, password=password)
+            else:
+                print(f"No student found with enrollment_no: {username}")
+                user = authenticate(request, username=username, password=password)
+        else:
+            # For non-students or username-based login
+            user = authenticate(request, username=username, password=password)
+    except Exception as e:
+        print(f"Authentication error: {e}")
+        user = None
 
     if user:
         if not user.is_active:
@@ -249,6 +266,8 @@ def change_password(request):
     old_password = request.data.get('old_password')
     new_password = request.data.get('new_password')
 
+    print(f"PASSWORD CHANGE ATTEMPT: {user.username} (role: {user.role})")
+
     if not old_password or not new_password:
         return Response(
             {'error': 'Please provide both old and new passwords'},
@@ -256,6 +275,7 @@ def change_password(request):
         )
 
     if not user.check_password(old_password):
+        print(f"FAILED: Incorrect old password for {user.username}")
         return Response(
             {'error': 'Incorrect old password'},
             status=status.HTTP_400_BAD_REQUEST
@@ -267,9 +287,12 @@ def change_password(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+    # Use set_password to ensure proper hashing
     user.set_password(new_password)
     user.is_first_login = False
     user.save()
+    
+    print(f"SUCCESS: Password changed for {user.username}")
 
     return Response({'message': 'Password changed successfully'})
 
@@ -695,23 +718,32 @@ def current_feedback_window(request):
     try:
         window = FeedbackWindow.objects.filter(is_active=True).first()
         if not window:
-            return Response(
-                {'message': 'No active feedback window'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({
+                'active': False,
+                'message': 'No active feedback window',
+                'window': None
+            }, status=status.HTTP_200_OK)
+        
         now = timezone.now()
         if not (window.start_date <= now <= window.end_date):
-            return Response(
-                {'message': 'Feedback window is closed'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({
+                'active': False,
+                'message': 'Feedback window is closed',
+                'window': None
+            }, status=status.HTTP_200_OK)
+        
         serializer = FeedbackWindowSerializer(window)
-        return Response(serializer.data)
+        return Response({
+            'active': True,
+            'message': 'Feedback window is open',
+            'window': serializer.data
+        }, status=status.HTTP_200_OK)
     except Exception as e:
-        return Response(
-            {'message': 'Server error'},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        return Response({
+            'active': False,
+            'message': 'Server error',
+            'window': None
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # ============================================================
@@ -1575,63 +1607,60 @@ def hod_send_report_emails(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def enroll_student(request):
-    """Enroll a single student in a subject (HOD/Admin only)."""
     if request.user.role not in ('hod', 'admin'):
         return Response({'error': 'Only HOD/Admin can assign enrollments'}, status=403)
 
     student_id = request.data.get('student')
-    subject_id = request.data.get('subject')
+    offering_id = request.data.get('subject') or request.data.get('offering')
 
-    if not student_id or not subject_id:
-        return Response({'error': 'student and subject are required'}, status=400)
+    if not student_id or not offering_id:
+        return Response({'error': 'student and subject (offering ID) are required'}, status=400)
 
     try:
         student = User.objects.get(pk=student_id, role='student')
-    except User.DoesNotExist:
-        return Response({'error': 'Student not found'}, status=404)
+        offering = SubjectOffering.objects.select_related('branch', 'semester').get(pk=offering_id)
+    except (User.DoesNotExist, SubjectOffering.DoesNotExist):
+        return Response({'error': 'Student or Subject offering not found'}, status=404)
 
-    try:
-        subject = Subject.objects.get(pk=subject_id)
-    except Subject.DoesNotExist:
-        return Response({'error': 'Subject not found'}, status=404)
+    session = FeedbackSession.objects.filter(is_active=True).first()
+    if not session:
+        return Response({'error': 'No active feedback session found'}, status=400)
 
-    # Branch / Semester validation
-    if student.student_profile.branch and subject.branches.exists() and not subject.branches.filter(id=student.student_profile.branch.id).exists():
-        return Response(
-            {'error': f'Branch mismatch: student is in {student.student_profile.branch.name} but subject is not offered to this branch'},
-            status=400
-        )
-    if subject.semester and student.student_profile.semester and student.student_profile.semester != subject.semester:
-        return Response(
-            {'error': f'Semester mismatch: student is in semester {student.student_profile.semester.number} but subject belongs to semester {subject.semester.number}'},
-            status=400
-        )
+    profile = student.student_semesters.filter(session=session).first()
+    if profile and profile.branch_id == offering.branch_id and profile.semester_id == offering.semester_id:
+        return Response({'error': 'Student is already enrolled in this branch/semester'}, status=400)
 
-    # Duplicate check
-    if subject.students.filter(id=student.id).exists():
-        return Response({'error': 'Student is already enrolled in this subject'}, status=400)
-
-    subject.students.add(student)
+    StudentSemester.objects.update_or_create(
+        student=student,
+        session=session,
+        defaults={
+            'branch': offering.branch,
+            'semester': offering.semester,
+            'is_active': True,
+        }
+    )
     return Response({'message': 'Successfully enrolled'}, status=201)
-
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def bulk_enroll(request):
-    """Enroll multiple students in one subject (HOD/Admin only)."""
     if request.user.role not in ('hod', 'admin'):
         return Response({'error': 'Only HOD/Admin can assign enrollments'}, status=403)
 
     student_ids = request.data.get('students', [])
-    subject_id = request.data.get('subject')
+    offering_id = request.data.get('subject') or request.data.get('offering')
 
-    if not student_ids or not subject_id:
-        return Response({'error': 'students (list) and subject are required'}, status=400)
+    if not student_ids or not offering_id:
+        return Response({'error': 'students and subject are required'}, status=400)
 
     try:
-        subject = Subject.objects.get(pk=subject_id)
-    except Subject.DoesNotExist:
-        return Response({'error': 'Subject not found'}, status=404)
+        offering = SubjectOffering.objects.select_related('branch', 'semester').get(pk=offering_id)
+    except SubjectOffering.DoesNotExist:
+        return Response({'error': 'Subject offering not found'}, status=404)
+
+    session = FeedbackSession.objects.filter(is_active=True).first()
+    if not session:
+        return Response({'error': 'No active feedback session found'}, status=400)
 
     created_count = 0
     errors = []
@@ -1643,28 +1672,20 @@ def bulk_enroll(request):
             errors.append({'student_id': sid, 'error': 'Student not found'})
             continue
 
-        # Branch validation
-        if student.student_profile.branch and subject.branches.exists() and not subject.branches.filter(id=student.student_profile.branch.id).exists():
-            errors.append({
-                'student_id': sid,
-                'error': f'Branch mismatch ({student.student_profile.branch.name} vs subject branches)'
-            })
+        profile = student.student_semesters.filter(session=session).first()
+        if profile and profile.branch_id == offering.branch_id and profile.semester_id == offering.semester_id:
+            errors.append({'student_id': sid, 'error': 'Already enrolled in this branch/semester'})
             continue
 
-        # Semester validation
-        if subject.semester and student.student_profile.semester and student.student_profile.semester != subject.semester:
-            errors.append({
-                'student_id': sid,
-                'error': f'Semester mismatch (sem {student.student_profile.semester.number} vs sem {subject.semester.number})'
-            })
-            continue
-
-        # Duplicate check
-        if subject.students.filter(id=student.id).exists():
-            errors.append({'student_id': sid, 'error': 'Already enrolled'})
-            continue
-
-        subject.students.add(student)
+        StudentSemester.objects.update_or_create(
+            student=student,
+            session=session,
+            defaults={
+                'branch': offering.branch,
+                'semester': offering.semester,
+                'is_active': True,
+            }
+        )
         created_count += 1
 
     return Response({
@@ -1673,85 +1694,105 @@ def bulk_enroll(request):
         'error_count': len(errors),
     }, status=201 if created_count > 0 else 400)
 
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def list_enrollments(request):
-    """List all enrollments (HOD/Admin only)."""
     if request.user.role not in ('hod', 'admin'):
         return Response({'error': 'Only HOD/Admin can view enrollments'}, status=403)
 
-    subject_id = request.GET.get('subject')
-    queryset = Subject.objects.prefetch_related('students').all()
+    offering_filter = request.GET.get('subject')
+    session_filter = request.GET.get('session')
 
-    if subject_id:
-        queryset = queryset.filter(id=subject_id)
+    offerings_qs = SubjectOffering.objects.select_related(
+        'subject', 'branch', 'semester'
+    ).filter(is_active=True)
+    if offering_filter:
+        offerings_qs = offerings_qs.filter(id=offering_filter)
+
+    semesters_qs = StudentSemester.objects.filter(is_active=True).select_related('student', 'branch', 'semester', 'session')
+    if session_filter:
+        semesters_qs = semesters_qs.filter(session_id=session_filter)
+    else:
+        semesters_qs = semesters_qs.filter(session__is_active=True)
 
     data = []
-    from django.utils import timezone
     now = timezone.now().isoformat()
-    for subject in queryset:
-        for student in subject.students.all():
+    
+    # Map sem_key -> list of students, to avoid repeated DB lookups
+    # A sem_key is (branch_id, semester_id)
+    sem_map = {}
+    for ss in semesters_qs:
+        key = (ss.branch_id, ss.semester_id)
+        if key not in sem_map:
+            sem_map[key] = []
+        sem_map[key].append(ss.student)
+
+    for offering in offerings_qs:
+        key = (offering.branch_id, offering.semester_id)
+        matching_students = sem_map.get(key, [])
+        for student in matching_students:
             data.append({
-                'id': f"{subject.id}-{student.id}",
+                'id': f"{offering.id}-{student.id}",
                 'student': student.id,
-                'subject': subject.id,
+                'subject': offering.id,
                 'student_name': student.get_full_name() or student.username,
                 'student_enrollment_no': student.enrollment_no,
-                'subject_name': subject.name,
-                'subject_code': subject.code,
+                'subject_name': f"{offering.subject.name} ({offering.branch.code} Sem {offering.semester.number})",
+                'subject_code': offering.subject.code,
                 'created_at': now,
             })
 
     return Response(data)
 
-
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def delete_enrollment(request, pk):
-    """Remove an enrollment (HOD/Admin only). pk is format: subject_id-student_id"""
     if request.user.role not in ('hod', 'admin'):
         return Response({'error': 'Only HOD/Admin can remove enrollments'}, status=403)
 
     try:
         pk_str = str(pk)
         if '-' in pk_str:
-            subject_id, student_id = pk_str.split('-')
-            subject = Subject.objects.get(pk=int(subject_id))
-            student = User.objects.get(pk=int(student_id))
+            offering_id, student_id = pk_str.split('-')
+            student = User.objects.get(pk=int(student_id), role='student')
+            offering = SubjectOffering.objects.get(pk=int(offering_id))
         else:
-            return Response({'error': 'Invalid format'}, status=400)
-    except (ValueError, Subject.DoesNotExist, User.DoesNotExist):
+            return Response({'error': 'Invalid format. Expected: offeringId-studentId'}, status=400)
+    except (ValueError, User.DoesNotExist, SubjectOffering.DoesNotExist):
         return Response({'error': 'Enrollment not found'}, status=404)
 
-    subject.students.remove(student)
-    return Response({'message': 'Enrollment removed successfully'}, status=200)
+    session = FeedbackSession.objects.filter(is_active=True).first()
+    deleted, _ = student.student_semesters.filter(
+        session=session,
+        branch=offering.branch,
+        semester=offering.semester
+    ).delete()
 
+    if not deleted:
+        return Response({'error': 'Student has no active enrollment in this session to remove'}, status=404)
+
+    return Response({'message': 'Enrollment removed successfully'}, status=200)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def enrollment_form_data(request):
-    """Return students and subjects for the enrollment form (HOD/Admin only)."""
     if request.user.role not in ('hod', 'admin'):
         return Response({'error': 'Only HOD/Admin allowed'}, status=403)
 
-    # Build student list with nested student_profile
-    students_qs = User.objects.filter(role='student').select_related(
-        'student_profile__branch', 'student_profile__semester'
-    ).order_by('username')
+    session = FeedbackSession.objects.filter(is_active=True).first()
     
+    students_qs = User.objects.filter(role='student').prefetch_related('student_semesters').order_by('username')
     students_data = []
+    
     for s in students_qs:
         profile = None
-        if hasattr(s, 'student_profile'):
-            try:
-                sp = s.student_profile
-                profile = {
-                    'branch_code': sp.branch.code if sp.branch else None,
-                    'semester_number': sp.semester.number if sp.semester else None,
-                }
-            except Exception:
-                profile = None
+        # get active semester for the session, or the latest
+        sp = s.student_semesters.filter(session=session).first() if session else s.student_semesters.first()
+        if sp:
+            profile = {
+                'branch_code': sp.branch.code if sp.branch else None,
+                'semester_number': sp.semester.number if sp.semester else None,
+            }
         
         full_name = f"{s.first_name} {s.last_name}".strip() if s.first_name else s.username
         students_data.append({
@@ -1764,12 +1805,11 @@ def enrollment_form_data(request):
             'enrollment_no': s.enrollment_no,
             'is_first_login': s.is_first_login,
             'student_profile': profile,
-            # Also keep flat keys for backward compat
             'branch_code': profile['branch_code'] if profile else None,
             'semester_number': profile['semester_number'] if profile else None,
         })
 
-    offerings = SubjectOffering.objects.select_related('subject', 'branch', 'semester').all()
+    offerings = SubjectOffering.objects.select_related('subject', 'branch', 'semester').filter(is_active=True)
     offering_data = []
     for o in offerings:
         teacher_name = "-"
@@ -1777,10 +1817,12 @@ def enrollment_form_data(request):
             if hasattr(o, 'assignment') and o.assignment.is_active and o.assignment.teacher:
                 teacher_name = o.assignment.teacher.get_full_name() or o.assignment.teacher.username
         except Exception:
-            teacher_name = "-"
+            pass
 
         offering_data.append({
             'id': o.id,
+            'name': f"{o.subject.name} ({o.branch.code} Sem {o.semester.number})",
+            'code': o.subject.code,
             'subject_name': o.subject.name,
             'subject_code': o.subject.code,
             'teacher_name': teacher_name,
@@ -1790,7 +1832,6 @@ def enrollment_form_data(request):
             'semester_number': o.semester.number,
         })
 
-    print(f"[enrollment_form_data] Returning {len(students_data)} students, {len(offering_data)} offerings")
     return Response({
         'students': students_data,
         'subjects': offering_data,
@@ -1981,11 +2022,16 @@ class SubjectOfferingViewSet(viewsets.ModelViewSet):
         
         if user.role == 'student':
             # Students see offerings for their branch + semester
-            return queryset.filter(
-                branch=user.student_profile.branch,
-                semester=user.student_profile.semester,
-                is_active=True
-            )
+            # Check if student_profile exists
+            if hasattr(user, 'student_profile') and user.student_profile:
+                return queryset.filter(
+                    branch=user.student_profile.branch,
+                    semester=user.student_profile.semester,
+                    is_active=True
+                )
+            else:
+                # If no student profile, return empty queryset
+                return queryset.none()
         elif user.role == 'teacher':
             # Teachers see offerings they're assigned to
             return queryset.filter(

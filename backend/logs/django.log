@@ -7062,3 +7062,577 @@ AttributeError: Cannot find 'students' on Subject object, 'students' is an inval
 [2026-03-29 02:03:14,748] ERROR django.server "POST /api/hod/send-report-emails/ HTTP/1.1" 500 221
 [2026-03-29 02:03:20,792] ERROR django.request Internal Server Error: /api/hod/send-report-emails/
 [2026-03-29 02:03:20,792] ERROR django.server "POST /api/hod/send-report-emails/ HTTP/1.1" 500 220
+[2026-03-29 21:46:17,742] ERROR django.request Internal Server Error: /api/enrollments/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\views.py", line 1693, in list_enrollments
+    for subject in queryset:
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 386, in __iter__
+    self._fetch_all()
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 1956, in _fetch_all
+    self._prefetch_related_objects()
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 1330, in _prefetch_related_objects
+    prefetch_related_objects(self._result_cache, *self._prefetch_related_lookups)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 2383, in prefetch_related_objects
+    raise AttributeError(
+AttributeError: Cannot find 'students' on Subject object, 'students' is an invalid parameter to prefetch_related()
+[2026-03-29 21:46:17,748] ERROR django.server "GET /api/enrollments/ HTTP/1.1" 500 21838
+[2026-03-29 21:46:17,779] ERROR django.request Internal Server Error: /api/enrollments/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\views.py", line 1693, in list_enrollments
+    for subject in queryset:
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 386, in __iter__
+    self._fetch_all()
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 1956, in _fetch_all
+    self._prefetch_related_objects()
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 1330, in _prefetch_related_objects
+    prefetch_related_objects(self._result_cache, *self._prefetch_related_lookups)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 2383, in prefetch_related_objects
+    raise AttributeError(
+AttributeError: Cannot find 'students' on Subject object, 'students' is an invalid parameter to prefetch_related()
+[2026-03-29 21:46:17,783] ERROR django.server "GET /api/enrollments/ HTTP/1.1" 500 21838
+[2026-03-29 21:47:04,148] WARNING django.server "GET /api/subject-offerings/? HTTP/1.1" 404 25524
+[2026-03-29 21:47:04,163] WARNING django.server "GET /api/subject-offerings/? HTTP/1.1" 404 25524
+[2026-03-30 02:30:48,739] WARNING django.server "GET /api/subject-offerings/? HTTP/1.1" 404 25524
+[2026-03-30 02:30:48,756] WARNING django.server "GET /api/subject-offerings/? HTTP/1.1" 404 25524
+[2026-03-30 02:30:57,989] WARNING django.server "GET /api/subject-offerings/? HTTP/1.1" 404 25524
+[2026-03-30 02:30:58,010] WARNING django.server "GET /api/subject-offerings/? HTTP/1.1" 404 25524
+[2026-03-30 02:31:25,419] WARNING django.server "GET /api/hod/export-report/?type=teacher&id=2&format=pdf HTTP/1.1" 404 23
+[2026-03-30 02:31:25,423] WARNING django.server "GET /api/hod/export-report/?type=teacher&id=2&format=pdf HTTP/1.1" 404 23
+[2026-03-30 02:31:31,169] WARNING django.server "GET /api/hod/export-report/?type=teacher&id=2&format=pdf HTTP/1.1" 404 23
+[2026-03-30 02:32:10,487] WARNING django.server "GET /api/subject-offerings/? HTTP/1.1" 404 25524
+[2026-03-30 02:32:10,505] WARNING django.server "GET /api/subject-offerings/? HTTP/1.1" 404 25524
+[2026-03-30 02:32:31,344] WARNING django.server "GET /api/hod/export-report/?type=teacher&id=2&format=pdf HTTP/1.1" 404 23
+[2026-03-30 02:33:19,674] ERROR django.request Internal Server Error: /api/enrollments/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\views.py", line 1693, in list_enrollments
+    for subject in queryset:
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 386, in __iter__
+    self._fetch_all()
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 1956, in _fetch_all
+    self._prefetch_related_objects()
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 1330, in _prefetch_related_objects
+    prefetch_related_objects(self._result_cache, *self._prefetch_related_lookups)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 2383, in prefetch_related_objects
+    raise AttributeError(
+AttributeError: Cannot find 'students' on Subject object, 'students' is an invalid parameter to prefetch_related()
+[2026-03-30 02:33:19,692] ERROR django.server "GET /api/enrollments/ HTTP/1.1" 500 21839
+[2026-03-30 02:33:19,729] ERROR django.request Internal Server Error: /api/enrollments/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\views.py", line 1693, in list_enrollments
+    for subject in queryset:
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 386, in __iter__
+    self._fetch_all()
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 1956, in _fetch_all
+    self._prefetch_related_objects()
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 1330, in _prefetch_related_objects
+    prefetch_related_objects(self._result_cache, *self._prefetch_related_lookups)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 2383, in prefetch_related_objects
+    raise AttributeError(
+AttributeError: Cannot find 'students' on Subject object, 'students' is an invalid parameter to prefetch_related()
+[2026-03-30 02:33:19,732] ERROR django.server "GET /api/enrollments/ HTTP/1.1" 500 21839
+[2026-03-30 02:33:47,859] ERROR django.request Internal Server Error: /api/hod/send-report-emails/
+[2026-03-30 02:33:47,860] ERROR django.server "POST /api/hod/send-report-emails/ HTTP/1.1" 500 221
+[2026-03-30 02:54:35,393] WARNING django.server "GET /api/subject-offerings/? HTTP/1.1" 404 25524
+[2026-03-30 02:54:35,422] WARNING django.server "GET /api/subject-offerings/? HTTP/1.1" 404 25524
+[2026-03-30 02:54:52,339] WARNING django.server "GET /api/hod/export-report/?type=teacher&id=2&format=pdf HTTP/1.1" 404 23
+[2026-03-30 02:58:24,675] WARNING django.server "GET /api/subject-offerings/? HTTP/1.1" 404 25524
+[2026-03-30 02:58:24,692] WARNING django.server "GET /api/subject-offerings/? HTTP/1.1" 404 25524
+[2026-04-01 13:43:41,944] WARNING django.server "GET /api/subject-offerings/? HTTP/1.1" 404 25524
+[2026-04-01 13:43:41,960] WARNING django.server "GET /api/subject-offerings/? HTTP/1.1" 404 25524
+[2026-04-01 13:44:00,619] WARNING django.server "GET /api/hod/export-report/?type=teacher&id=2&format=pdf HTTP/1.1" 404 23
+[2026-04-01 13:44:05,371] WARNING django.server "GET /api/hod/export-report/?type=teacher&id=2&format=pdf HTTP/1.1" 404 23
+[2026-04-01 13:44:05,374] WARNING django.server "GET /api/hod/export-report/?type=teacher&id=2&format=pdf HTTP/1.1" 404 23
+[2026-04-01 13:46:06,202] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 400 39
+[2026-04-01 13:46:06,214] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 400 39
+[2026-04-01 13:46:34,462] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 400 39
+[2026-04-01 13:46:34,470] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 400 39
+[2026-04-01 13:47:21,513] WARNING django.server "GET /api/subject-offerings/? HTTP/1.1" 404 25524
+[2026-04-01 13:47:21,531] WARNING django.server "GET /api/subject-offerings/? HTTP/1.1" 404 25524
+[2026-04-01 13:48:13,163] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 400 39
+[2026-04-01 13:48:13,178] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 400 39
+[2026-04-01 13:48:55,775] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 31
+[2026-04-01 13:49:15,478] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 31
+[2026-04-01 13:50:43,999] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 400 39
+[2026-04-01 13:50:44,008] WARNING django.server "GET /api/feedback-window/current/ HTTP/1.1" 400 39
+[2026-04-01 13:53:56,567] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 31
+[2026-04-01 13:54:05,219] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 31
+[2026-04-01 13:54:18,753] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 31
+[2026-04-01 13:54:32,848] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 31
+[2026-04-01 13:54:39,327] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 31
+[2026-04-01 13:55:05,320] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 31
+[2026-04-01 13:57:10,715] WARNING django.server "GET / HTTP/1.1" 403 102
+[2026-04-01 13:57:10,868] WARNING django.server "GET /favicon.ico HTTP/1.1" 404 2887
+[2026-04-01 13:57:18,022] WARNING django.server "GET /admin%20/ HTTP/1.1" 403 102
+[2026-04-01 13:57:35,434] WARNING django.server "GET / HTTP/1.1" 403 102
+[2026-04-01 13:57:35,571] WARNING django.server "GET /favicon.ico HTTP/1.1" 404 2887
+[2026-04-01 13:57:46,258] WARNING django.server "GET /api/auth/login/ HTTP/1.1" 405 5682
+[2026-04-01 13:58:35,987] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 5651
+[2026-04-01 13:58:46,482] WARNING django.server "GET / HTTP/1.1" 403 102
+[2026-04-01 13:58:46,646] WARNING django.server "GET /favicon.ico HTTP/1.1" 404 2887
+[2026-04-01 14:01:25,974] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 31
+[2026-04-01 14:04:45,252] WARNING django.server "GET / HTTP/1.1" 403 102
+[2026-04-01 14:10:24,310] WARNING django.server "GET /api/subject-offerings/ HTTP/1.1" 401 58
+[2026-04-01 14:10:38,494] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 31
+[2026-04-01 14:11:30,211] WARNING django.server "GET /api/subject-offerings/ HTTP/1.1" 401 172
+[2026-04-01 14:12:07,282] ERROR django.request Internal Server Error: /api/subject-offerings/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\mixins.py", line 38, in list
+    queryset = self.filter_queryset(self.get_queryset())
+                                    ^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\views.py", line 2059, in get_queryset
+    branch=user.student_profile.branch,
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\fields\related_descriptors.py", line 534, in __get__
+    raise self.RelatedObjectDoesNotExist(
+users.models.User.student_profile.RelatedObjectDoesNotExist: User has no student_profile.
+[2026-04-01 14:12:07,296] ERROR django.server "GET /api/subject-offerings/ HTTP/1.1" 500 108392
+[2026-04-01 14:15:15,573] WARNING django.server "POST /api/subject-offerings/ HTTP/1.1" 400 85
+[2026-04-01 14:15:21,933] WARNING django.server "POST /api/subject-offerings/ HTTP/1.1" 400 85
+[2026-04-01 14:15:28,704] WARNING django.server "POST /api/subject-offerings/ HTTP/1.1" 400 85
+[2026-04-01 14:16:18,829] WARNING django.server "GET /api/hod/export-report/?type=teacher&id=2&format=pdf HTTP/1.1" 404 23
+[2026-04-02 12:39:23,272] WARNING django.server "GET /api/hod/export-report/?type=teacher&id=2&format=pdf HTTP/1.1" 404 23
+[2026-04-02 13:48:10,482] WARNING django.server "GET / HTTP/1.1" 403 102
+[2026-04-02 13:48:10,682] WARNING django.server "GET /favicon.ico HTTP/1.1" 404 2887
+[2026-04-08 01:19:08,846] WARNING django.server "POST /api/subject-assignments/ HTTP/1.1" 404 25818
+[2026-04-08 01:19:10,223] WARNING django.server "POST /api/subject-assignments/ HTTP/1.1" 404 25818
+[2026-04-08 01:19:16,839] WARNING django.server "POST /api/subject-assignments/ HTTP/1.1" 404 25818
+[2026-04-08 01:19:17,736] WARNING django.server "POST /api/subject-assignments/ HTTP/1.1" 404 25818
+[2026-04-12 15:01:17,390] WARNING django.server "GET /api/sessions/ HTTP/1.1" 401 58
+[2026-04-12 15:02:25,442] ERROR django.request Internal Server Error: /api/feedback-forms/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\mixins.py", line 46, in list
+    return Response(serializer.data)
+                    ^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\serializers.py", line 809, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\serializers.py", line 251, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\serializers.py", line 727, in to_representation
+    return [
+           ^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\serializers.py", line 728, in <listcomp>
+    self.child.to_representation(item) for item in iterable
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\serializers.py", line 537, in to_representation
+    for field in fields:
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\serializers.py", line 398, in _readable_fields
+    for field in self.fields.values():
+                 ^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\utils\functional.py", line 47, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+                                         ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\serializers.py", line 387, in fields
+    fields[key] = value
+    ~~~~~~^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\utils\serializer_helpers.py", line 165, in __setitem__
+    field.bind(field_name=key, parent=self.serializer)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\fields.py", line 358, in bind
+    assert self.source != field_name, (
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: It is redundant to specify `source='questions'` on field 'ListSerializer' in serializer 'FeedbackFormSerializer', because it is the same as the field name. Remove the `source` keyword argument.
+[2026-04-12 15:02:25,447] ERROR django.server "GET /api/feedback-forms/ HTTP/1.1" 500 149997
+[2026-04-12 15:02:33,407] ERROR django.request Internal Server Error: /api/feedback-forms/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\fields.py", line 437, in get_attribute
+    return get_attribute(instance, self.source_attrs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\fields.py", line 104, in get_attribute
+    instance = getattr(instance, attr)
+               ^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'FormQuestionMapping' object has no attribute 'text'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\mixins.py", line 46, in list
+    return Response(serializer.data)
+                    ^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\serializers.py", line 809, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\serializers.py", line 251, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\serializers.py", line 727, in to_representation
+    return [
+           ^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\serializers.py", line 728, in <listcomp>
+    self.child.to_representation(item) for item in iterable
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\serializers.py", line 552, in to_representation
+    ret[field.field_name] = field.to_representation(attribute)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\serializers.py", line 727, in to_representation
+    return [
+           ^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\serializers.py", line 728, in <listcomp>
+    self.child.to_representation(item) for item in iterable
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\serializers.py", line 539, in to_representation
+    attribute = field.get_attribute(instance)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\fields.py", line 470, in get_attribute
+    raise type(exc)(msg)
+AttributeError: Got AttributeError when attempting to get a value for field `text` on serializer `QuestionListSerializer`.
+The serializer field might be named incorrectly and not match any attribute or key on the `FormQuestionMapping` instance.
+Original exception text was: 'FormQuestionMapping' object has no attribute 'text'.
+[2026-04-12 15:02:33,412] ERROR django.server "GET /api/feedback-forms/ HTTP/1.1" 500 166844
+[2026-04-12 15:20:43,832] ERROR django.request Internal Server Error: /api/analytics/session-comparison/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 503, in dispatch
+    self.initial(request, *args, **kwargs)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 421, in initial
+    self.check_permissions(request)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 337, in check_permissions
+    for permission in self.get_permissions():
+                      ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 284, in get_permissions
+    return [permission() for permission in self.permission_classes]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 284, in <listcomp>
+    return [permission() for permission in self.permission_classes]
+            ^^^^^^^^^^^^
+TypeError: 'str' object is not callable
+[2026-04-12 15:20:43,834] ERROR django.server "GET /api/analytics/session-comparison/?current_session=1 HTTP/1.1" 500 110648
+[2026-04-12 15:20:54,199] WARNING django.server "GET /api/analytics/session-comparison/?current_session=1 HTTP/1.1" 403 26
+[2026-04-12 15:22:30,046] ERROR django.request Internal Server Error: /api/analytics/dashboard/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\comprehensive_analytics.py", line 727, in analytics_dashboard_data
+    analytics = generate_quantitative_analysis(session, offerings_filter, user)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\comprehensive_analytics.py", line 210, in generate_quantitative_analysis
+    category = offering.base_offering.subject.category or 'GENERAL'
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Subject' object has no attribute 'category'
+[2026-04-12 15:22:30,049] ERROR django.server "GET /api/analytics/dashboard/ HTTP/1.1" 500 123616
+[2026-04-12 15:22:42,817] WARNING django.server "GET /api/analytics/comprehensive/?session_id=1&type=quantitative HTTP/1.1" 403 26
+[2026-04-18 10:31:12,055] ERROR django.security.DisallowedHost Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\utils\deprecation.py", line 119, in __call__
+    response = self.process_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\middleware\common.py", line 48, in process_request
+    host = request.get_host()
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\http\request.py", line 202, in get_host
+    raise DisallowedHost(msg)
+django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+[2026-04-18 10:36:44,606] ERROR django.request Internal Server Error: /api/enrollments/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\views.py", line 1751, in list_enrollments
+    matching_students = students_with_profiles.filter(
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 1495, in filter
+    return self._filter_or_exclude(False, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 1513, in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 1523, in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\sql\query.py", line 1648, in add_q
+    clause, _ = self._add_q(q_object, can_reuse)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\sql\query.py", line 1680, in _add_q
+    child_clause, needed_inner = self.build_filter(
+                                 ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\sql\query.py", line 1528, in build_filter
+    lookups, parts, reffed_expression = self.solve_lookup_type(arg, summarize)
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\sql\query.py", line 1335, in solve_lookup_type
+    _, field, _, lookup_parts = self.names_to_path(lookup_splitted, self.get_meta())
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\sql\query.py", line 1813, in names_to_path
+    raise FieldError(
+django.core.exceptions.FieldError: Cannot resolve keyword 'student_profile' into field. Choices are: assignments, date_joined, department, department_id, email, enrollment_no, feedback_responses, feedback_submissions, feedbacks, first_name, groups, id, is_active, is_first_login, is_staff, is_superuser, last_login, last_name, logentry, outstandingtoken, password, role, session_offerings, student_profile_extended, student_semesters, user_permissions, username
+[2026-04-18 10:37:15,806] ERROR django.request Internal Server Error: /api/enrollments/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\views.py", line 1751, in list_enrollments
+    matching_students = students_with_profiles.filter(
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 1495, in filter
+    return self._filter_or_exclude(False, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 1513, in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 1523, in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\sql\query.py", line 1648, in add_q
+    clause, _ = self._add_q(q_object, can_reuse)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\sql\query.py", line 1680, in _add_q
+    child_clause, needed_inner = self.build_filter(
+                                 ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\sql\query.py", line 1528, in build_filter
+    lookups, parts, reffed_expression = self.solve_lookup_type(arg, summarize)
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\sql\query.py", line 1335, in solve_lookup_type
+    _, field, _, lookup_parts = self.names_to_path(lookup_splitted, self.get_meta())
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\sql\query.py", line 1813, in names_to_path
+    raise FieldError(
+django.core.exceptions.FieldError: Cannot resolve keyword 'student_profile' into field. Choices are: assignments, date_joined, department, department_id, email, enrollment_no, feedback_responses, feedback_submissions, feedbacks, first_name, groups, id, is_active, is_first_login, is_staff, is_superuser, last_login, last_name, logentry, outstandingtoken, password, role, session_offerings, student_profile_extended, student_semesters, user_permissions, username

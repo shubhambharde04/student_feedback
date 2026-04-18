@@ -2,7 +2,10 @@ from django.utils import timezone
 from rest_framework import serializers
 from .models import (
     User, Subject, SubjectOffering, SubjectAssignment, 
-    Feedback, FeedbackWindow, Branch, Semester, Department
+    Feedback, FeedbackWindow, Branch, Semester, Department,
+    # New models
+    FeedbackSession, Question, FeedbackForm, FormQuestionMapping,
+    SessionOffering, FeedbackResponse, FeedbackSubmission, StudentSemester
 )
 
 
@@ -121,6 +124,22 @@ class UserSerializer(serializers.ModelSerializer):
         if obj.role == 'student' and hasattr(obj, 'student_profile'):
             return {'id': obj.student_profile.semester.id, 'name': obj.student_profile.semester.name, 'number': obj.student_profile.semester.number}
         return None
+
+
+class StudentSemesterSerializer(serializers.ModelSerializer):
+    """Serializer for a student's assigned branch and semester"""
+    branch_name = serializers.CharField(source='branch.name', read_only=True)
+    branch_code = serializers.CharField(source='branch.code', read_only=True)
+    semester_name = serializers.CharField(source='semester.name', read_only=True)
+    semester_number = serializers.IntegerField(source='semester.number', read_only=True)
+
+    class Meta:
+        model = StudentSemester
+        fields = [
+            'id', 'student', 'branch', 'semester',
+            'branch_name', 'branch_code', 'semester_name', 'semester_number'
+        ]
+
 
 
 class FeedbackSerializer(serializers.ModelSerializer):
@@ -290,4 +309,195 @@ class TeacherAssignmentSerializer(serializers.ModelSerializer):
                 "This subject offering already has an assigned teacher."
             )
         return attrs
+
+
+# ============================================================
+# NEW SESSION-BASED ARCHITECTURE SERIALIZERS
+# ============================================================
+
+class FeedbackSessionSerializer(serializers.ModelSerializer):
+    """Serializer for feedback sessions"""
+    is_current = serializers.BooleanField(read_only=True)
+    can_submit_feedback = serializers.BooleanField(read_only=True)
+    offering_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = FeedbackSession
+        fields = [
+            'id', 'name', 'type', 'year', 'start_date', 'end_date',
+            'is_active', 'is_locked', 'is_closed', 'is_current', 'can_submit_feedback',
+            'description', 'offering_count', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+    
+    def get_offering_count(self, obj):
+        return obj.offerings.count()
+
+
+class QuestionSerializer(serializers.ModelSerializer):
+    """Serializer for dynamic questions"""
+    form_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Question
+        fields = [
+            'id', 'text', 'question_type', 'category', 'weight',
+            'is_active', 'is_required', 'order', 'choices',
+            'form_count', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+    
+    def get_form_count(self, obj):
+        return obj.form_mappings.count()
+
+
+class QuestionListSerializer(serializers.ModelSerializer):
+    """Lightweight question serializer for lists"""
+    class Meta:
+        model = Question
+        fields = ['id', 'text', 'question_type', 'category', 'weight', 'is_required', 'order']
+
+
+class FeedbackFormSerializer(serializers.ModelSerializer):
+    """Serializer for feedback forms"""
+    session_name = serializers.CharField(source='session.name', read_only=True)
+    question_count = serializers.IntegerField(read_only=True)
+    required_question_count = serializers.IntegerField(read_only=True)
+    questions = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = FeedbackForm
+        fields = [
+            'id', 'session', 'session_name', 'name', 'description',
+            'is_active', 'question_count', 'required_question_count',
+            'questions', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+    
+    def get_questions(self, obj):
+        """Get questions with their order for this form"""
+        mappings = obj.questions.select_related('question').order_by('order')
+        return [
+            {
+                'id': mapping.question.id,
+                'text': mapping.question.text,
+                'question_type': mapping.question.question_type,
+                'category': mapping.question.category,
+                'weight': mapping.question.weight,
+                'is_required': mapping.is_required,
+                'order': mapping.order
+            }
+            for mapping in mappings
+        ]
+
+
+class FormQuestionMappingSerializer(serializers.ModelSerializer):
+    """Serializer for form-question mappings"""
+    question_text = serializers.CharField(source='question.text', read_only=True)
+    question_type = serializers.CharField(source='question.question_type', read_only=True)
+    
+    class Meta:
+        model = FormQuestionMapping
+        fields = ['id', 'form', 'question', 'question_text', 'question_type', 'order', 'is_required']
+
+
+class SessionOfferingSerializer(serializers.ModelSerializer):
+    """Serializer for session-specific offerings"""
+    subject_name = serializers.CharField(source='base_offering.subject.name', read_only=True)
+    subject_code = serializers.CharField(source='base_offering.subject.code', read_only=True)
+    branch_name = serializers.CharField(source='base_offering.branch.name', read_only=True)
+    branch_code = serializers.CharField(source='base_offering.branch.code', read_only=True)
+    semester_name = serializers.CharField(source='base_offering.semester.name', read_only=True)
+    semester_number = serializers.IntegerField(source='base_offering.semester.number', read_only=True)
+    teacher_name = serializers.CharField(source='teacher.get_full_name', read_only=True)
+    teacher_username = serializers.CharField(source='teacher.username', read_only=True)
+    session_name = serializers.CharField(source='session.name', read_only=True)
+    
+    class Meta:
+        model = SessionOffering
+        fields = [
+            'id', 'session', 'session_name', 'base_offering', 'teacher',
+            'teacher_name', 'teacher_username', 'subject_name', 'subject_code',
+            'branch_name', 'branch_code', 'semester_name', 'semester_number',
+            'max_students', 'is_active', 'created_at'
+        ]
+        read_only_fields = ['created_at']
+
+
+class FeedbackResponseSerializer(serializers.ModelSerializer):
+    """Serializer for individual feedback responses"""
+    question_text = serializers.CharField(source='question.text', read_only=True)
+    question_type = serializers.CharField(source='question.question_type', read_only=True)
+    question_category = serializers.CharField(source='question.category', read_only=True)
+    student_name = serializers.CharField(source='student.get_full_name', read_only=True)
+    student_enrollment = serializers.CharField(source='student.enrollment_no', read_only=True)
+    
+    class Meta:
+        model = FeedbackResponse
+        fields = [
+            'id', 'session', 'form', 'offering', 'student', 'question',
+            'question_text', 'question_type', 'question_category',
+            'rating', 'text_response', 'multiple_choice_response',
+            'student_name', 'student_enrollment', 'submitted_at'
+        ]
+        read_only_fields = ['submitted_at']
+
+
+class FeedbackSubmissionSerializer(serializers.ModelSerializer):
+    """Serializer for feedback submissions"""
+    student_name = serializers.CharField(source='student.get_full_name', read_only=True)
+    student_enrollment = serializers.CharField(source='student.enrollment_no', read_only=True)
+    offering_details = SessionOfferingSerializer(source='offering', read_only=True)
+    response_count = serializers.IntegerField(read_only=True)
+    total_questions = serializers.IntegerField(read_only=True)
+    
+    class Meta:
+        model = FeedbackSubmission
+        fields = [
+            'id', 'session', 'form', 'offering', 'student',
+            'student_name', 'student_enrollment', 'offering_details',
+            'is_completed', 'completion_percentage', 'response_count',
+            'total_questions', 'submitted_at', 'ip_address'
+        ]
+        read_only_fields = ['submitted_at', 'completion_percentage']
+
+
+class FeedbackSubmissionCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating feedback submissions"""
+    responses = FeedbackResponseSerializer(many=True, write_only=True)
+    
+    class Meta:
+        model = FeedbackSubmission
+        fields = ['session', 'form', 'offering', 'student', 'responses']
+    
+    def create(self, validated_data):
+        responses_data = validated_data.pop('responses')
+        submission = FeedbackSubmission.objects.create(**validated_data)
+        
+        # Create individual responses
+        for response_data in responses_data:
+            response_data['submission'] = submission  # Add the submission reference
+            FeedbackResponse.objects.create(**response_data)
+        
+        # Update completion status
+        submission.update_completion()
+        return submission
+
+
+class AnalyticsSerializer(serializers.Serializer):
+    """Serializer for analytics data"""
+    total_responses = serializers.IntegerField()
+    average_rating = serializers.FloatField()
+    question_averages = serializers.DictField()
+    category_averages = serializers.DictField()
+    completion_rate = serializers.FloatField()
+    sentiment_distribution = serializers.DictField()
+
+
+class SessionComparisonSerializer(serializers.Serializer):
+    """Serializer for session comparison analytics"""
+    current_session = AnalyticsSerializer()
+    previous_session = AnalyticsSerializer()
+    improvement_percentage = serializers.FloatField()
+    trend_analysis = serializers.CharField()
 

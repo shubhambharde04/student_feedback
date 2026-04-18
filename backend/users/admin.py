@@ -72,12 +72,14 @@ class CustomUserAdmin(UserAdmin):
     model = User
     add_form = CustomUserCreationForm
     list_display = ('username', 'email', 'role', 'department', 'get_branch')
-    list_filter = UserAdmin.list_filter + ('role', 'department', 'student_profile__branch')
+    list_filter = UserAdmin.list_filter + ('role', 'department')
     actions = [assign_students_to_semester]
 
     def get_branch(self, obj):
-        if hasattr(obj, 'student_profile') and obj.student_profile.branch:
-            return obj.student_profile.branch.code
+        if hasattr(obj, 'student_semesters') and obj.student_semesters.exists():
+            active_semester = obj.student_semesters.filter(is_active=True).first()
+            if active_semester:
+                return active_semester.branch.code
         return "-"
     get_branch.short_description = 'Branch'  # type: ignore
     
