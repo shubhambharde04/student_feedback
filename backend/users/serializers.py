@@ -111,7 +111,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'username', 'email', 'role', 'first_name', 'last_name',
-            'enrollment_no', 'department', 'department_name',
+            'enrollment_no', 'department', 'department_name', 'designation',
             'student_branch', 'student_semester', 'is_first_login'
         ]
 
@@ -124,6 +124,72 @@ class UserSerializer(serializers.ModelSerializer):
         if obj.role == 'student' and hasattr(obj, 'student_profile'):
             return {'id': obj.student_profile.semester.id, 'name': obj.student_profile.semester.name, 'number': obj.student_profile.semester.number}
         return None
+
+
+class TeacherCreateSerializer(serializers.Serializer):
+    """Serializer for creating teacher users from the frontend"""
+    first_name = serializers.CharField(max_length=100, required=True)
+    last_name = serializers.CharField(max_length=100, required=True)
+    email = serializers.EmailField(required=True)
+    password = serializers.CharField(write_only=True, required=True, min_length=6)
+    department = serializers.PrimaryKeyRelatedField(
+        queryset=Department.objects.all(), required=False, allow_null=True
+    )
+    designation = serializers.CharField(max_length=100, required=False, allow_blank=True, default='')
+
+    def validate_email(self, value):
+        """Reject duplicate email addresses"""
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return value
+
+    def create(self, validated_data):
+        """Create a new teacher user with auto-generated username and hashed password"""
+        email = validated_data['email']
+        password = validated_data.pop('password')
+
+        # Auto-generate username from email prefix
+        base_username = email.split('@')[0].lower().replace(' ', '_')
+        username = base_username
+        counter = 1
+        while User.objects.filter(username=username).exists():
+            username = f"{base_username}_{counter}"
+            counter += 1
+
+        user = User(
+            username=username,
+            email=email,
+            first_name=validated_data.get('first_name', ''),
+            last_name=validated_data.get('last_name', ''),
+            role='teacher',
+            department=validated_data.get('department'),
+            designation=validated_data.get('designation', ''),
+            is_first_login=True,
+        )
+        user.set_password(password)  # Hash the password
+        user.save()
+        return user
+
+
+class TeacherListSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for listing teachers"""
+    department_name = serializers.CharField(source='department.name', read_only=True)
+    full_name = serializers.SerializerMethodField()
+    subject_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            'id', 'username', 'email', 'first_name', 'last_name', 'full_name',
+            'department', 'department_name', 'designation', 'is_active',
+            'subject_count', 'date_joined'
+        ]
+
+    def get_full_name(self, obj):
+        return obj.get_full_name() or obj.username
+
+    def get_subject_count(self, obj):
+        return obj.assignments.filter(is_active=True).count() if hasattr(obj, 'assignments') else 0
 
 
 class StudentSemesterSerializer(serializers.ModelSerializer):
@@ -409,9 +475,14 @@ class SessionOfferingSerializer(serializers.ModelSerializer):
     branch_code = serializers.CharField(source='base_offering.branch.code', read_only=True)
     semester_name = serializers.CharField(source='base_offering.semester.name', read_only=True)
     semester_number = serializers.IntegerField(source='base_offering.semester.number', read_only=True)
-    teacher_name = serializers.CharField(source='teacher.get_full_name', read_only=True)
+    teacher_name = serializers.SerializerMethodField()
     teacher_username = serializers.CharField(source='teacher.username', read_only=True)
     session_name = serializers.CharField(source='session.name', read_only=True)
+    
+    def get_teacher_name(self, obj):
+        if obj.teacher:
+            return obj.teacher.get_full_name() or obj.teacher.username
+        return None
     
     class Meta:
         model = SessionOffering

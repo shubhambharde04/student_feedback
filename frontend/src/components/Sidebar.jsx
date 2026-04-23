@@ -10,13 +10,15 @@ const HOD_MENU = [
   { key: "overview", label: "Dashboard Overview", icon: "grid", path: "/hod-dashboard" },
   { key: "subjects", label: "Subject Offering", icon: "book", path: "/hod/subjects" },
   { key: "teachers", label: "Teachers", icon: "users", path: "/hod-dashboard" },
+  { key: "teacher-mgmt", label: "Manage Teachers", icon: "users", path: "/hod/teachers-manage" },
   { key: "analytics", label: "Performance Analytics", icon: "chart", path: "/hod-dashboard" },
   { key: "statistics", label: "Feedback Statistics", icon: "bar", path: "/hod-dashboard" },
   { key: "comparison", label: "Feedback Comparison", icon: "trending", path: "/hod-dashboard" },
   { key: "students", label: "Students", icon: "users", path: "/hod/students" },
   { key: "enrollments", label: "Enrollments", icon: "users", path: "/hod/enrollments" },
   { key: "reports", label: "Reports", icon: "doc", path: "/hod/reports" },
-  { key: "windows", label: "Feedback Windows", icon: "clock", path: "/hod-dashboard" },
+  { key: "sessions", label: "Academic Sessions", icon: "clock", path: "/hod/sessions" },
+  { key: "formbuilder", label: "Form Matrix", icon: "grid", path: "/hod/forms" },
 ];
 
 const icons = {

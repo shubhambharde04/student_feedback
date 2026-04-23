@@ -20,6 +20,9 @@ export default function SubjectManagement() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState("assign"); // "offering" or "assign"
 
+  const [sessions, setSessions] = useState([]);
+  const [selectedSessionId, setSelectedSessionId] = useState("");
+  
   const [filters, setFilters] = useState({
     semester: "",
     branch: "",
@@ -40,13 +43,14 @@ export default function SubjectManagement() {
       if (filters.semester) queryParams.append("semester", filters.semester);
       if (filters.branch) queryParams.append("branch", filters.branch);
 
-      const [offeringsRes, teacherRes, subjectRes, branchRes, semRes, profileRes] = await Promise.all([
-        API.get(`subject-offerings/?${queryParams.toString()}`),
+      const [offeringsRes, teacherRes, subjectRes, branchRes, semRes, profileRes, sessionRes] = await Promise.all([
+        API.get(selectedSessionId ? `session-offerings/?session=${selectedSessionId}&${queryParams.toString()}` : `session-offerings/?${queryParams.toString()}`),
         API.get("hod/teachers/"),
         API.get("subjects/"),
         API.get("branches/"),
         API.get("semesters/"),
-        API.get("auth/profile/")
+        API.get("auth/profile/"),
+        API.get("sessions/") // Fetch valid sessions
       ]);
 
       setOfferings(offeringsRes.data);
@@ -55,13 +59,19 @@ export default function SubjectManagement() {
       setBranches(branchRes.data);
       setSemesters(semRes.data);
       setUser(profileRes.data.user);
+      
+      const activeSessions = sessionRes.data.filter(s => s.is_active);
+      setSessions(activeSessions);
+      if (!selectedSessionId && activeSessions.length > 0) {
+        setSelectedSessionId(activeSessions[0].id.toString());
+      }
     } catch (err) {
       console.error("Error fetching subject management data:", err);
-      setToast({ message: "Failed to load management data", type: "error" });
+      // setToast({ message: "Failed to load management data", type: "error" });
     } finally {
       setLoading(false);
     }
-  }, [filters.semester, filters.branch]);
+  }, [filters.semester, filters.branch, selectedSessionId]);
 
   useEffect(() => {
     fetchData();
@@ -69,19 +79,50 @@ export default function SubjectManagement() {
 
   const handleCreateOffering = async (e) => {
     e.preventDefault();
+    if (!selectedSessionId) {
+      setToast({ message: "Please select an Academic Session first", type: "warning" });
+      return;
+    }
     setProcessing(true);
     try {
-      await API.post("subject-offerings/", {
-        subject: formData.subject_id,
-        branch: formData.branch_id,
-        semester: formData.semester_id
+      // Step 1: Ensure base offering exists
+      let baseOfferingId = null;
+      try {
+        const baseRes = await API.post("subject-offerings/", {
+          subject: formData.subject_id,
+          branch: formData.branch_id,
+          semester: formData.semester_id
+        });
+        baseOfferingId = baseRes.data.id;
+      } catch (err) {
+        // Might already exist
+        if (err.response?.data?.non_field_errors?.[0]?.includes("unique")) {
+          // Fetch existing base offering
+          const existingRes = await API.get(`subject-offerings/?branch=${formData.branch_id}&semester=${formData.semester_id}`);
+          const existing = existingRes.data.find(o => o.subject === parseInt(formData.subject_id) || o.subject_id === parseInt(formData.subject_id));
+          if (existing) {
+             baseOfferingId = existing.id;
+          }
+        } else {
+           throw err; // Real error
+        }
+      }
+
+      if (!baseOfferingId) throw new Error("Could not create or find base Subject Offering");
+
+      // Step 2: Create Session Offering
+      await API.post("session-offerings/", {
+        session: selectedSessionId,
+        base_offering: baseOfferingId,
+        teacher: formData.teacher_id
       });
-      setToast({ message: "Subject offering created successfully", type: "success" });
+      
+      setToast({ message: "Session offering created successfully", type: "success" });
       setIsModalOpen(false);
       resetForm();
       fetchData();
     } catch (err) {
-      const msg = err.response?.data?.error || err.response?.data?.non_field_errors?.[0] || "Failed to create offering";
+      const msg = err.response?.data?.error || err.response?.data?.non_field_errors?.[0] || err.message || "Failed to create offering";
       setToast({ message: msg, type: "error" });
     } finally {
       setProcessing(false);
@@ -92,22 +133,11 @@ export default function SubjectManagement() {
     e.preventDefault();
     setProcessing(true);
     try {
-      const assignmentId = offerings.find(o => o.id === parseInt(formData.offering_id))?.assignment_id;
-
-      if (assignmentId && modalType === "assignment-edit") {
-        // Update existing assignment
-        await API.patch(`subject-assignments/${assignmentId}/`, {
-          teacher: formData.teacher_id
-        });
-        setToast({ message: "Teacher reassigned successfully", type: "success" });
-      } else {
-        // Create new assignment
-        await API.post("subject-assignments/", {
-          offering: formData.offering_id,
-          teacher: formData.teacher_id
-        });
-        setToast({ message: "Teacher assigned successfully", type: "success" });
-      }
+      // In Session architecture, editing assignment means patching the session-offering
+      await API.patch(`session-offerings/${formData.offering_id}/`, {
+        teacher: formData.teacher_id
+      });
+      setToast({ message: "Teacher updated successfully", type: "success" });
 
       setIsModalOpen(false);
       resetForm();
@@ -120,22 +150,11 @@ export default function SubjectManagement() {
     }
   };
 
-  const handleDeleteAssignment = async (assignmentId) => {
-    if (!window.confirm("Are you sure you want to remove this teacher assignment?")) return;
-    try {
-      await API.delete(`subject-assignments/${assignmentId}/`);
-      setToast({ message: "Assignment removed", type: "success" });
-      fetchData();
-    } catch (err) {
-      setToast({ message: "Failed to remove assignment", type: "error" });
-    }
-  };
-
   const handleDeleteOffering = async (offeringId) => {
-    if (!window.confirm("Delete this offering? This will also remove any teacher assignment and feedback!")) return;
+    if (!window.confirm("Delete this session offering? This will remove the teacher assignment and may break feedback bound to this session!")) return;
     try {
-      await API.delete(`subject-offerings/${offeringId}/`);
-      setToast({ message: "Offering deleted", type: "success" });
+      await API.delete(`session-offerings/${offeringId}/`);
+      setToast({ message: "Session offering deleted", type: "success" });
       fetchData();
     } catch (err) {
       setToast({ message: "Failed to delete offering", type: "error" });
@@ -190,12 +209,22 @@ export default function SubjectManagement() {
               <p className="text-surface-400 text-sm mt-1">Configure subjects, offerings per semester, and teacher assignments.</p>
             </div>
 
-            <button
-              onClick={() => { setModalType("offering"); setIsModalOpen(true); }}
-              className="btn-primary py-2.5 px-4 text-sm flex items-center gap-2"
-            >
-              <Plus size={18} /> Add Subject Offering
-            </button>
+            <div className="flex gap-4">
+              <select
+                className="input-dark py-2 text-sm max-w-xs"
+                value={selectedSessionId}
+                onChange={(e) => setSelectedSessionId(e.target.value)}
+              >
+                <option value="">Filter by Session (All)</option>
+                {sessions.map(s => <option key={s.id} value={s.id}>{s.name} ({s.year})</option>)}
+              </select>
+              <button
+                onClick={() => { setModalType("offering"); setIsModalOpen(true); }}
+                className="btn-primary py-2.5 px-4 text-sm flex items-center gap-2"
+              >
+                <Plus size={18} /> Add Subject Offering
+              </button>
+            </div>
           </header>
 
           {/* Filters */}
@@ -286,22 +315,13 @@ export default function SubjectManagement() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-2">
-                          <button
-                            onClick={() => openAssignModal(offering)}
-                            className="p-2 rounded-lg bg-primary-500/10 text-primary-400 hover:bg-primary-500/20 transition-colors"
-                            title={offering.teacher_id ? "Change Teacher" : "Assign Teacher"}
-                          >
-                            <Edit2 size={16} />
-                          </button>
-                          {offering.assignment_id && (
                             <button
-                              onClick={() => handleDeleteAssignment(offering.assignment_id)}
-                              className="p-2 rounded-lg bg-accent-rose/10 text-accent-rose hover:bg-accent-rose/20 transition-colors"
-                              title="Remove Assignment"
+                              onClick={() => openAssignModal(offering)}
+                              className="p-2 rounded-lg bg-primary-500/10 text-primary-400 hover:bg-primary-500/20 transition-colors"
+                              title="Change Teacher"
                             >
-                              <Trash2 size={16} />
+                              <Edit2 size={16} />
                             </button>
-                          )}
                           <button
                             onClick={() => handleDeleteOffering(offering.id)}
                             className="p-2 rounded-lg bg-surface-700/50 text-surface-400 hover:text-white transition-colors"
@@ -381,6 +401,18 @@ export default function SubjectManagement() {
                       >
                         <option value="">Select Semester</option>
                         {semesters.map(s => <option key={s.id} value={s.id}>Sem {s.number}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-surface-400 mb-2">Teacher</label>
+                      <select
+                        required
+                        className="input-dark"
+                        value={formData.teacher_id}
+                        onChange={(e) => setFormData(prev => ({ ...prev, teacher_id: e.target.value }))}
+                      >
+                        <option value="">Select Teacher</option>
+                        {teachers.map(t => <option key={t.id} value={t.id}>{t.name} ({t.department})</option>)}
                       </select>
                     </div>
                   </div>

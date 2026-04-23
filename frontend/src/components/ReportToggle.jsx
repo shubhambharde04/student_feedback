@@ -33,7 +33,7 @@ export default function ReportToggle({ reportType, setReportType }) {
             transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
           />
         )}
-        <span className="relative z-10">Department Report</span>
+        <span className="relative z-10">Class Report (Cumulative)</span>
       </button>
     </div>
   );

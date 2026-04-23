@@ -14,7 +14,10 @@ import BackendStatusNotification from "./components/BackendStatusNotification";
 import BackendStatusDemo from "./components/BackendStatusDemo";
 import ChangePassword from "./pages/ChangePassword";
 import StudentManagement from "./pages/StudentManagement";
+import TeacherManagement from "./pages/TeacherManagement";
 import SubjectManagement from "./pages/SubjectManagement";
+import SessionManagement from "./pages/SessionManagement";
+import FormBuilder from "./pages/FormBuilder";
 import { checkBackendHealth } from "./api";
 
 function App() {
@@ -131,6 +134,33 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['hod']}>
                 <SubjectManagement />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/hod/teachers-manage" 
+            element={
+              <ProtectedRoute allowedRoles={['hod']}>
+                <TeacherManagement />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/hod/sessions" 
+            element={
+              <ProtectedRoute allowedRoles={['hod']}>
+                <SessionManagement />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/hod/forms" 
+            element={
+              <ProtectedRoute allowedRoles={['hod']}>
+                <FormBuilder />
               </ProtectedRoute>
             } 
           />

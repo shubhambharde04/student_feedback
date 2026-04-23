@@ -9,6 +9,8 @@ export default function StudentManagement() {
   const [students, setStudents] = useState([]);
   const [branches, setBranches] = useState([]);
   const [semesters, setSemesters] = useState([]);
+  const [sessions, setSessions] = useState([]);
+  const [selectedSessionId, setSelectedSessionId] = useState("");
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -22,55 +24,79 @@ export default function StudentManagement() {
     semester_id: ""
   });
 
-  const fetchData = useCallback(async () => {
+  const fetchInitialData = useCallback(async () => {
     try {
-      const [profileRes, branchRes, semRes, studentRes] = await Promise.all([
+      const [profileRes, branchRes, semRes, sessionRes] = await Promise.all([
         API.get("auth/profile/"),
         API.get("branches/"),
         API.get("semesters/"),
-        API.get("enrollments/form-data/") // Borrowing this as it likely has students
+        API.get("sessions/")
       ]);
       
       setUser(profileRes.data.user);
       setBranches(branchRes.data);
       setSemesters(semRes.data);
       
-      // If form-data has students, use them, otherwise we might need a dedicated endpoint
-      if (studentRes.data.students) {
-        setStudents(studentRes.data.students);
+      const activeSessions = sessionRes.data.filter(s => s.is_active);
+      setSessions(activeSessions);
+      if (activeSessions.length > 0 && !selectedSessionId) {
+        setSelectedSessionId(activeSessions[0].id.toString());
       }
     } catch (err) {
-      console.error("Error fetching student management data:", err);
+      console.error("Error fetching initial data:", err);
       setToast({ message: "Failed to load management data", type: "error" });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedSessionId]);
+
+  const fetchStudents = useCallback(async () => {
+    if (!selectedSessionId) return;
+    try {
+      const studentRes = await API.get(`enrollments/form-data/?session_id=${selectedSessionId}`);
+      if (studentRes.data.students) {
+        setStudents(studentRes.data.students);
+      }
+    } catch (err) {
+      console.error("Error fetching students:", err);
+    }
+  }, [selectedSessionId]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchInitialData();
+  }, [fetchInitialData]);
+
+  useEffect(() => {
+    fetchStudents();
+  }, [fetchStudents]);
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
+    if (!selectedSessionId) {
+      setToast({ message: "Please manually select an Academic Session first", type: "warning" });
+      e.target.value = null;
+      return;
+    }
+
     setUploading(true);
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("session_id", selectedSessionId);
 
     try {
-      const res = await API.post("students/bulk-upload/", formData, {
+      const res = await API.post("students/upload/", formData, {
         headers: { "Content-Type": "multipart/form-data" }
       });
       
-      const { created, skipped, errors } = res.data;
+      const { created_students, updated_students, errors } = res.data.results;
       setToast({ 
-        message: `Processed: ${created} created, ${skipped} skipped. ${errors.length} errors.`, 
+        message: `Processed: ${created_students} created, ${updated_students} updated. ${errors.length} errors.`, 
         type: errors.length > 0 ? "warning" : "success" 
       });
       
-      fetchData(); // Refresh list
+      fetchStudents(); // Refresh list
     } catch (err) {
       setToast({ message: err.response?.data?.error || "Upload failed", type: "error" });
     } finally {
@@ -87,7 +113,7 @@ export default function StudentManagement() {
       await API.post("students/bulk-delete/", { student_ids: selectedStudents });
       setToast({ message: `Successfully deleted selected students`, type: "success" });
       setSelectedStudents([]);
-      fetchData();
+      fetchStudents();
     } catch (err) {
       setToast({ message: "Bulk delete failed", type: "error" });
     } finally {
@@ -106,11 +132,12 @@ export default function StudentManagement() {
       await API.post("students/bulk-enroll-semester/", {
         student_ids: selectedStudents,
         branch_id: bulkEnrollData.branch_id,
-        semester_id: bulkEnrollData.semester_id
+        semester_id: bulkEnrollData.semester_id,
+        session_id: selectedSessionId
       });
       setToast({ message: "Students enrolled successfully", type: "success" });
       setSelectedStudents([]);
-      fetchData();
+      fetchStudents();
     } catch (err) {
       setToast({ message: "Bulk enrollment failed", type: "error" });
     } finally {
@@ -151,12 +178,30 @@ export default function StudentManagement() {
               <p className="text-surface-400 text-sm mt-1">Manage student database, bulk uploads, and semester enrollment.</p>
             </div>
             
-            <div className="flex gap-3">
-              <label className="btn-primary py-2.5 px-4 text-sm cursor-pointer flex items-center gap-2">
-                <Upload size={18} />
-                {uploading ? "Uploading..." : "Bulk Upload CSV"}
-                <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} disabled={uploading} />
-              </label>
+            <div className="flex flex-col items-end gap-2">
+              <div className="flex gap-3 items-center">
+                <select
+                  className="input-dark py-2 text-sm max-w-xs"
+                  value={selectedSessionId}
+                  onChange={(e) => setSelectedSessionId(e.target.value)}
+                >
+                  <option value="">Select Session...</option>
+                  {sessions.map(s => <option key={s.id} value={s.id}>{s.name} ({s.year})</option>)}
+                </select>
+                <label className="btn-primary py-2.5 px-4 text-sm cursor-pointer flex items-center gap-2">
+                  <Upload size={18} />
+                  {uploading ? "Uploading..." : "Bulk Student Upload"}
+                  <input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleFileUpload} disabled={uploading || !selectedSessionId} />
+                </label>
+              </div>
+              <a 
+                href={`${API.defaults.baseURL}students/upload-template/`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-xs text-primary-400 hover:text-primary-300 underline flex items-center gap-1"
+              >
+                📥 Download Excel/CSV Template
+              </a>
             </div>
           </header>
 

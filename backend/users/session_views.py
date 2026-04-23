@@ -253,6 +253,14 @@ class SessionOfferingViewSet(viewsets.ModelViewSet):
         
         if session_id:
             queryset = queryset.filter(session_id=session_id)
+            
+        branch_id = self.request.query_params.get('branch')
+        semester_id = self.request.query_params.get('semester')
+        
+        if branch_id:
+            queryset = queryset.filter(base_offering__branch_id=branch_id)
+        if semester_id:
+            queryset = queryset.filter(base_offering__semester_id=semester_id)
         
         if user.role == 'student':
             # Students see offerings for their branch and semester

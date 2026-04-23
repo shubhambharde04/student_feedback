@@ -890,17 +890,6 @@ export default function HODDashboard() {
 
 
   // ============================================================
-  // FEEDBACK WINDOWS SECTION
-  // ============================================================
-  const renderWindows = () => (
-    <div className="animate-fade-in">
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-surface-100 font-display">Feedback Windows</h2>
-        <p className="text-surface-400 text-sm mt-1">Manage feedback submission periods for students.</p>
-      </div>
-      <FeedbackWindowManager />
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-mesh flex">
@@ -917,7 +906,6 @@ export default function HODDashboard() {
           {activeSection === "analytics" && renderAnalytics()}
           {activeSection === "statistics" && renderStatistics()}
           {activeSection === "comparison" && renderComparison()}
-          {activeSection === "windows" && renderWindows()}
         </div>
       </main>
     </div>

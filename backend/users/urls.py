@@ -27,6 +27,10 @@ from .views import (
     BranchViewSet, SemesterViewSet, SubjectOfferingViewSet, SubjectAssignmentViewSet,
     get_student_subjects, teacher_assignments, assign_teacher,
     get_offering_details, student_dashboard,
+    close_feedback_session,
+
+    # Teacher Management
+    manage_teachers, teacher_detail,
 )
 
 # Import session-based views from separate file
@@ -117,6 +121,10 @@ urlpatterns = [
     path('hod/department/report/', hod_department_report, name='hod_department_report'),
     path('hod/send-report-emails/', hod_send_report_emails, name='hod_send_report_emails'),
 
+    # Teacher Management (HOD-only)
+    path('users/teachers/', manage_teachers, name='manage_teachers'),
+    path('users/teachers/<int:pk>/', teacher_detail, name='teacher_detail_api'),
+
     # Feedback window management
     path('hod/feedback-windows/', feedback_window_manager, name='feedback_window_manager'),
     path('hod/feedback-windows/<int:pk>/', feedback_window_detail, name='feedback_window_detail'),
@@ -130,10 +138,13 @@ urlpatterns = [
     path('enrollments/<str:pk>/', delete_enrollment, name='delete_enrollment'),
     
     # Bulk Operations
-    path('students/bulk-upload/', bulk_upload_students, name='bulk_upload_students'),
+    path('students/bulk-upload/', upload_students, name='bulk_upload_students'),
     path('students/bulk-delete/', bulk_delete_students, name='bulk_delete_students'),
     path('students/bulk-enroll-semester/', bulk_enroll_students_semester, name='bulk_enroll_students_semester'),
     
+    # Session lifecycle
+    path('sessions/<int:pk>/close/', close_feedback_session, name='close_feedback_session'),
+
     # Analytics
     path('analytics/department/', department_analytics, name='department_analytics'),
     path('analytics/branch-comparison/', branch_comparison_analytics, name='branch_comparison_analytics'),

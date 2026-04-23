@@ -12,6 +12,7 @@ from django.db.models.functions import TruncMonth
 from django.utils import timezone
 from django.http import HttpResponse
 from django.core.mail import EmailMessage
+from django.shortcuts import get_object_or_404
 from django.conf import settings
 import csv
 import io
@@ -37,6 +38,7 @@ from .serializers import (
     TeacherAssignmentSerializer
 )
 from .sentiment import analyze_sentiment
+from .observations import generate_key_observations
 
 
 # ============================================================
@@ -165,6 +167,9 @@ def login_view(request):
             user_obj = User.objects.filter(enrollment_no=username).first()
             if user_obj:
                 print(f"Found student by enrollment_no: {user_obj.username}")
+                # DEBUG: Check password state
+                print(f"  Password usable: {user_obj.has_usable_password()}")
+                print(f"  check_password result: {user_obj.check_password(password)}")
                 user = authenticate(request, username=user_obj.username, password=password)
             else:
                 print(f"No student found with enrollment_no: {username}")
@@ -187,6 +192,8 @@ def login_view(request):
         user.save(update_fields=['last_login'])
 
         refresh = RefreshToken.for_user(user)
+        
+        print(f"LOGIN SUCCESS: {user.username} (role: {user.role})")
         
         # Enforce student first login password change
         if user.role == 'student' and user.is_first_login:
@@ -220,8 +227,9 @@ def login_view(request):
             }
         })
 
+    print(f"LOGIN FAILED: {username} - Invalid credentials")
     return Response(
-        {'error': 'Invalid credentials'},
+        {'error': 'Invalid enrollment number or password'},
         status=status.HTTP_401_UNAUTHORIZED
     )
 
@@ -340,6 +348,120 @@ def user_profile(request):
 
 
 # ============================================================
+# TEACHER MANAGEMENT (HOD-only)
+# ============================================================
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def manage_teachers(request):
+    """
+    GET  → List all teachers (with department, designation, subject count)
+    POST → Create a new teacher (HOD-only)
+    """
+    if request.user.role != 'hod':
+        return Response({'error': 'Only HOD can manage teachers'}, status=status.HTTP_403_FORBIDDEN)
+
+    if request.method == 'GET':
+        teachers = User.objects.filter(role='teacher').select_related('department').order_by('first_name', 'last_name')
+        from .serializers import TeacherListSerializer
+        serializer = TeacherListSerializer(teachers, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        from .serializers import TeacherCreateSerializer
+        serializer = TeacherCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            teacher = serializer.save()
+            print(f"[manage_teachers] Created teacher: {teacher.username} (email: {teacher.email})")
+            return Response({
+                'message': f'Teacher {teacher.get_full_name()} created successfully',
+                'teacher': {
+                    'id': teacher.id,
+                    'username': teacher.username,
+                    'email': teacher.email,
+                    'first_name': teacher.first_name,
+                    'last_name': teacher.last_name,
+                    'full_name': teacher.get_full_name(),
+                    'department': teacher.department_id,
+                    'department_name': teacher.department.name if teacher.department else None,
+                    'designation': teacher.designation,
+                    'role': teacher.role,
+                }
+            }, status=status.HTTP_201_CREATED)
+        
+        print(f"[manage_teachers] Validation errors: {serializer.errors}")
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PATCH', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def teacher_detail(request, pk):
+    """
+    GET    → Get single teacher details
+    PATCH  → Update teacher fields (first_name, last_name, email, department, designation)
+    DELETE → Deactivate teacher (soft delete)
+    """
+    if request.user.role != 'hod':
+        return Response({'error': 'Only HOD can manage teachers'}, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        teacher = User.objects.select_related('department').get(pk=pk, role='teacher')
+    except User.DoesNotExist:
+        return Response({'error': 'Teacher not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        from .serializers import TeacherListSerializer
+        serializer = TeacherListSerializer(teacher)
+        return Response(serializer.data)
+
+    elif request.method == 'PATCH':
+        allowed_fields = ['first_name', 'last_name', 'email', 'department', 'designation']
+        updated = []
+
+        for field in allowed_fields:
+            if field in request.data:
+                value = request.data[field]
+                if field == 'email' and value != teacher.email:
+                    # Validate email uniqueness
+                    if User.objects.filter(email=value).exclude(pk=pk).exists():
+                        return Response(
+                            {'email': ['A user with this email already exists.']},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                if field == 'department':
+                    from .models import Department
+                    try:
+                        dept = Department.objects.get(pk=value) if value else None
+                        teacher.department = dept
+                    except Department.DoesNotExist:
+                        return Response({'department': ['Department not found.']}, status=status.HTTP_400_BAD_REQUEST)
+                else:
+                    setattr(teacher, field, value)
+                updated.append(field)
+
+        if updated:
+            teacher.save()
+            print(f"[teacher_detail] Updated teacher {teacher.username}: {updated}")
+
+        from .serializers import TeacherListSerializer
+        serializer = TeacherListSerializer(teacher)
+        return Response({
+            'message': f'Teacher {teacher.get_full_name()} updated successfully',
+            'teacher': serializer.data
+        })
+
+    elif request.method == 'DELETE':
+        teacher_name = teacher.get_full_name() or teacher.username
+        # Soft delete: deactivate the user
+        teacher.is_active = False
+        teacher.save(update_fields=['is_active'])
+        print(f"[teacher_detail] Deactivated teacher: {teacher.username}")
+        return Response({
+            'message': f'Teacher {teacher_name} has been deactivated'
+        }, status=status.HTTP_200_OK)
+
+
+# ============================================================
 # STUDENT VIEWS
 # ============================================================
 
@@ -353,16 +475,28 @@ def get_student_subjects(request):
         return Response({'error': 'Only students allowed'}, status=403)
 
     try:
-        profile = request.user.student_profile
-    except StudentSemester.DoesNotExist:
-        return Response([], status=200)  # Return empty array, not error
+        # Find the enrollment for the active session
+        enrollment = StudentSemester.objects.filter(
+            student=request.user,
+            session__is_active=True,
+            is_active=True
+        ).select_related('branch', 'semester', 'session').first()
+        
+        if not enrollment:
+            # Fallback to latest enrollment if no active session
+            enrollment = StudentSemester.objects.filter(
+                student=request.user
+            ).select_related('branch', 'semester', 'session').order_by('-created_at').first()
+            
+    except Exception:
+        return Response([], status=200)
     
-    if not profile.branch or not profile.semester:
+    if not enrollment:
         return Response([], status=200)
 
     offerings = SubjectOffering.objects.filter(
-        branch=profile.branch,
-        semester=profile.semester,
+        branch=enrollment.branch,
+        semester=enrollment.semester,
         is_active=True
     ).select_related('subject', 'branch', 'semester')
 
@@ -1376,192 +1510,399 @@ def export_report(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def hod_teacher_report(request, pk):
+    """
+    GPN-Format Teacher Report: Feedback Analysis & Action Taken Report
+    Returns per-offering quantitative analysis with 5 category averages,
+    total score (out of 25), and percentage.
+    
+    Query params:
+      - session: FeedbackSession ID (optional, defaults to latest active)
+    """
     if request.user.role != 'hod':
         return Response({'error': 'Only HOD allowed'}, status=403)
     
     try:
-        teacher = User.objects.get(pk=pk, role='teacher')
+        teacher = User.objects.get(pk=pk, role__in=['teacher', 'hod'])
     except User.DoesNotExist:
         return Response({'error': 'Teacher not found'}, status=404)
 
-    subjects = Subject.objects.filter(offerings__assignment__teacher=teacher, offerings__assignment__is_active=True).distinct()
-    all_feedback = Feedback.objects.filter(offering__assignment__teacher=teacher, offering__assignment__is_active=True)
-    
-    overall_avg = all_feedback.aggregate(avg=Avg('overall_rating'))['avg']
-    total_feedback = all_feedback.count()
-    
-    # Rating distribution
-    rating_dist = {}
-    for i in range(1, 6):
-        rating_dist[str(i)] = all_feedback.filter(
-            overall_rating__gte=i - 0.5, overall_rating__lt=i + 0.5
+    # Determine session
+    session_id = request.GET.get('session')
+    if session_id:
+        try:
+            session = FeedbackSession.objects.get(pk=session_id)
+        except FeedbackSession.DoesNotExist:
+            return Response({'error': 'Session not found'}, status=404)
+    else:
+        session = FeedbackSession.objects.filter(is_active=True).order_by('-year').first()
+
+    # Get department info from HOD
+    department = request.user.department
+    dept_name = department.name if department else "Department"
+
+    # Get offerings assigned to this teacher
+    offerings_qs = SubjectOffering.objects.filter(
+        assignment__teacher=teacher,
+        assignment__is_active=True
+    ).select_related('subject', 'branch', 'semester')
+
+    # Build session date filter for feedback
+    session_fb_filter = {}
+    if session:
+        session_fb_filter['created_at__gte'] = session.start_date
+        session_fb_filter['created_at__lte'] = session.end_date
+
+    offerings_data = []
+    all_fb_for_teacher = Feedback.objects.none()
+
+    for offering in offerings_qs:
+        fbs = Feedback.objects.filter(offering=offering, **session_fb_filter)
+        all_fb_for_teacher = all_fb_for_teacher | fbs
+
+        agg = fbs.aggregate(
+            punctuality=Avg('punctuality_rating'),
+            domain_knowledge=Avg('teaching_rating'),
+            presentation_skills=Avg('clarity_rating'),
+            resolve_difficulties=Avg('interaction_rating'),
+            teaching_aids=Avg('behavior_rating'),
+        )
+
+        p = round(agg['punctuality'] or 0, 4)
+        d = round(agg['domain_knowledge'] or 0, 4)
+        pr = round(agg['presentation_skills'] or 0, 4)
+        r = round(agg['resolve_difficulties'] or 0, 4)
+        t = round(agg['teaching_aids'] or 0, 4)
+        score = round(p + d + pr + r + t, 4)
+        percentage = round((score / 25) * 100, 2) if score > 0 else 0
+
+        # 📈 30% Threshold Logic: Calculate feedback vs enrollment
+        total_enrolled = StudentSemester.objects.filter(
+            branch=offering.branch,
+            semester=offering.semester,
+            session=session
         ).count()
         
-    # Performance trend (monthly)
-    try:
-        monthly = (
-            all_feedback
-            .annotate(month=TruncMonth('created_at'))
-            .values('month')
-            .annotate(avg_rating=Avg('overall_rating'))
-            .order_by('month')
-        )
-        trend_labels = []
-        trend_values = []
-        for entry in monthly[-6:]:
-            if entry['month']:
-                trend_labels.append(entry['month'].strftime('%b %Y'))
-                trend_values.append(round(entry['avg_rating'] or 0, 2))
-    except Exception:
-        trend_labels = []
-        trend_values = []
+        feedback_count = fbs.count()
+        feedback_percentage = (feedback_count / total_enrolled * 100) if total_enrolled > 0 else 0
+        threshold_met = feedback_percentage >= 30
 
-    # Strengths & Weaknesses based on category averages
-    cat_agg = all_feedback.aggregate(
+        # Include all offerings that have AT LEAST 1 feedback, but data is only valid if threshold met
+        if feedback_count > 0:
+            offerings_data.append({
+                "offering_id": offering.id,
+                "course_name": offering.subject.name,
+                "course_code": offering.subject.code,
+                "branch_code": offering.branch.code,
+                "semester_number": offering.semester.number,
+                "semester_name": offering.semester.name,
+                "feedback_count": feedback_count,
+                "total_enrolled": total_enrolled,
+                "feedback_percentage": round(feedback_percentage, 2),
+                "threshold_met": threshold_met,
+                "punctuality": p if threshold_met else None,
+                "domain_knowledge": d if threshold_met else None,
+                "presentation_skills": pr if threshold_met else None,
+                "resolve_difficulties": r if threshold_met else None,
+                "teaching_aids": t if threshold_met else None,
+                "score": round(score, 4) if threshold_met else 0,
+                "percentage": percentage if threshold_met else 0,
+            })
+
+    # Check if any data exists for this session
+    total_count = all_fb_for_teacher.count()
+    data_available = total_count > 0
+
+    # Past feedback comparison — find previous session
+    past_percentage = None
+    past_session_name = None
+    if session:
+        prev_sessions = FeedbackSession.objects.filter(
+            year__lt=session.year
+        ).order_by('-year', '-type')
+        if not prev_sessions.exists():
+            prev_sessions = FeedbackSession.objects.filter(
+                year=session.year
+            ).exclude(pk=session.pk).order_by('-type')
+        
+        prev_session = prev_sessions.first()
+        if prev_session:
+            past_session_name = prev_session.name
+            # Check if there was feedback in the previous session period
+            past_fb = Feedback.objects.filter(
+                offering__assignment__teacher=teacher,
+                offering__assignment__is_active=True,
+                created_at__gte=prev_session.start_date,
+                created_at__lte=prev_session.end_date,
+            )
+            if past_fb.exists():
+                past_agg = past_fb.aggregate(
+                    p=Avg('punctuality_rating'),
+                    d=Avg('teaching_rating'),
+                    c=Avg('clarity_rating'),
+                    i=Avg('interaction_rating'),
+                    b=Avg('behavior_rating'),
+                )
+                past_score = sum(round(v or 0, 4) for v in past_agg.values())
+                past_percentage = round((past_score / 25) * 100, 2)
+
+    # Determine semester label for session
+    semester_label = ""
+    if offerings_data:
+        sem_nums = list(set(o['semester_number'] for o in offerings_data))
+        if len(sem_nums) == 1:
+            ordinals = {1: 'First', 2: 'Second', 3: 'Third', 4: 'Fourth', 5: 'Fifth', 6: 'Sixth', 7: 'Seventh', 8: 'Eighth'}
+            semester_label = ordinals.get(sem_nums[0], f"Semester {sem_nums[0]}")
+        else:
+            semester_label = ", ".join(str(s) for s in sorted(sem_nums))
+
+    # Strengths & Weaknesses
+    cat_agg = all_fb_for_teacher.aggregate(
         punctuality=Avg('punctuality_rating'),
         teaching=Avg('teaching_rating'),
         clarity=Avg('clarity_rating'),
         interaction=Avg('interaction_rating'),
         behavior=Avg('behavior_rating'),
     )
-    
+    category_labels = {
+        'punctuality': 'Punctuality & Discipline',
+        'teaching': 'Domain Knowledge',
+        'clarity': 'Presentation Skills',
+        'interaction': 'Resolving Difficulties',
+        'behavior': 'Teaching Aids',
+    }
     categories = []
     for k, v in cat_agg.items():
         if v is not None:
-            categories.append({"name": k.replace('_rating', '').capitalize(), "score": v})
-            
+            categories.append({"name": category_labels.get(k, k), "score": v})
     categories.sort(key=lambda x: x['score'], reverse=True)
     strengths = [c['name'] for c in categories[:2]] if categories else []
     weaknesses = [c['name'] for c in categories[-2:]] if len(categories) >= 3 else []
-    
+
     return Response({
+        "institution": "Government Polytechnic Nagpur",
+        "department": f"{dept_name} Department",
+        "session": session.name if session else "N/A",
+        "session_type": session.type if session else "",
+        "semester_label": semester_label,
+        "data_available": data_available,
+        "no_data_message": f"No feedback data available for session {session.name}." if (not data_available and session) else "",
         "teacher": {
+            "id": teacher.id,
             "name": teacher.get_full_name() or teacher.username,
             "email": teacher.email,
         },
-        "subjects": [{"name": s.name, "code": s.code} for s in subjects],
-        "total_feedback_count": total_feedback,
-        "average_rating": round(overall_avg, 2) if overall_avg else 0,
-        "performance_label": _get_performance_label(overall_avg),
-        "rating_distribution": rating_dist,
-        "performance_trend": {
-            "labels": trend_labels,
-            "values": trend_values,
+        "offerings": offerings_data,
+        "total_feedback_count": total_count,
+        "past_comparison": {
+            "session_name": past_session_name,
+            "percentage": past_percentage,
+            "note": "Last Year, this subject was taught by other faculty." if past_percentage is None and past_session_name else "",
         },
         "strengths": strengths,
         "weaknesses": weaknesses,
+        # Editable qualitative fields (defaults — HOD fills these in UI)
+        # Automated Key Observations
+        "key_observations": "\n".join(generate_key_observations(all_fb_for_teacher)),
+        "corrective_action": "",
+        "observation_status": "Pending",
+        "faculty_response": "",
+        "hod_comments": "",
+        "conclusion": "",
+        "report_date": timezone.now().strftime('%d/%m/%Y'),
     })
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def hod_department_report(request):
+    """
+    GPN-Format Cumulative Class Report: All faculty for a branch+year
+    
+    Query params:
+      - branch: Branch ID (optional)
+      - year: Academic year number 1-4 (optional)
+      - semester: Semester number (optional, overrides year)
+      - session: FeedbackSession ID (optional, defaults to latest active)
+    """
     if request.user.role != 'hod':
         return Response({'error': 'Only HOD allowed'}, status=403)
-        
-    all_feedback = Feedback.objects.all()
-    teachers = User.objects.filter(role='teacher')
-    
-    # Teachers list with avg rating
-    teachers_list = []
-    for teacher in teachers:
-        fbs = Feedback.objects.filter(offering__assignment__teacher=teacher, offering__assignment__is_active=True)
-        avg = fbs.aggregate(avg=Avg('overall_rating'))['avg']
-        teachers_list.append({
-            "name": teacher.get_full_name() or teacher.username,
-            "email": teacher.email,
-            "avg_rating": round(avg, 2) if avg else 0,
-            "feedback_count": fbs.count(),
-        })
-        
-    teachers_list.sort(key=lambda x: x['avg_rating'], reverse=True)
-    
-    dept_avg = all_feedback.aggregate(avg=Avg('overall_rating'))['avg']
-    total_feedback = all_feedback.count()
-    
-    # Year Performance
-    year_perf = {}
-    for sem in Semester.objects.all():
-        year_num = (sem.number + 1) // 2
-        fbs = all_feedback.filter(offering__semester=sem)
-        avg = fbs.aggregate(avg=Avg('overall_rating'))['avg']
-        count = fbs.count()
-        if count > 0:
-            key = str(year_num)
-            if key not in year_perf:
-                year_perf[key] = {"total_rating": 0, "count": 0}
-            year_perf[key]["total_rating"] += (avg or 0) * count
-            year_perf[key]["count"] += count
-            
-    year_performance = []
-    for y, data in year_perf.items():
-        year_performance.append({
-            "year": f"Year {y}",
-            "avg_rating": round(data["total_rating"] / data["count"], 2),
-            "feedback_count": data["count"]
-        })
-    year_performance.sort(key=lambda x: x["year"])
 
-    # Branch Performance
-    branches = Branch.objects.all()
-    branch_performance = []
-    for branch in branches:
-        fbs = all_feedback.filter(offering__branch=branch)
-        avg = fbs.aggregate(avg=Avg('overall_rating'))['avg']
-        if fbs.exists():
-            branch_performance.append({
-                "name": branch.code,
-                "avg_rating": round(avg or 0, 2),
-                "feedback_count": fbs.count()
-            })
-
-    # Subject-wise
-    subjects = Subject.objects.all()
-    subject_perf = []
-    for subject in subjects:
-        fbs = Feedback.objects.filter(offering__subject=subject)
-        avg = fbs.aggregate(avg=Avg('overall_rating'))['avg']
-        subject_perf.append({
-            "name": subject.name,
-            "code": subject.code,
-            "avg_rating": round(avg, 2) if avg else 0,
-            "feedback_count": fbs.count(),
-        })
-        
-    # Sentiment
-    sentiment = _get_sentiment_summary(all_feedback)
-    
-    # Growth Indicator
-    now = timezone.now()
-    last_month = now - timezone.timedelta(days=30)
-    
-    recent_feedbacks = all_feedback.filter(created_at__gte=last_month)
-    older_feedbacks = all_feedback.filter(created_at__lt=last_month)
-    
-    recent_avg = recent_feedbacks.aggregate(avg=Avg('overall_rating'))['avg'] or 0
-    older_avg = older_feedbacks.aggregate(avg=Avg('overall_rating'))['avg'] or 0
-    
-    if older_avg > 0:
-        if recent_avg > older_avg + 0.1:
-            growth = "Improving"
-        elif recent_avg < older_avg - 0.1:
-            growth = "Declining"
-        else:
-            growth = "Stable"
+    # Determine session
+    session_id = request.GET.get('session')
+    if session_id:
+        try:
+            session = FeedbackSession.objects.get(pk=session_id)
+        except FeedbackSession.DoesNotExist:
+            return Response({'error': 'Session not found'}, status=404)
     else:
-        growth = "Stable"
+        session = FeedbackSession.objects.filter(is_active=True).order_by('-year').first()
+
+    # Get department info
+    department = request.user.department
+    dept_name = department.name if department else "Department"
+
+    # Build offering filters
+    offering_filters = Q(assignment__is_active=True)
+    
+    branch_id = request.GET.get('branch')
+    branch_obj = None
+    if branch_id:
+        try:
+            branch_obj = Branch.objects.get(pk=branch_id)
+            offering_filters &= Q(branch=branch_obj)
+        except Branch.DoesNotExist:
+            return Response({'error': 'Branch not found'}, status=404)
+
+    semester_param = request.GET.get('semester')
+    year_param = request.GET.get('year')
+    
+    if semester_param:
+        offering_filters &= Q(semester__number=int(semester_param))
+    elif year_param:
+        year_num = int(year_param)
+        sem_a = (year_num * 2) - 1
+        sem_b = year_num * 2
+        offering_filters &= Q(semester__number__in=[sem_a, sem_b])
+
+    offerings_qs = SubjectOffering.objects.filter(
+        offering_filters
+    ).select_related(
+        'subject', 'branch', 'semester', 'assignment__teacher'
+    )
+
+    teachers_data = []
+    for offering in offerings_qs:
+        try:
+            assignment = offering.assignment
+            if not assignment or not assignment.is_active:
+                continue
+            teacher = assignment.teacher
+        except Exception:
+            continue
+
+        # Filter feedback by session date range
+        fb_filter = {'offering': offering}
+        if session:
+            fb_filter['created_at__gte'] = session.start_date
+            fb_filter['created_at__lte'] = session.end_date
+        fbs = Feedback.objects.filter(**fb_filter)
+
+        # Skip offerings with no feedback in this session
+        if fbs.count() == 0:
+            continue
+
+        agg = fbs.aggregate(
+            punctuality=Avg('punctuality_rating'),
+            domain_knowledge=Avg('teaching_rating'),
+            presentation_skills=Avg('clarity_rating'),
+            resolve_difficulties=Avg('interaction_rating'),
+            teaching_aids=Avg('behavior_rating'),
+        )
+
+        p = round(agg['punctuality'] or 0, 4)
+        d = round(agg['domain_knowledge'] or 0, 4)
+        pr = round(agg['presentation_skills'] or 0, 4)
+        r = round(agg['resolve_difficulties'] or 0, 4)
+        t = round(agg['teaching_aids'] or 0, 4)
+        score = round(p + d + pr + r + t, 4)
+        percentage = round((score / 25) * 100, 2) if score > 0 else 0
+
+        # 📈 30% Threshold Logic: Calculate feedback vs enrollment
+        total_enrolled = StudentSemester.objects.filter(
+            branch=offering.branch,
+            semester=offering.semester,
+            session=session
+        ).count()
         
+        feedback_count = fbs.count()
+        feedback_percentage = (feedback_count / total_enrolled * 100) if total_enrolled > 0 else 0
+        threshold_met = feedback_percentage >= 30
+
+        teachers_data.append({
+            "faculty": teacher.get_full_name() or teacher.username,
+            "teacher_id": teacher.id,
+            "course_name": offering.subject.name,
+            "course_code": offering.subject.code,
+            "branch_code": offering.branch.code,
+            "semester_number": offering.semester.number,
+            "feedback_count": feedback_count,
+            "total_enrolled": total_enrolled,
+            "feedback_percentage": round(feedback_percentage, 2),
+            "threshold_met": threshold_met,
+            "punctuality": p if threshold_met else None,
+            "domain_knowledge": d if threshold_met else None,
+            "presentation_skills": pr if threshold_met else None,
+            "resolve_difficulties": r if threshold_met else None,
+            "teaching_aids": t if threshold_met else None,
+            "score": round(score, 4) if threshold_met else 0,
+            "percentage": percentage if threshold_met else 0,
+        })
+
+    # Sort by percentage descending
+    teachers_data.sort(key=lambda x: x['percentage'], reverse=True)
+
+    # Build class label
+    class_label = ""
+    if branch_obj and year_param:
+        year_words = {1: 'First', 2: 'Second', 3: 'Third', 4: 'Fourth'}
+        class_label = f"{branch_obj.name} {year_words.get(int(year_param), year_param)} Year"
+    elif branch_obj:
+        class_label = branch_obj.name
+    elif year_param:
+        year_words = {1: 'First', 2: 'Second', 3: 'Third', 4: 'Fourth'}
+        class_label = f"{year_words.get(int(year_param), year_param)} Year"
+    else:
+        class_label = "All Classes"
+
+    # Also return available branches and semesters for the filter dropdowns
+    available_branches = list(Branch.objects.values('id', 'name', 'code').order_by('name'))
+    available_sessions = list(FeedbackSession.objects.values('id', 'name', 'type', 'year').order_by('-year', '-type'))
+
+    data_available = len(teachers_data) > 0
+    
+    # 🕵️ Aggregated Observations for the entire Department/Class list
+    all_class_fbs = Feedback.objects.filter(offering__in=offerings_qs)
+    if session:
+        all_class_fbs = all_class_fbs.filter(
+            created_at__gte=session.start_date,
+            created_at__lte=session.end_date
+        )
+    overall_remarks = "\n".join(generate_key_observations(all_class_fbs)) if data_available else ""
+
+    # 📊 Branch-wise comparison for the current department/session
+    branch_performance = all_class_fbs.values(
+        'offering__branch__id',
+        'offering__branch__name',
+        'offering__branch__code'
+    ).annotate(
+        avg=Avg('overall_rating'),
+        count=Count('id')
+    ).order_by('-avg')
+
+    branch_comparisons = [
+        {
+            "branch_name": bp['offering__branch__name'],
+            "branch_code": bp['offering__branch__code'],
+            "average": round(bp['avg'] or 0, 2),
+            "participation": bp['count']
+        }
+        for bp in branch_performance
+    ]
+
     return Response({
-        "teachers": teachers_list,
-        "department_average": round(dept_avg, 2) if dept_avg else 0,
-        "total_feedback": total_feedback,
-        "subject_performance": subject_perf,
-        "sentiment_analysis": sentiment,
-        "growth_indicator": growth,
-        "recent_avg": round(recent_avg, 2),
-        "older_avg": round(older_avg, 2),
-        "year_performance": year_performance,
-        "branch_performance": branch_performance,
+        "institution": "Government Polytechnic Nagpur",
+        "department": f"{dept_name} Department",
+        "session": session.name if session else "N/A",
+        "session_year": f"{session.type} {session.year}-{str(session.year + 1)[2:]}" if session else "",
+        "class_label": class_label,
+        "data_available": data_available,
+        "no_data_message": f"No feedback data available for session {session.name}." if (not data_available and session) else "",
+        "teachers": teachers_data,
+        "branch_comparisons": branch_comparisons,
+        "overall_remarks": overall_remarks,
+        "report_date": timezone.now().strftime('%d/%m/%Y'),
+        "available_branches": available_branches,
+        "available_sessions": available_sessions,
     })
 
 
@@ -1779,7 +2120,15 @@ def enrollment_form_data(request):
     if request.user.role not in ('hod', 'admin'):
         return Response({'error': 'Only HOD/Admin allowed'}, status=403)
 
-    session = FeedbackSession.objects.filter(is_active=True).first()
+    # Determine session
+    session_id = request.GET.get('session_id')
+    if session_id:
+        try:
+            session = FeedbackSession.objects.get(pk=session_id)
+        except FeedbackSession.DoesNotExist:
+            session = FeedbackSession.objects.filter(is_active=True).first()
+    else:
+        session = FeedbackSession.objects.filter(is_active=True).first()
     
     students_qs = User.objects.filter(role='student').prefetch_related('student_semesters').order_by('username')
     students_data = []
@@ -1945,6 +2294,7 @@ def bulk_enroll_students_semester(request):
     student_ids = request.data.get('student_ids', [])
     branch_id = request.data.get('branch_id')
     semester_id = request.data.get('semester_id')
+    session_id = request.data.get('session_id')
     
     if not all([student_ids, branch_id, semester_id]):
         return Response({'error': 'student_ids, branch_id, and semester_id are required'}, status=400)
@@ -1953,12 +2303,25 @@ def bulk_enroll_students_semester(request):
         branch = Branch.objects.get(pk=branch_id)
         semester = Semester.objects.get(pk=semester_id)
         
+        # Determine session
+        if session_id:
+            try:
+                session = FeedbackSession.objects.get(pk=session_id)
+            except FeedbackSession.DoesNotExist:
+                session = FeedbackSession.objects.filter(is_active=True).first()
+        else:
+            session = FeedbackSession.objects.filter(is_active=True).first()
+        
+        if not session:
+            return Response({'error': 'No active session found for enrollment'}, status=400)
+        
         enrolled_count = 0
         for sid in student_ids:
             try:
                 student = User.objects.get(pk=sid, role='student')
                 StudentSemester.objects.update_or_create(
                     student=student,
+                    session=session,
                     defaults={'branch': branch, 'semester': semester}
                 )
                 enrolled_count += 1
@@ -2467,7 +2830,6 @@ def department_analytics(request):
     
     # Get department name
     try:
-        from users.models import Department
         department = Department.objects.get(id=department_id)
         department_name = department.name
     except Department.DoesNotExist:
@@ -2633,7 +2995,6 @@ def branch_comparison_analytics(request):
     
     # Get department name
     try:
-        from users.models import Department
         department = Department.objects.get(id=department_id)
         department_name = department.name
     except Department.DoesNotExist:
@@ -2722,3 +3083,30 @@ def branch_comparison_analytics(request):
     }
     
     return Response(response_data)
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def close_feedback_session(request, pk):
+    """
+    Mark a feedback session as archived/closed.
+    This sets is_active=False and closes all linked feedback windows.
+    """
+    if request.user.role != 'hod':
+        return Response({'error': 'Only HOD allowed'}, status=403)
+        
+    session = get_object_or_404(FeedbackSession, pk=pk)
+    
+    # Close the session
+    session.is_active = False
+    session.save()
+    
+    # Close all windows associated with this session (if they exist)
+    # We close windows that are active and fall within the session's date range
+    FeedbackWindow.objects.filter(
+        start_date__gte=session.start_date,
+        end_date__lte=session.end_date
+    ).update(is_active=False)
+    
+    return Response({
+        "message": f"Session '{session.name}' has been successfully closed and archived.",
+        "session_id": session.id
+    })
