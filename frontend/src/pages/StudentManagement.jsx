@@ -87,18 +87,30 @@ export default function StudentManagement() {
 
     try {
       const res = await API.post("students/upload/", formData, {
-        headers: { "Content-Type": "multipart/form-data" }
+        headers: { "Content-Type": "multipart/form-data" },
+        timeout: 120000 // 2 min timeout for large Excel files
       });
-      
-      const { created_students, updated_students, errors } = res.data.results;
-      setToast({ 
-        message: `Processed: ${created_students} created, ${updated_students} updated. ${errors.length} errors.`, 
-        type: errors.length > 0 ? "warning" : "success" 
-      });
-      
+
+      if (res.data.success && res.data.stats) {
+        const { created, updated, skipped_existing, errors, warnings } = res.data.stats;
+        let msg = `✅ ${created} created, ${updated} updated, ${skipped_existing} skipped.`;
+        if (errors.length > 0) msg += ` ⚠️ ${errors.length} error(s).`;
+        if (warnings && warnings.length > 0) msg += ` 📋 ${warnings.length} warning(s).`;
+        setToast({ message: msg, type: errors.length > 0 ? "warning" : "success" });
+      } else if (res.data.success && res.data.preview) {
+        setToast({ message: `Preview: ${res.data.total_valid_rows} valid rows found.`, type: "success" });
+      } else {
+        setToast({ message: res.data.error || "Upload returned unexpected response", type: "error" });
+      }
+
       fetchStudents(); // Refresh list
     } catch (err) {
-      setToast({ message: err.response?.data?.error || "Upload failed", type: "error" });
+      const detail = err.response?.data?.error
+        || err.response?.data?.detail
+        || (err.code === 'ECONNABORTED' ? 'Upload timed out — the file may be too large' : null)
+        || err.message
+        || "Upload failed";
+      setToast({ message: `❌ ${detail}`, type: "error" });
     } finally {
       setUploading(false);
       e.target.value = null; // Reset input

@@ -45,7 +45,7 @@ def run_e2e_tests():
     # Create fresh Dept/Branch
     dept = Department.objects.create(name="E2E Research Department", code=test_dept_code)
     branch = Branch.objects.create(code=test_branch_code, name="Test E2E Branch", department=dept)
-    semester, _ = Semester.objects.get_or_create(number=99, defaults={"name": "E2E Semester"})
+    semester, _ = Semester.objects.get_or_create(number=6, defaults={"name": "E2E Semester"})
     
     # Create Users
     hod_user = User.objects.create(username="test_hod", role="hod", department=dept)

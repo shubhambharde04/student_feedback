@@ -7,7 +7,9 @@ from django.shortcuts import render
 from django.contrib import messages
 from .models import (
     Feedback, Subject, User, FeedbackWindow, Branch, Semester,
-    SubjectOffering, SubjectAssignment, StudentSemester
+    SubjectOffering, SubjectAssignment, StudentSemester,
+    FeedbackSession, Question, FeedbackForm, SessionOffering,
+    FeedbackSubmission, FeedbackResponse
 )
 
 class CustomUserCreationForm(UserCreationForm):
@@ -156,3 +158,47 @@ admin.site.register(Feedback)
 admin.site.register(FeedbackWindow)
 admin.site.register(Branch)
 admin.site.register(Semester)
+
+# Session-Based Feedback Models
+@admin.register(FeedbackSession)
+class FeedbackSessionAdmin(admin.ModelAdmin):
+    list_display = ('name', 'type', 'year', 'is_active', 'start_date', 'end_date')
+    list_filter = ('is_active', 'type', 'year')
+    search_fields = ('name',)
+
+@admin.register(Question)
+class QuestionAdmin(admin.ModelAdmin):
+    list_display = ('text_truncated', 'question_type', 'category', 'is_active', 'order')
+    list_filter = ('question_type', 'category', 'is_active')
+    search_fields = ('text',)
+    
+    def text_truncated(self, obj):
+        return obj.text[:100]
+    text_truncated.short_description = 'Question Text'
+
+@admin.register(FeedbackForm)
+class FeedbackFormAdmin(admin.ModelAdmin):
+    list_display = ('name', 'session')
+    list_filter = ('session',)
+
+@admin.register(SessionOffering)
+class SessionOfferingAdmin(admin.ModelAdmin):
+    list_display = ('base_offering', 'session', 'teacher', 'is_active')
+    list_filter = ('session', 'is_active')
+
+@admin.register(FeedbackSubmission)
+class FeedbackSubmissionAdmin(admin.ModelAdmin):
+    list_display = ('student', 'offering', 'session', 'submitted_at', 'is_completed')
+    list_filter = ('session', 'is_completed', 'submitted_at')
+    search_fields = ('student__username', 'student__enrollment_no')
+
+@admin.register(FeedbackResponse)
+class FeedbackResponseAdmin(admin.ModelAdmin):
+    list_display = ('student', 'question_truncated', 'rating', 'submitted_at')
+    list_filter = ('session', 'question__category')
+    search_fields = ('student__username', 'text_response')
+
+    def question_truncated(self, obj):
+        return obj.question.text[:50]
+    question_truncated.short_description = 'Question'
+

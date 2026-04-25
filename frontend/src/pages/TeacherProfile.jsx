@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import API from "../api";
 import SubjectRadarChart from "../components/SubjectRadarChart";
+import EmailComposer from "../components/EmailComposer";
 
 export default function TeacherProfile() {
   const { id } = useParams();
@@ -11,21 +12,15 @@ export default function TeacherProfile() {
   const [error, setError] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailStatus, setEmailStatus] = useState("");
+  const [showEmailComposer, setShowEmailComposer] = useState(false);
 
   useEffect(() => {
     const fetchTeacherProfile = async () => {
       try {
         console.log('Fetching teacher profile for ID:', id);
-        console.log('Current user from localStorage:', JSON.parse(localStorage.getItem('user') || '{}'));
-        
         const response = await API.get(`hod/teacher/${id}/`);
-        console.log('Teacher profile response:', response.data);
         setTeacher(response.data);
       } catch (err) {
-        console.error('Failed to load teacher profile:', err);
-        console.error('Error response:', err.response);
-        console.error('Error status:', err.response?.status);
-        console.error('Error data:', err.response?.data);
         setError(`Failed to load teacher profile: ${err.response?.data?.error || err.message}`);
       } finally {
         setLoading(false);
@@ -38,14 +33,13 @@ export default function TeacherProfile() {
   }, [id]);
 
   const handleSendReport = async () => {
-    if (!window.confirm("Send performance report to this teacher's email?")) return;
     setSendingEmail(true);
     setEmailStatus("");
     try {
       await API.post("hod/send-report/", { teacher_id: id });
       setEmailStatus({ type: "success", msg: "Email report sent successfully!" });
     } catch (err) {
-      setEmailStatus({ type: "error", msg: "Failed to send email report." });
+      setEmailStatus({ type: "error", msg: `Failed to send email report: ${err.response?.data?.error || err.message}` });
     } finally {
       setSendingEmail(false);
       setTimeout(() => setEmailStatus(""), 5000);
@@ -53,9 +47,8 @@ export default function TeacherProfile() {
   };
 
   const generatePDFReport = async () => {
-    // This connects to the backend PDF generator View
     try {
-      const response = await API.get(`hod/export-report/?type=teacher&id=${id}&format=pdf`, {
+      const response = await API.get(`hod/pdf-report/?type=teacher&id=${id}&format=pdf`, {
         responseType: 'blob'
       });
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -66,7 +59,7 @@ export default function TeacherProfile() {
       link.click();
       link.parentNode.removeChild(link);
     } catch (err) {
-      alert("Failed to generate PDF report.");
+      alert(`Failed to generate PDF report: ${err.response?.data?.error || err.message}`);
     }
   };
 
@@ -87,11 +80,6 @@ export default function TeacherProfile() {
           <button onClick={() => navigate("/hod-dashboard")} className="btn-secondary">
             Back to Dashboard
           </button>
-          {error && (
-            <div className="mt-4 p-3 bg-accent-rose/10 border border-accent-rose/20 rounded-lg">
-              <p className="text-xs text-accent-rose">Error details: {error}</p>
-            </div>
-          )}
         </div>
       </div>
     );
@@ -165,7 +153,16 @@ export default function TeacherProfile() {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
-              {sendingEmail ? "Sending..." : "Email Report"}
+              {sendingEmail ? "Sending..." : "Quick Report"}
+            </button>
+            <button 
+              onClick={() => setShowEmailComposer(true)}
+              className="btn-secondary flex items-center justify-center gap-2 whitespace-nowrap"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Compose Email
             </button>
             <button 
               onClick={generatePDFReport}
@@ -178,6 +175,18 @@ export default function TeacherProfile() {
             </button>
           </div>
         </div>
+
+        {showEmailComposer && (
+          <EmailComposer
+            teachers={[teacher.teacher]}
+            subjects={teacher.subjects}
+            onEmailSent={(res) => {
+              setEmailStatus({ type: "success", msg: res.message });
+              setTimeout(() => setEmailStatus(""), 5000);
+            }}
+            onClose={() => setShowEmailComposer(false)}
+          />
+        )}
 
         <h2 className="text-xl font-bold text-surface-100 font-display mb-6">Subject Breakdown</h2>
 

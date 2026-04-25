@@ -41,22 +41,12 @@ export default function TeacherManagement() {
       const [teacherRes, profileRes, deptRes] = await Promise.all([
         API.get("users/teachers/"),
         API.get("auth/profile/"),
-        API.get("branches/"), // Use branches to infer departments
+        API.get("departments/"),
       ]);
 
       setTeachers(teacherRes.data);
       setUser(profileRes.data.user);
-
-      // Extract unique departments from branches
-      const deptMap = new Map();
-      deptRes.data.forEach((b) => {
-        if (b.department && b.department_name) {
-          deptMap.set(b.department, b.department_name);
-        }
-      });
-      setDepartments(
-        Array.from(deptMap.entries()).map(([id, name]) => ({ id, name }))
-      );
+      setDepartments(deptRes.data);
     } catch (err) {
       console.error("Error fetching teacher data:", err);
       if (err.response?.status !== 403) {
@@ -223,7 +213,9 @@ export default function TeacherManagement() {
       (t.designation || "").toLowerCase().includes(filters.search.toLowerCase());
 
     const matchesDepartment =
-      !filters.department || String(t.department) === String(filters.department);
+      !filters.department || 
+      String(t.department) === String(filters.department) ||
+      (t.assigned_departments && t.assigned_departments.includes(parseInt(filters.department)));
 
     return matchesSearch && matchesDepartment;
   });

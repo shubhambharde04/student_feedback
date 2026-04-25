@@ -27,7 +27,8 @@ if TYPE_CHECKING:
 from .models import (
     User, Subject, SubjectOffering, SubjectAssignment, 
     Feedback, FeedbackWindow, Branch, Semester,
-    Department, StudentSemester, FeedbackSession
+    Department, StudentSemester, FeedbackSession, SessionOffering,
+    FeedbackResponse, FeedbackSubmission, Question
 )
 from .serializers import (
     BranchSerializer, SemesterSerializer, SubjectSerializer,
@@ -35,7 +36,7 @@ from .serializers import (
     UserSerializer, FeedbackSerializer, FeedbackWindowSerializer,
     LoginSerializer, FeedbackWindowSerializer,
     ChangePasswordSerializer, SubjectOfferingCreateSerializer,
-    TeacherAssignmentSerializer
+    TeacherAssignmentSerializer, DepartmentSerializer
 )
 from .sentiment import analyze_sentiment
 from .observations import generate_key_observations
@@ -362,7 +363,11 @@ def manage_teachers(request):
         return Response({'error': 'Only HOD can manage teachers'}, status=status.HTTP_403_FORBIDDEN)
 
     if request.method == 'GET':
-        teachers = User.objects.filter(role='teacher').select_related('department').order_by('first_name', 'last_name')
+        teachers = User.objects.filter(role='teacher').select_related('department')
+        if request.user.role == 'hod' and request.user.department:
+            teachers = teachers.filter(department=request.user.department)
+        teachers = teachers.order_by('first_name', 'last_name')
+        
         from .serializers import TeacherListSerializer
         serializer = TeacherListSerializer(teachers, many=True)
         return Response(serializer.data)
@@ -554,6 +559,32 @@ def _get_sentiment_summary(feedbacks):
     }
 
 
+def _resolve_session_context(request):
+    """
+    Resolve session from request query params.
+    Allows fetching a specific session via 'session_id', otherwise falls back to the active session.
+    Returns (session_obj, offering_ids) where offering_ids are the SubjectOffering IDs
+    linked to the session via SessionOffering.
+    """
+    session_id = request.GET.get('session_id')
+    
+    if session_id:
+        session = FeedbackSession.objects.filter(id=session_id).first()
+    else:
+        # Default to ACTIVE session
+        session = FeedbackSession.objects.filter(is_active=True).order_by('-year').first()
+
+    if not session:
+        return None, None
+
+    # Get SubjectOffering IDs linked to this session via SessionOffering
+    offering_ids = list(
+        SessionOffering.objects.filter(session=session, is_active=True)
+        .values_list('base_offering_id', flat=True)
+    )
+    return session, offering_ids
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def teacher_dashboard(request):
@@ -561,23 +592,14 @@ def teacher_dashboard(request):
     
     # PARAMETERS
     view_mode = request.query_params.get('view', 'combined')
-    curr_sem_id = request.query_params.get('curr_sem')
-    prev_sem_id = request.query_params.get('prev_sem')
+    # Force focus on the ACTIVE session only via assignments
+    current_offerings = SubjectOffering.objects.filter(
+        assignment__teacher=request.user, 
+        assignment__is_active=True
+    )
     
-    # Determine current semester if not provided
-    if not curr_sem_id:
-        active_assign = SubjectAssignment.objects.filter(teacher=request.user, is_active=True).first()
-        if active_assign:
-            curr_sem_id = active_assign.offering.semester.id
-
-    # Base offerings for comparison logic (for the teacher)
-    teacher_all_offerings = SubjectOffering.objects.filter(assignment__teacher=request.user)
-    
-    # Filter current offerings based on semester
-    if curr_sem_id:
-        current_offerings = teacher_all_offerings.filter(semester_id=curr_sem_id)
-    else:
-        current_offerings = teacher_all_offerings.filter(assignment__is_active=True)
+    if not current_offerings.exists():
+        return Response([])
 
     data = []
 
@@ -595,20 +617,6 @@ def teacher_dashboard(request):
             )
             curr_avg = curr_agg['avg_overall'] or 0
 
-            # PREVIOUS DATA
-            prev_avg = 0
-            if prev_sem_id:
-                prev_offerings = teacher_all_offerings.filter(semester_id=prev_sem_id, subject=subject)
-                prev_feedbacks = Feedback.objects.filter(offering__in=prev_offerings)
-                prev_avg = prev_feedbacks.aggregate(avg=Avg('overall_rating'))['avg'] or 0
-
-            # Calculate Trend
-            diff = round(curr_avg - prev_avg, 2) if (curr_avg and prev_avg) else 0
-            trend = "same"
-            if not prev_avg and curr_avg: trend = "new"
-            elif diff > 0.05: trend = "up"
-            elif diff < -0.05: trend = "down"
-
             data.append({
                 "subject_id": subject.id,
                 "subject_name": subject.name, 
@@ -616,9 +624,6 @@ def teacher_dashboard(request):
                 "feedback_count": curr_feedbacks.count(),
                 "performance": _get_performance_label(curr_avg if curr_avg > 0 else None),
                 "sentiment_summary": _get_sentiment_summary(curr_feedbacks),
-                "prev_avg": round(prev_avg, 2),
-                "difference": diff,
-                "trend": trend,
                 **{k: round(v or 0, 2) for k, v in curr_agg.items()}
             })
     else:
@@ -673,15 +678,11 @@ def teacher_dashboard(request):
 def teacher_performance(request):
     if request.user.role != 'teacher': return Response({'error': 'Only teachers allowed'}, status=403)
     
-    curr_sem_id = request.query_params.get('curr_sem')
-    
-    # Base filter
-    offerings_query = SubjectOffering.objects.filter(assignment__teacher=request.user)
-    
-    if curr_sem_id:
-        offerings = offerings_query.filter(semester_id=curr_sem_id)
-    else:
-        offerings = offerings_query.filter(assignment__is_active=True)
+    # Base filter - STRICT ACTIVE ONLY
+    offerings = SubjectOffering.objects.filter(
+        assignment__teacher=request.user,
+        assignment__is_active=True
+    )
         
     all_feedback = Feedback.objects.filter(offering__in=offerings)
     
@@ -742,13 +743,11 @@ def teacher_performance_charts(request):
     """Return chart-ready data for the teacher performance dashboard."""
     if request.user.role != 'teacher': return Response({'error': 'Only teachers allowed'}, status=403)
     
-    curr_sem_id = request.query_params.get('curr_sem')
-    offerings_query = SubjectOffering.objects.filter(assignment__teacher=request.user)
-    
-    if curr_sem_id:
-        offerings = offerings_query.filter(semester_id=curr_sem_id)
-    else:
-        offerings = offerings_query.filter(assignment__is_active=True)
+    # STRICT ACTIVE ONLY
+    offerings = SubjectOffering.objects.filter(
+        assignment__teacher=request.user,
+        assignment__is_active=True
+    )
         
     all_feedback = Feedback.objects.filter(offering__in=offerings)
     view_mode = request.query_params.get('view', 'combined')
@@ -774,6 +773,21 @@ def teacher_performance_charts(request):
     )
     category_labels = ['Punctuality', 'Teaching', 'Clarity', 'Interaction', 'Behavior']
     category_values = [round(cat_agg[f'avg_{k.lower()}'] or 0, 2) for k in category_labels]
+    
+    # NEW: Fetch actual question averages from FeedbackResponse
+    question_labels = []
+    question_values = []
+    try:
+        from .models import FeedbackResponse, SessionOffering
+        session_offerings = SessionOffering.objects.filter(base_offering__in=offerings, is_active=True)
+        fb_responses = FeedbackResponse.objects.filter(offering__in=session_offerings, question__question_type='RATING')
+        qa_data = fb_responses.values('question__text').annotate(avg_rating=Avg('rating')).order_by('-avg_rating')
+        for qa in qa_data:
+            question_labels.append(qa['question__text'])
+            question_values.append(round(qa['avg_rating'] or 0, 2))
+    except Exception as e:
+        print(f"Error fetching question averages: {e}")
+
 
     total = all_feedback.count()
     excellent = all_feedback.filter(overall_rating__gte=4).count()
@@ -791,6 +805,7 @@ def teacher_performance_charts(request):
     return Response({
         'subject_ratings': {'labels': subject_labels, 'values': subject_values},
         'category_averages': {'labels': category_labels, 'values': category_values},
+        'question_averages': {'labels': question_labels, 'values': question_values},
         'rating_distribution': {'labels': ['Excellent (4-5)', 'Good (3-4)', 'Average (2-3)', 'Poor (1-2)'], 'values': [excellent, good, average, poor]},
         'monthly_trend': {'labels': trend_labels or ['No Data'], 'values': trend_values or [0]},
         'total_feedback': total,
@@ -890,21 +905,41 @@ def hod_dashboard_overview(request):
     if request.user.role != 'hod':
         return Response({'error': 'Only HOD allowed'}, status=403)
 
-    total_feedback = Feedback.objects.count()
-    total_teachers = User.objects.filter(role='teacher').count()
-    total_subjects = Subject.objects.count()
-    avg_rating = Feedback.objects.aggregate(
-        avg=Avg('overall_rating')
-    )['avg']
+    session, offering_ids = _resolve_session_context(request)
 
-    # Top & lowest teacher
-    teachers = User.objects.filter(role='teacher')
+    # Session-scoped feedback queryset
+    if session and offering_ids:
+        session_submissions = FeedbackSubmission.objects.filter(session=session)
+        session_responses = FeedbackResponse.objects.filter(session=session)
+        session_offerings = SubjectOffering.objects.filter(id__in=offering_ids)
+        session_teacher_ids = set(
+            SessionOffering.objects.filter(session=session, is_active=True)
+            .values_list('teacher_id', flat=True)
+        )
+        session_teachers = User.objects.filter(id__in=session_teacher_ids)
+        session_subjects = Subject.objects.filter(offerings__id__in=offering_ids).distinct()
+        session_students = StudentSemester.objects.filter(session=session, is_active=True).values('student').distinct().count()
+    else:
+        session_submissions = FeedbackSubmission.objects.none()
+        session_responses = FeedbackResponse.objects.none()
+        session_offerings = SubjectOffering.objects.none()
+        session_teachers = User.objects.none()
+        session_subjects = Subject.objects.none()
+        session_students = 0
+
+    total_feedback = session_submissions.count()
+    total_teachers = session_teachers.count()
+    total_subjects = session_subjects.count()
+    
+    rating_responses = session_responses.filter(question__question_type='RATING')
+    avg_rating = rating_responses.aggregate(avg=Avg('rating'))['avg']
+
+    # Top & lowest teacher (scoped to session)
     teacher_ratings = []
-    for teacher in teachers:
-        t_avg = Feedback.objects.filter(
-            offering__assignment__teacher=teacher,
-            offering__assignment__is_active=True
-        ).aggregate(avg=Avg('overall_rating'))['avg']
+    for teacher in session_teachers:
+        t_avg = rating_responses.filter(
+            offering__teacher=teacher
+        ).aggregate(avg=Avg('rating'))['avg']
         if t_avg is not None:
             teacher_ratings.append({
                 'id': teacher.id,
@@ -915,14 +950,21 @@ def hod_dashboard_overview(request):
 
     teacher_ratings.sort(key=lambda x: x['avg_rating'], reverse=True)
 
-    return Response({
+    response_data = {
         "total_feedback": total_feedback,
         "total_teachers": total_teachers,
         "total_subjects": total_subjects,
+        "total_students": session_students,
         "average_rating": round(avg_rating, 2) if avg_rating else 0,
         "top_teacher": teacher_ratings[0] if teacher_ratings else None,
         "lowest_teacher": teacher_ratings[-1] if teacher_ratings else None,
-    })
+    }
+    if session:
+        response_data['session'] = {
+            'id': session.id, 'name': session.name,
+            'year': session.year, 'is_active': session.is_active,
+        }
+    return Response(response_data)
 
 
 @api_view(['GET'])
@@ -931,12 +973,26 @@ def hod_teachers(request):
     if request.user.role != 'hod':
         return Response({'error': 'Only HOD allowed'}, status=403)
 
-    teachers = User.objects.filter(role='teacher')
-    data = []
+    session, offering_ids = _resolve_session_context(request)
 
+    if session and offering_ids:
+        # Only teachers with SessionOffering in this session
+        session_teacher_ids = set(
+            SessionOffering.objects.filter(session=session, is_active=True)
+            .values_list('teacher_id', flat=True)
+        )
+        teachers = User.objects.filter(id__in=session_teacher_ids)
+    else:
+        teachers = User.objects.filter(role='teacher')
+
+    data = []
     for teacher in teachers:
-        subjects = Subject.objects.filter(offerings__assignment__teacher=teacher, offerings__assignment__is_active=True).distinct()
-        feedbacks = Feedback.objects.filter(offering__assignment__teacher=teacher, offering__assignment__is_active=True)
+        if offering_ids:
+            subjects = Subject.objects.filter(offerings__id__in=offering_ids, offerings__assignment__teacher=teacher).distinct()
+            feedbacks = Feedback.objects.filter(offering_id__in=offering_ids, offering__assignment__teacher=teacher)
+        else:
+            subjects = Subject.objects.filter(offerings__assignment__teacher=teacher, offerings__assignment__is_active=True).distinct()
+            feedbacks = Feedback.objects.filter(offering__assignment__teacher=teacher, offering__assignment__is_active=True)
         avg = feedbacks.aggregate(avg=Avg('overall_rating'))['avg']
 
         data.append({
@@ -956,36 +1012,57 @@ def hod_teachers(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def hod_teacher_detail(request, pk):
+    """Teacher profile detail for HOD using session-based data."""
     if request.user.role != 'hod':
         return Response({'error': 'Only HOD allowed'}, status=403)
 
-    try:
-        teacher = User.objects.get(pk=pk, role='teacher')
-    except User.DoesNotExist:
-        return Response({'error': 'Teacher not found'}, status=404)
+    teacher = get_object_or_404(User, pk=pk, role='teacher')
+    
+    # Resolve active session context
+    session, _ = _resolve_session_context(request)
+    if not session:
+        return Response({'error': 'No active feedback session found.'}, status=404)
 
-    subjects = Subject.objects.filter(offerings__assignment__teacher=teacher, offerings__assignment__is_active=True).distinct()
+    # Fetch session-based data
+    session_offerings = SessionOffering.objects.filter(session=session, teacher=teacher, is_active=True).select_related('base_offering__subject')
+    all_submissions = FeedbackSubmission.objects.filter(session=session, offering__teacher=teacher, is_completed=True)
+    all_responses = FeedbackResponse.objects.filter(
+        session=session, 
+        offering__teacher=teacher, 
+        question__question_type='RATING'
+    )
+    
+    overall_avg = all_responses.aggregate(avg=Avg('rating'))['avg']
+
     subject_data = []
-
-    all_feedback = Feedback.objects.filter(offering__assignment__teacher=teacher, offering__assignment__is_active=True)
-    overall_avg = all_feedback.aggregate(avg=Avg('overall_rating'))['avg']
-
-    for subject in subjects:
-        feedbacks = Feedback.objects.filter(offering__subject=subject, offering__assignment__teacher=teacher, offering__assignment__is_active=True)
-        agg = feedbacks.aggregate(
-            avg_punctuality=Avg('punctuality_rating'),
-            avg_teaching=Avg('teaching_rating'),
-            avg_clarity=Avg('clarity_rating'),
-            avg_interaction=Avg('interaction_rating'),
-            avg_behavior=Avg('behavior_rating'),
-            avg_overall=Avg('overall_rating'),
+    for so in session_offerings:
+        subject = so.base_offering.subject
+        sub_responses = all_responses.filter(offering=so)
+        sub_submissions = all_submissions.filter(offering=so)
+        
+        agg = sub_responses.aggregate(
+            avg_punctuality=Avg('rating', filter=Q(question__category='PUNCTUALITY')),
+            avg_teaching=Avg('rating', filter=Q(question__category='TEACHING')),
+            avg_clarity=Avg('rating', filter=Q(question__category='CLARITY')),
+            avg_interaction=Avg('rating', filter=Q(question__category='INTERACTION')),
+            avg_behavior=Avg('rating', filter=Q(question__category='BEHAVIOR')),
+            avg_overall=Avg('rating'),
         )
+
+        # Calculate sentiment for this subject from remarks
+        pos, neu, neg = 0, 0, 0
+        for sub in sub_submissions:
+            if sub.overall_remark:
+                s = analyze_sentiment(sub.overall_remark)
+                if s == 'positive': pos += 1
+                elif s == 'negative': neg += 1
+                else: neu += 1
 
         subject_data.append({
             'subject_id': subject.id,
             'subject_name': subject.name,
             'subject_code': subject.code,
-            'feedback_count': feedbacks.count(),
+            'feedback_count': sub_submissions.count(),
             'avg_punctuality': round(agg['avg_punctuality'] or 0, 2),
             'avg_teaching': round(agg['avg_teaching'] or 0, 2),
             'avg_clarity': round(agg['avg_clarity'] or 0, 2),
@@ -993,8 +1070,17 @@ def hod_teacher_detail(request, pk):
             'avg_behavior': round(agg['avg_behavior'] or 0, 2),
             'avg_overall': round(agg['avg_overall'] or 0, 2),
             'performance': _get_performance_label(agg['avg_overall']),
-            'sentiment_summary': _get_sentiment_summary(feedbacks),
+            'sentiment_summary': {'positive': pos, 'neutral': neu, 'negative': neg},
         })
+
+    # Overall sentiment for all submissions in this session
+    total_pos, total_neu, total_neg = 0, 0, 0
+    for sub in all_submissions:
+        if sub.overall_remark:
+            s = analyze_sentiment(sub.overall_remark)
+            if s == 'positive': total_pos += 1
+            elif s == 'negative': total_neg += 1
+            else: total_neu += 1
 
     return Response({
         'teacher': {
@@ -1006,14 +1092,15 @@ def hod_teacher_detail(request, pk):
         'subjects': subject_data,
         'overall_avg': round(overall_avg, 2) if overall_avg else 0,
         'overall_performance': _get_performance_label(overall_avg),
-        'total_feedback': all_feedback.count(),
-        'sentiment_summary': _get_sentiment_summary(all_feedback),
+        'total_feedback': all_submissions.count(),
+        'sentiment_summary': {'positive': total_pos, 'neutral': total_neu, 'negative': total_neg},
     })
 
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def hod_send_report(request):
+    """Sends a performance report to a teacher using session-based data."""
     if request.user.role != 'hod':
         return Response({'error': 'Only HOD allowed'}, status=403)
 
@@ -1026,41 +1113,68 @@ def hod_send_report(request):
     except User.DoesNotExist:
         return Response({'error': 'Teacher not found'}, status=404)
 
-    subjects = Subject.objects.filter(offerings__assignment__teacher=teacher, offerings__assignment__is_active=True).distinct()
-    all_feedback = Feedback.objects.filter(offering__assignment__teacher=teacher, offering__assignment__is_active=True)
-    overall_avg = all_feedback.aggregate(avg=Avg('overall_rating'))['avg']
+    # Resolve active session context
+    session, _ = _resolve_session_context(request)
+    if not session:
+        return Response({'error': 'No active feedback session found. Please ensure a session is active.'}, status=404)
+
+    # Fetch session-based data
+    session_offerings = SessionOffering.objects.filter(session=session, teacher=teacher, is_active=True).select_related('base_offering__subject')
+    all_submissions = FeedbackSubmission.objects.filter(session=session, offering__teacher=teacher, is_completed=True)
+    all_responses = FeedbackResponse.objects.filter(
+        session=session, 
+        offering__teacher=teacher, 
+        question__question_type='RATING'
+    )
+    
+    overall_avg = all_responses.aggregate(avg=Avg('rating'))['avg']
 
     # Build email body
     lines = [
         f"Dear {teacher.get_full_name() or teacher.username},\n",
-        "This is your automated performance feedback report.\n",
+        f"This is your automated performance feedback report for the session: {session.name}.\n",
         "=" * 50,
     ]
 
-    for subject in subjects:
-        feedbacks = Feedback.objects.filter(offering__subject=subject, offering__assignment__teacher=teacher, offering__assignment__is_active=True)
-        avg = feedbacks.aggregate(avg=Avg('overall_rating'))['avg']
-        sentiment = _get_sentiment_summary(feedbacks)
+    for so in session_offerings:
+        subject = so.base_offering.subject
+        sub_responses = all_responses.filter(offering=so)
+        sub_submissions = all_submissions.filter(offering=so)
+        
+        avg = sub_responses.aggregate(avg=Avg('rating'))['avg']
+        
+        # Calculate sentiment from remarks using the new utility
+        pos, neu, neg = 0, 0, 0
+        for sub in sub_submissions:
+            if sub.overall_remark:
+                s = analyze_sentiment(sub.overall_remark)
+                if s == 'positive': pos += 1
+                elif s == 'negative': neg += 1
+                else: neu += 1
+        
         performance = _get_performance_label(avg)
 
         lines.append(f"\nSubject: {subject.name} ({subject.code})")
-        lines.append(f"  Average Rating: {round(avg, 2) if avg else 'N/A'} / 5.0")
-        lines.append(f"  Feedback Count: {feedbacks.count()}")
+        lines.append(f"  Average Rating: {round(avg, 2) if avg is not None else 'N/A'} / 5.0")
+        lines.append(f"  Feedback Count: {sub_submissions.count()}")
         lines.append(f"  Performance: {performance}")
-        lines.append(f"  Sentiment: 😊 {sentiment['positive']}  😐 {sentiment['neutral']}  😞 {sentiment['negative']}")
+        lines.append(f"  Sentiment (from student remarks): 😊 {pos}  😐 {neu}  😞 {neg}")
 
     lines.append(f"\n{'=' * 50}")
-    lines.append(f"Overall Average: {round(overall_avg, 2) if overall_avg else 'N/A'} / 5.0")
+    lines.append(f"Overall Average: {round(overall_avg, 2) if overall_avg is not None else 'N/A'} / 5.0")
     lines.append(f"Overall Performance: {_get_performance_label(overall_avg)}")
 
     suggestions = []
-    if overall_avg and overall_avg < 3:
-        suggestions.append("• Focus on improving clarity and interaction with students")
-        suggestions.append("• Consider adopting more interactive teaching methods")
-    elif overall_avg and overall_avg < 4:
-        suggestions.append("• Good performance! Try to increase engagement further")
+    if overall_avg is not None:
+        if overall_avg < 3:
+            suggestions.append("• Focus on improving clarity and interaction with students")
+            suggestions.append("• Consider adopting more interactive teaching methods")
+        elif overall_avg < 4:
+            suggestions.append("• Good performance! Try to increase engagement further")
+        else:
+            suggestions.append("• Excellent work! Keep up the great teaching")
     else:
-        suggestions.append("• Excellent work! Keep up the great teaching")
+        suggestions.append("• No feedback data available for this session yet.")
 
     lines.append("\nSuggestions:")
     lines.extend(suggestions)
@@ -1069,6 +1183,14 @@ def hod_send_report(request):
     lines.append(f"Sent by: {request.user.get_full_name() or request.user.username} (HOD)")
 
     email_body = "\n".join(lines)
+
+    # Check email configuration
+    if not settings.EMAIL_HOST_USER or not settings.EMAIL_HOST_PASSWORD:
+        logger.error("Email credentials are missing in settings/environment.")
+        return Response({
+            'error': 'Email configuration error on server. Please contact administrator.',
+            'details': 'EMAIL_USER or EMAIL_PASS not set.'
+        }, status=500)
 
     try:
         email = EmailMessage(
@@ -1080,6 +1202,7 @@ def hod_send_report(request):
         email.send()
         return Response({'message': f'Report sent successfully to {teacher.email}'})
     except Exception as e:
+        logger.exception("Failed to send performance report email")
         return Response({'error': f'Failed to send email: {str(e)}'}, status=500)
 
 
@@ -1103,6 +1226,14 @@ def hod_send_custom_email(request):
     if not teacher:
         return Response({'error': 'Teacher not found'}, status=404)
 
+    # Check email configuration
+    if not settings.EMAIL_HOST_USER or not settings.EMAIL_HOST_PASSWORD:
+        logger.error("Email credentials are missing for hod_send_custom_email.")
+        return Response({
+            'error': 'Email server configuration is incomplete.',
+            'details': 'SMTP credentials not found.'
+        }, status=500)
+
     try:
         email = EmailMessage(
             subject,
@@ -1110,12 +1241,17 @@ def hod_send_custom_email(request):
             settings.DEFAULT_FROM_EMAIL,
             [teacher.email],
         )
+        # Check for HTML
+        if "<br>" in message or "<p>" in message or "<html>" in message:
+            email.content_subtype = "html"
+            
         email.send()
         return Response({
             'message': f'Email sent successfully to {teacher.email}',
             'teacher_name': teacher.get_full_name() or teacher.username
         })
     except Exception as e:
+        logger.exception(f"Failed to send custom email to {teacher.email}")
         return Response({
             'error': f'Failed to send email: {str(e)}'
         }, status=500)
@@ -1127,56 +1263,78 @@ def hod_analytics(request):
     if request.user.role != 'hod':
         return Response({'error': 'Only HOD allowed'}, status=403)
 
+    session, offering_ids = _resolve_session_context(request)
+
+    # Session-scoped base querysets using new models
+    if session:
+        all_responses = FeedbackResponse.objects.filter(session=session)
+        all_submissions = FeedbackSubmission.objects.filter(session=session)
+        session_teacher_ids = set(
+            SessionOffering.objects.filter(session=session, is_active=True)
+            .values_list('teacher_id', flat=True)
+        )
+        teachers = User.objects.filter(id__in=session_teacher_ids)
+        scoped_subjects = Subject.objects.filter(offerings__id__in=offering_ids).distinct() if offering_ids else Subject.objects.all()
+    else:
+        all_responses = FeedbackResponse.objects.all()
+        all_submissions = FeedbackSubmission.objects.all()
+        teachers = User.objects.filter(role='teacher')
+        scoped_subjects = Subject.objects.all()
+
+    rating_responses = all_responses.filter(question__question_type='RATING')
+
     # Teacher ranking
-    teachers = User.objects.filter(role='teacher')
     ranking = []
     for teacher in teachers:
-        feedbacks = Feedback.objects.filter(offering__assignment__teacher=teacher, offering__assignment__is_active=True)
-        avg = feedbacks.aggregate(avg=Avg('overall_rating'))['avg']
+        t_responses = rating_responses.filter(offering__teacher=teacher)
+        avg = t_responses.aggregate(avg=Avg('rating'))['avg']
         if avg is not None:
+            feedback_count = all_submissions.filter(offering__teacher=teacher).count()
             ranking.append({
                 'id': teacher.id,
                 'name': teacher.get_full_name() or teacher.username,
                 'avg_rating': round(avg, 2),
-                'feedback_count': feedbacks.count(),
+                'feedback_count': feedback_count,
                 'performance': _get_performance_label(avg),
             })
     ranking.sort(key=lambda x: x['avg_rating'], reverse=True)
 
-    # Subject performance
-    subjects = Subject.objects.prefetch_related('offerings__assignment__teacher').all()
+    # Subject performance (scoped)
     subject_performance = []
-    for subject in subjects:
-        feedbacks = Feedback.objects.filter(offering__subject=subject)
-        avg = feedbacks.aggregate(avg=Avg('overall_rating'))['avg']
-        teachers = list(set(
-            assign.teacher.get_full_name() or assign.teacher.username 
-            for off in subject.offerings.all() 
-            for assign in ([off.assignment] if hasattr(off, 'assignment') and off.assignment.is_active else [])
-        ))
-        teacher_names = ", ".join(teachers) if teachers else "Unassigned"
+    for subject in scoped_subjects:
+        subj_rating = rating_responses.filter(offering__base_offering__subject=subject)
+        avg = subj_rating.aggregate(avg=Avg('rating'))['avg']
+        feedback_count = all_submissions.filter(offering__base_offering__subject=subject).count()
+        # Get teachers from SessionOffering
+        if session:
+            session_offs = SessionOffering.objects.filter(
+                session=session, base_offering__subject=subject, is_active=True
+            ).select_related('teacher')
+            teacher_names_list = list(set(
+                so.teacher.get_full_name() or so.teacher.username
+                for so in session_offs if so.teacher
+            ))
+        else:
+            teacher_names_list = []
+        teacher_names = ", ".join(teacher_names_list) if teacher_names_list else "Unassigned"
         subject_performance.append({
             'subject_name': subject.name,
             'subject_code': subject.code,
             'teacher': teacher_names,
             'avg_rating': round(avg, 2) if avg else 0,
-            'feedback_count': feedbacks.count(),
+            'feedback_count': feedback_count,
         })
 
     # Rating distribution (1-5)
-    all_feedback = Feedback.objects.all()
     rating_distribution = {}
     for i in range(1, 6):
-        # Count based on rounded overall_rating
-        rating_distribution[str(i)] = all_feedback.filter(
-            overall_rating__gte=i - 0.5, overall_rating__lt=i + 0.5
-        ).count()
+        rating_distribution[str(i)] = rating_responses.filter(rating=i).count()
 
-    # Sentiment distribution
-    sentiment_distribution = _get_sentiment_summary(all_feedback)
+    # Sentiment distribution placeholder
+    sentiment_distribution = {'positive': 0, 'neutral': 0, 'negative': 0}
 
     # Department average
-    dept_avg = all_feedback.aggregate(avg=Avg('overall_rating'))['avg']
+    dept_avg = rating_responses.aggregate(avg=Avg('rating'))['avg']
 
     return Response({
         'teacher_ranking': ranking,
@@ -1193,49 +1351,79 @@ def hod_statistics(request):
     if request.user.role != 'hod':
         return Response({'error': 'Only HOD allowed'}, status=403)
 
-    subjects = Subject.objects.prefetch_related('offerings__assignment__teacher').all()
-    stats = []
+    session, offering_ids = _resolve_session_context(request)
 
-    for subject in subjects:
-        feedbacks = Feedback.objects.filter(offering__subject=subject)
-        agg = feedbacks.aggregate(
-            avg_overall=Avg('overall_rating'),
-            avg_punctuality=Avg('punctuality_rating'),
-            avg_teaching=Avg('teaching_rating'),
-            avg_clarity=Avg('clarity_rating'),
-            avg_interaction=Avg('interaction_rating'),
-            avg_behavior=Avg('behavior_rating'),
+    # Scope subjects and feedback to session
+    if offering_ids:
+        scoped_subjects = Subject.objects.filter(offerings__id__in=offering_ids).distinct().prefetch_related('offerings__assignment__teacher')
+        total_students = StudentSemester.objects.filter(session=session, is_active=True).values('student').distinct().count()
+        session_teacher_ids = set(
+            SessionOffering.objects.filter(session=session, is_active=True)
+            .values_list('teacher_id', flat=True)
         )
-        teachers = list(set(
-            assign.teacher.get_full_name() or assign.teacher.username 
-            for off in subject.offerings.all() 
-            for assign in ([off.assignment] if hasattr(off, 'assignment') and off.assignment.is_active else [])
-        ))
-        teacher_names = ", ".join(teachers) if teachers else "Unassigned"
+        total_teachers = len(session_teacher_ids)
+    else:
+        scoped_subjects = Subject.objects.prefetch_related('offerings__assignment__teacher').all()
+        total_students = User.objects.filter(role='student').count()
+        total_teachers = User.objects.filter(role='teacher').count()
 
-        stats.append({
+    stats = []
+    # Base querysets
+    if offering_ids:
+        base_responses = FeedbackResponse.objects.filter(session_id=session.id)
+        base_submissions = FeedbackSubmission.objects.filter(session=session)
+    else:
+        base_responses = FeedbackResponse.objects.all()
+        base_submissions = FeedbackSubmission.objects.all()
+
+    for subject in scoped_subjects:
+        subj_responses = base_responses.filter(offering__base_offering__subject=subject)
+        subj_submissions = base_submissions.filter(offering__base_offering__subject=subject)
+
+        rating_responses = subj_responses.filter(question__question_type='RATING')
+        total_feedback_count = subj_submissions.count()
+        avg_overall = rating_responses.aggregate(avg=Avg('rating'))['avg'] or 0
+
+        # Dynamic category averages
+        category_averages = {}
+        for category, label in Question.QUESTION_CATEGORIES:
+            cat_responses = rating_responses.filter(question__category=category)
+            if cat_responses.exists():
+                cat_avg = cat_responses.aggregate(avg=Avg('rating'))['avg'] or 0
+                category_averages[category.lower()] = round(cat_avg, 2)
+
+        # Get teacher names from SessionOffering (which has teacher directly)
+        if session:
+            session_offs = SessionOffering.objects.filter(
+                session=session, base_offering__subject=subject, is_active=True
+            ).select_related('teacher')
+            teacher_names_list = list(set(
+                so.teacher.get_full_name() or so.teacher.username
+                for so in session_offs if so.teacher
+            ))
+        else:
+            teacher_names_list = []
+        teacher_names = ", ".join(teacher_names_list) if teacher_names_list else "Unassigned"
+
+        stat_entry = {
             "subject": subject.name,
             "subject_code": subject.code,
             "teacher": teacher_names,
-            "total_feedback": feedbacks.count(),
-            "avg_overall": round(agg['avg_overall'] or 0, 2),
-            "avg_punctuality": round(agg['avg_punctuality'] or 0, 2),
-            "avg_teaching": round(agg['avg_teaching'] or 0, 2),
-            "avg_clarity": round(agg['avg_clarity'] or 0, 2),
-            "avg_interaction": round(agg['avg_interaction'] or 0, 2),
-            "avg_behavior": round(agg['avg_behavior'] or 0, 2),
-            "sentiment_summary": _get_sentiment_summary(feedbacks),
-        })
+            "total_feedback": total_feedback_count,
+            "avg_overall": round(avg_overall, 2),
+            "sentiment_summary": {'positive': 0, 'neutral': 0, 'negative': 0},
+        }
+        
+        # Merge dynamic categories
+        stat_entry.update(category_averages)
+        stats.append(stat_entry)
 
-    # Calculate pending feedback (students who haven't submitted for all subjects)
-    total_students = User.objects.filter(role='student').count()
-    total_teachers = User.objects.filter(role='teacher').count()
-    total_feedback = Feedback.objects.count()
-    total_subjects = Subject.objects.count()
-    # Pending = (total_students * total_subjects) - total_feedback
+    total_feedback = base_submissions.count()
+    total_subjects = scoped_subjects.count()
+    # Pending = (students enrolled in session * subjects in session) - feedback given
     pending_feedback = max((total_students * total_subjects) - total_feedback, 0)
 
-    return Response({
+    response_data = {
         'summary': {
             'total_students': total_students,
             'total_teachers': total_teachers,
@@ -1244,7 +1432,13 @@ def hod_statistics(request):
             'pending_feedback': pending_feedback,
         },
         'details': stats,
-    })
+    }
+    if session:
+        response_data['session'] = {
+            'id': session.id, 'name': session.name,
+            'year': session.year, 'is_active': session.is_active,
+        }
+    return Response(response_data)
 
 
 # ============================================================
@@ -1310,6 +1504,14 @@ Best regards,
 HOD {request.user.first_name or request.user.username}
 """
 
+            # Check email configuration
+            if not settings.EMAIL_HOST_USER or not settings.EMAIL_HOST_PASSWORD:
+                logger.error("Email credentials are missing for hod_report legacy view.")
+                return Response({
+                    'error': 'Email server configuration error.',
+                    'details': 'SMTP credentials missing.'
+                }, status=500)
+
             email = EmailMessage(
                 email_subject,
                 email_body,
@@ -1320,6 +1522,7 @@ HOD {request.user.first_name or request.user.username}
             return Response({'message': f'Report sent successfully to {teacher_email}'})
 
         except Exception as e:
+            logger.exception(f"Failed to send legacy report email to {teacher_email}")
             return Response({'error': f'Failed to send email: {str(e)}'}, status=500)
 
     return Response(report)
@@ -1425,15 +1628,21 @@ def get_improvement(avg_rating):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def export_report(request):
+def hod_export_report_pdf(request):
+    """Generates a PDF feedback report using session-based data."""
     if request.user.role != 'hod':
         return Response({'error': 'Only HOD allowed'}, status=403)
 
     report_type = request.GET.get('type')
     target_id = request.GET.get('id')
 
+    # Resolve session
+    session, _ = _resolve_session_context(request)
+    if not session:
+        return Response({'error': 'No active feedback session found. PDF report requires an active session.'}, status=404)
+
     response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = 'attachment; filename="feedback_report.pdf"'
+    response['Content-Disposition'] = f'attachment; filename="feedback_report_{session.name.replace(" ", "_")}.pdf"'
 
     p = canvas.Canvas(response, pagesize=A4)
     width, height = A4
@@ -1441,32 +1650,43 @@ def export_report(request):
     # Title
     p.setFont("Helvetica-Bold", 18)
     p.drawCentredString(width / 2, height - 50, "Student Feedback Report")
+    p.setFont("Helvetica", 12)
+    p.drawCentredString(width / 2, height - 70, f"Session: {session.name}")
     p.setFont("Helvetica", 10)
-    p.drawCentredString(width / 2, height - 70, f"Generated: {timezone.now().strftime('%Y-%m-%d %H:%M')}")
+    p.drawCentredString(width / 2, height - 90, f"Generated: {timezone.now().strftime('%Y-%m-%d %H:%M')}")
 
-    y = height - 110
+    y = height - 130
 
-    offerings = SubjectOffering.objects.prefetch_related('assignment__teacher')
-    
     if report_type == 'teacher' and target_id:
-        offerings = offerings.filter(assignment__teacher_id=target_id)
-        
-    offerings = offerings.all()
+        offerings = SessionOffering.objects.filter(session=session, teacher_id=target_id, is_active=True).select_related('base_offering__subject', 'base_offering__branch', 'base_offering__semester', 'teacher')
+    else:
+        # Default to all offerings in session if no ID or different type
+        offerings = SessionOffering.objects.filter(session=session, is_active=True).select_related('base_offering__subject', 'base_offering__branch', 'base_offering__semester', 'teacher')
 
-    for offering in offerings:
-        feedbacks = Feedback.objects.filter(offering=offering)
-        agg = feedbacks.aggregate(
-            avg_overall=Avg('overall_rating'),
-            avg_punctuality=Avg('punctuality_rating'),
-            avg_teaching=Avg('teaching_rating'),
-            avg_clarity=Avg('clarity_rating'),
-            avg_interaction=Avg('interaction_rating'),
-            avg_behavior=Avg('behavior_rating'),
-        )
-        count = feedbacks.count()
-        sentiment = _get_sentiment_summary(feedbacks)
+    for so in offerings:
+        submissions = FeedbackSubmission.objects.filter(offering=so, is_completed=True)
+        responses = FeedbackResponse.objects.filter(offering=so, question__question_type='RATING')
         
-        # Removed get_improvement call to prevent crashing
+        agg = responses.aggregate(
+            avg_overall=Avg('rating'),
+            avg_punctuality=Avg('rating', filter=Q(question__category='PUNCTUALITY')),
+            avg_teaching=Avg('rating', filter=Q(question__category='TEACHING')),
+            avg_clarity=Avg('rating', filter=Q(question__category='CLARITY')),
+            avg_interaction=Avg('rating', filter=Q(question__category='INTERACTION')),
+            avg_behavior=Avg('rating', filter=Q(question__category='BEHAVIOR')),
+        )
+        
+        count = submissions.count()
+        
+        # Sentiment from remarks
+        pos, neu, neg = 0, 0, 0
+        for sub in submissions:
+            if sub.overall_remark:
+                s = analyze_sentiment(sub.overall_remark)
+                if s == 'positive': pos += 1
+                elif s == 'negative': neg += 1
+                else: neu += 1
+
         suggestion = "Focus on interactive methods" if (agg['avg_overall'] or 0) < 3.5 else "Keep up the good work"
 
         if y < 150:
@@ -1474,13 +1694,12 @@ def export_report(request):
             y = height - 50
 
         p.setFont("Helvetica-Bold", 12)
-        suffix = f"({offering.branch.code} Sem {offering.semester.number})"
-        p.drawString(60, y, f"Subject: {offering.subject.name} {suffix}")
+        base = so.base_offering
+        suffix = f"({base.branch.code} Sem {base.semester.number})"
+        p.drawString(60, y, f"Subject: {base.subject.name} {suffix}")
         y -= 18
 
-        assignment = offering.assignment if hasattr(offering, 'assignment') and offering.assignment.is_active else None
-        teacher = assignment.teacher if assignment else None
-        teacher_name = teacher.get_full_name() or teacher.username if teacher else "Unassigned"
+        teacher_name = so.teacher.get_full_name() or so.teacher.username
 
         p.setFont("Helvetica", 10)
         p.drawString(80, y, f"Teacher: {teacher_name}")
@@ -1489,15 +1708,26 @@ def export_report(request):
         y -= 16
         p.drawString(80, y, f"Overall Avg: {round(agg['avg_overall'] or 0, 2)}")
         y -= 16
-        p.drawString(80, y, f"Punctuality: {round(agg['avg_punctuality'] or 0, 2)}  |  "
-                              f"Teaching: {round(agg['avg_teaching'] or 0, 2)}  |  "
-                              f"Clarity: {round(agg['avg_clarity'] or 0, 2)}")
-        y -= 16
-        p.drawString(80, y, f"Interaction: {round(agg['avg_interaction'] or 0, 2)}  |  "
-                              f"Behavior: {round(agg['avg_behavior'] or 0, 2)}")
-        y -= 16
-        p.drawString(80, y, f"Sentiment: Pos {sentiment['positive']}, "
-                              f"Neu {sentiment['neutral']}, Neg {sentiment['negative']}")
+        
+        # Only draw if we have category data
+        cat_line = ""
+        if agg['avg_punctuality']: cat_line += f"Punctuality: {round(agg['avg_punctuality'], 2)} | "
+        if agg['avg_teaching']: cat_line += f"Teaching: {round(agg['avg_teaching'], 2)} | "
+        if agg['avg_clarity']: cat_line += f"Clarity: {round(agg['avg_clarity'], 2)}"
+        
+        if cat_line:
+            p.drawString(80, y, cat_line)
+            y -= 16
+            
+        cat_line2 = ""
+        if agg['avg_interaction']: cat_line2 += f"Interaction: {round(agg['avg_interaction'], 2)} | "
+        if agg['avg_behavior']: cat_line2 += f"Behavior: {round(agg['avg_behavior'], 2)}"
+        
+        if cat_line2:
+            p.drawString(80, y, cat_line2)
+            y -= 16
+            
+        p.drawString(80, y, f"Sentiment (Remarks): 😊 {pos}, 😐 {neu}, 😞 {neg}")
         y -= 16
         p.drawString(80, y, f"Suggestion: {suggestion}")
         y -= 30
@@ -1506,6 +1736,16 @@ def export_report(request):
     p.save()
     return response
 
+def _get_most_frequent_comment(feedbacks):
+    """Extract most frequent non-empty comment."""
+    comments = feedbacks.exclude(comment__isnull=True).exclude(comment='').values_list('comment', flat=True)
+    if not comments:
+        return "No specific observations derived from student comments."
+    from collections import Counter
+    most_common = Counter(comments).most_common(1)
+    if most_common:
+        return most_common[0][0]
+    return "No specific observations derived from student comments."
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -1527,7 +1767,7 @@ def hod_teacher_report(request, pk):
         return Response({'error': 'Teacher not found'}, status=404)
 
     # Determine session
-    session_id = request.GET.get('session')
+    session_id = request.GET.get('session_id') or request.GET.get('session')
     if session_id:
         try:
             session = FeedbackSession.objects.get(pk=session_id)
@@ -1678,6 +1918,38 @@ def hod_teacher_report(request, pk):
     strengths = [c['name'] for c in categories[:2]] if categories else []
     weaknesses = [c['name'] for c in categories[-2:]] if len(categories) >= 3 else []
 
+    # Calculate overall metrics for qualitative fields
+    overall_score = sum(round(v or 0, 4) for v in cat_agg.values() if v is not None)
+    overall_percentage = round((overall_score / 25) * 100, 2)
+    
+    # Status
+    obs_status = "Pending"
+    if overall_percentage >= 90:
+        obs_status = "Completed"
+    elif overall_percentage >= 70:
+        obs_status = "Ongoing"
+        
+    # Faculty Response
+    faculty_resp = ""
+    if obs_status == "Completed":
+        faculty_resp = "Faculty member have acknowledged student feedback."
+        
+    # HoD Comments
+    overall_avg = overall_score / 5
+    trend = ""
+    if past_percentage is not None and overall_percentage > past_percentage:
+        trend = "Feedback is improved as compared to previous year. Excellent teaching."
+
+    hod_comments = ""
+    if trend:
+        hod_comments = trend
+    elif overall_avg > 4.5:
+        hod_comments = "Feedback is excellent. Students are satisfied with the faculty member."
+    elif overall_avg >= 3.5:
+        hod_comments = "Feedback is good. Students are satisfied with the faculty member."
+    else:
+        hod_comments = "Feedback is poor. Students are not satisfied, need improvements (domain...)."
+
     return Response({
         "institution": "Government Polytechnic Nagpur",
         "department": f"{dept_name} Department",
@@ -1700,14 +1972,13 @@ def hod_teacher_report(request, pk):
         },
         "strengths": strengths,
         "weaknesses": weaknesses,
-        # Editable qualitative fields (defaults — HOD fills these in UI)
-        # Automated Key Observations
-        "key_observations": "\n".join(generate_key_observations(all_fb_for_teacher)),
-        "corrective_action": "",
-        "observation_status": "Pending",
-        "faculty_response": "",
-        "hod_comments": "",
-        "conclusion": "",
+        # Editable qualitative fields
+        "key_observations": _get_most_frequent_comment(all_fb_for_teacher),
+        "corrective_action": "Appreciated the faculty.",
+        "observation_status": obs_status,
+        "faculty_response": faculty_resp,
+        "hod_comments": hod_comments,
+        "conclusion": "Student feedback is collected, analyzed and corrective action has been taken. Future plans includes regularly reviewing feedback to ensure continuous improvement.",
         "report_date": timezone.now().strftime('%d/%m/%Y'),
     })
 
@@ -1728,7 +1999,7 @@ def hod_department_report(request):
         return Response({'error': 'Only HOD allowed'}, status=403)
 
     # Determine session
-    session_id = request.GET.get('session')
+    session_id = request.GET.get('session_id') or request.GET.get('session')
     if session_id:
         try:
             session = FeedbackSession.objects.get(pk=session_id)
@@ -1781,31 +2052,60 @@ def hod_department_report(request):
             continue
 
         # Filter feedback by session date range
-        fb_filter = {'offering': offering}
-        if session:
-            fb_filter['created_at__gte'] = session.start_date
-            fb_filter['created_at__lte'] = session.end_date
-        fbs = Feedback.objects.filter(**fb_filter)
-
-        # Skip offerings with no feedback in this session
-        if fbs.count() == 0:
-            continue
-
-        agg = fbs.aggregate(
-            punctuality=Avg('punctuality_rating'),
-            domain_knowledge=Avg('teaching_rating'),
-            presentation_skills=Avg('clarity_rating'),
-            resolve_difficulties=Avg('interaction_rating'),
-            teaching_aids=Avg('behavior_rating'),
+        # --- 📈 Data Aggregation Logic ---
+        # Prefer NEW FeedbackResponse model if session data exists
+        session_responses = FeedbackResponse.objects.filter(
+            offering__base_offering=offering,
+            session=session,
+            question__question_type='RATING'
         )
 
-        p = round(agg['punctuality'] or 0, 4)
-        d = round(agg['domain_knowledge'] or 0, 4)
-        pr = round(agg['presentation_skills'] or 0, 4)
-        r = round(agg['resolve_difficulties'] or 0, 4)
-        t = round(agg['teaching_aids'] or 0, 4)
+        if session_responses.exists():
+            # Calculate from new dynamic system
+            cat_agg = {}
+            category_map = {
+                'PUNCTUALITY': 'p',
+                'TEACHING': 'd',
+                'CLARITY': 'pr',
+                'INTERACTION': 'r',
+                'BEHAVIOR': 't'
+            }
+            
+            for cat, key in category_map.items():
+                val = session_responses.filter(question__category=cat).aggregate(avg=Avg('rating'))['avg']
+                cat_agg[key] = round(val or 0, 4)
+            
+            p, d, pr, r, t = cat_agg['p'], cat_agg['d'], cat_agg['pr'], cat_agg['r'], cat_agg['t']
+            feedback_count = session_responses.values('student').distinct().count()
+        else:
+            # Fallback to legacy Feedback model
+            fb_filter = {'offering': offering}
+            if session:
+                fb_filter['created_at__gte'] = session.start_date
+                fb_filter['created_at__lte'] = session.end_date
+            fbs = Feedback.objects.filter(**fb_filter)
+            
+            if fbs.count() == 0:
+                continue
+                
+            agg = fbs.aggregate(
+                punctuality=Avg('punctuality_rating'),
+                domain_knowledge=Avg('teaching_rating'),
+                presentation_skills=Avg('clarity_rating'),
+                resolve_difficulties=Avg('interaction_rating'),
+                teaching_aids=Avg('behavior_rating'),
+            )
+            
+            p = round(agg['punctuality'] or 0, 4)
+            d = round(agg['domain_knowledge'] or 0, 4)
+            pr = round(agg['presentation_skills'] or 0, 4)
+            r = round(agg['resolve_difficulties'] or 0, 4)
+            t = round(agg['teaching_aids'] or 0, 4)
+            feedback_count = fbs.count()
+
         score = round(p + d + pr + r + t, 4)
         percentage = round((score / 25) * 100, 2) if score > 0 else 0
+
 
         # 📈 30% Threshold Logic: Calculate feedback vs enrollment
         total_enrolled = StudentSemester.objects.filter(
@@ -1889,12 +2189,35 @@ def hod_department_report(request):
         for bp in branch_performance
     ]
 
+    # 📊 Class-wide Sample Statistics
+    # If branch is not selected, try to get it from department, otherwise fallback to any branch (or None)
+    default_branch = department.branches.first() if department else Branch.objects.first()
+    
+    total_class_enrolled_qs = StudentSemester.objects.filter(session=session)
+    target_branch = branch_obj if branch_obj else default_branch
+    if target_branch:
+        total_class_enrolled_qs = total_class_enrolled_qs.filter(branch=target_branch)
+        
+    total_class_enrolled = total_class_enrolled_qs.count()
+    if year_param:
+        year_num = int(year_param)
+        sem_a = (year_num * 2) - 1
+        sem_b = year_num * 2
+        total_class_enrolled = total_class_enrolled_qs.filter(
+            semester__number__in=[sem_a, sem_b]
+        ).count()
+
+    total_class_feedback = all_class_fbs.values('student').distinct().count()
+    participation_rate = (total_class_feedback / total_class_enrolled * 100) if total_class_enrolled > 0 else 0
+
     return Response({
         "institution": "Government Polytechnic Nagpur",
         "department": f"{dept_name} Department",
         "session": session.name if session else "N/A",
         "session_year": f"{session.type} {session.year}-{str(session.year + 1)[2:]}" if session else "",
         "class_label": class_label,
+        "sample_size": total_class_feedback,
+        "participation_rate": round(participation_rate, 2),
         "data_available": data_available,
         "no_data_message": f"No feedback data available for session {session.name}." if (not data_available and session) else "",
         "teachers": teachers_data,
@@ -1922,6 +2245,14 @@ def hod_send_report_emails(request):
             'error': 'emails, subject, and message are required'
         }, status=400)
 
+    # Check email configuration
+    if not settings.EMAIL_HOST_USER or not settings.EMAIL_HOST_PASSWORD:
+        logger.error("Email credentials are missing for hod_send_report_emails.")
+        return Response({
+            'error': 'Email server configuration is incomplete.',
+            'details': 'SMTP credentials not found.'
+        }, status=500)
+
     try:
         # Django send_mail can alternatively be used, but EmailMessage is better for multiple
         email_msg = EmailMessage(
@@ -1930,12 +2261,16 @@ def hod_send_report_emails(request):
             settings.DEFAULT_FROM_EMAIL,
             emails,
         )
-        email_msg.content_subtype = "html" # Optional: allows HTML templates
+        # Check if message looks like HTML
+        if "<br>" in message or "<p>" in message or "<html>" in message:
+            email_msg.content_subtype = "html"
+            
         email_msg.send()
         return Response({
             'message': f'Email sent successfully to {len(emails)} recipients'
         })
     except Exception as e:
+        logger.exception("Failed to send bulk HOD emails")
         return Response({
             'error': f'Failed to send email: {str(e)}'
         }, status=500)
@@ -2047,6 +2382,9 @@ def list_enrollments(request):
     offerings_qs = SubjectOffering.objects.select_related(
         'subject', 'branch', 'semester'
     ).filter(is_active=True)
+    if request.user.role == 'hod' and request.user.department:
+        offerings_qs = offerings_qs.filter(branch__department=request.user.department)
+    
     if offering_filter:
         offerings_qs = offerings_qs.filter(id=offering_filter)
 
@@ -2130,7 +2468,11 @@ def enrollment_form_data(request):
     else:
         session = FeedbackSession.objects.filter(is_active=True).first()
     
-    students_qs = User.objects.filter(role='student').prefetch_related('student_semesters').order_by('username')
+    students_qs = User.objects.filter(role='student').prefetch_related('student_semesters')
+    if request.user.role == 'hod' and request.user.department:
+        students_qs = students_qs.filter(department=request.user.department)
+    students_qs = students_qs.order_by('username')
+    
     students_data = []
     
     for s in students_qs:
@@ -2159,6 +2501,9 @@ def enrollment_form_data(request):
         })
 
     offerings = SubjectOffering.objects.select_related('subject', 'branch', 'semester').filter(is_active=True)
+    if request.user.role == 'hod' and request.user.department:
+        offerings = offerings.filter(branch__department=request.user.department)
+    
     offering_data = []
     for o in offerings:
         teacher_name = "-"
@@ -2339,11 +2684,33 @@ def bulk_enroll_students_semester(request):
 # NEW ACADEMIC MODEL VIEWS
 # ============================================================
 
+
+class DepartmentViewSet(viewsets.ModelViewSet):
+    """CRUD for academic departments"""
+    queryset = Department.objects.all()
+    serializer_class = DepartmentSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        """Admin and HOD can modify departments"""
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            if self.request.user.role not in ['admin', 'hod']:
+                raise PermissionDenied("Only Admin or HOD can manage departments")
+        return [permission() for permission in self.permission_classes]
+
+    def get_queryset(self):
+        """Return all departments for Admin and HOD to allow scalable management"""
+        return super().get_queryset()
+
 class BranchViewSet(viewsets.ModelViewSet):
     """CRUD for academic branches"""
     queryset = Branch.objects.all()
     serializer_class = BranchSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Return all branches to allow scalable management by Admin and HOD"""
+        return super().get_queryset()
 
     def get_permissions(self):
         """Only HOD/Admin can modify branches"""
@@ -2403,9 +2770,12 @@ class SubjectOfferingViewSet(viewsets.ModelViewSet):
                 is_active=True
             ).distinct()
         elif user.role in ['hod', 'admin']:
-            # HOD/Admin see all offerings, with optional filtering
+            # HOD/Admin see offerings, with department filtering for HOD
             semester_id = self.request.query_params.get('semester')
             branch_id = self.request.query_params.get('branch')
+            
+            if user.role == 'hod' and user.department:
+                queryset = queryset.filter(branch__department=user.department)
             
             if semester_id:
                 queryset = queryset.filter(semester_id=semester_id)
@@ -2674,6 +3044,16 @@ def assign_teacher(request):
     serializer = TeacherAssignmentSerializer(data=request.data)
     if serializer.is_valid():
         assignment = serializer.save()
+        
+        # Auto-sync with active session so it appears in the HOD dashboard
+        active_session = FeedbackSession.objects.filter(is_active=True).order_by('-year').first()
+        if active_session:
+            SessionOffering.objects.update_or_create(
+                session=active_session,
+                base_offering=assignment.offering,
+                defaults={'teacher': assignment.teacher, 'is_active': True}
+            )
+
         return Response({
             'message': 'Teacher assigned successfully',
             'assignment': TeacherAssignmentSerializer(assignment).data
@@ -2992,6 +3372,12 @@ def branch_comparison_analytics(request):
             {'error': 'All parameters must be integers'},
             status=status.HTTP_400_BAD_REQUEST
         )
+    
+    # SECURITY: HOD can only access their own department
+    if request.user.role == 'hod':
+        if not request.user.department:
+            return Response({'error': 'HOD department not assigned'}, status=403)
+        department_id = request.user.department.id
     
     # Get department name
     try:

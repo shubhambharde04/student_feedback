@@ -19,13 +19,13 @@ class FeedbackTester:
                 data = response.json()
                 self.username = username
                 self.session.headers.update({"Authorization": f"Bearer {data['access']}"})
-                print(f"✅ Login successful for {username}")
+                print(f"[OK] Login successful for {username}")
                 return data
             else:
-                print(f"❌ Login failed for {username}: {response.status_code} - {response.text}")
+                print(f"[FAIL] Login failed for {username}: {response.status_code} - {response.text}")
                 return None
         except Exception as e:
-            print(f"❌ Connection Error: {str(e)}")
+            print(f"[ERROR] Connection Error: {str(e)}")
             return None
 
     def test_endpoint(self, method, endpoint, payload=None, description=""):
@@ -40,17 +40,17 @@ class FeedbackTester:
             elif method == "DELETE":
                 response = self.session.delete(url, timeout=5)
             else:
-                print(f"❌ Unsupported method: {method}")
+                print(f"[ERROR] Unsupported method: {method}")
                 return None
             
             if response.status_code in [200, 201]:
-                print(f"✅ Success: {response.status_code}")
+                print(f"[OK] Success: {response.status_code}")
                 return response.json()
             else:
-                print(f"❌ Blocked/Error: {response.status_code} - {response.text}")
+                print(f"[FAIL] Blocked/Error: {response.status_code} - {response.text}")
                 return response
         except Exception as e:
-            print(f"❌ Request Error: {str(e)}")
+            print(f"[ERROR] Request Error: {str(e)}")
             return None
 
 def run_suite():

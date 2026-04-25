@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404
 from .models import (
     FeedbackSession, Question, FeedbackForm, FormQuestionMapping,
     SessionOffering, FeedbackResponse, FeedbackSubmission,
-    User, SubjectOffering
+    User, SubjectOffering, Feedback
 )
 from .serializers import (
     FeedbackSessionSerializer, QuestionSerializer, FeedbackFormSerializer,
@@ -263,11 +263,15 @@ class SessionOfferingViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(base_offering__semester_id=semester_id)
         
         if user.role == 'student':
-            # Students see offerings for their branch and semester
-            if hasattr(user, 'student_profile') and user.student_profile:
+            # Students see offerings for their branch and semester via StudentSemester
+            from .models import StudentSemester
+            student_sem = StudentSemester.objects.filter(
+                student=user, is_active=True
+            ).select_related('branch', 'semester').order_by('-session__year').first()
+            if student_sem:
                 queryset = queryset.filter(
-                    base_offering__branch=user.student_profile.branch,
-                    base_offering__semester=user.student_profile.semester,
+                    base_offering__branch=student_sem.branch,
+                    base_offering__semester=student_sem.semester,
                     is_active=True
                 )
             else:
@@ -286,7 +290,12 @@ class SessionOfferingViewSet(viewsets.ModelViewSet):
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def get_active_feedback_form(request):
-    """Get the active feedback form for the current session"""
+    """Get the active feedback form for the current session.
+    
+    Auto-syncs SessionOffering records from SubjectOffering + SubjectAssignment
+    when they don't exist yet for the student's branch/semester, so students
+    see every subject the HOD has assigned to a teacher.
+    """
     user = request.user
     
     if user.role != 'student':
@@ -324,30 +333,132 @@ def get_active_feedback_form(request):
             'session': FeedbackSessionSerializer(current_session).data
         }, status=404)
     
-    # Get student's offerings for this session
-    if not hasattr(user, 'student_profile') or not user.student_profile:
-        return Response({'error': 'Student profile not found'}, status=404)
+    # Get student's enrollment for this session via StudentSemester
+    from .models import StudentSemester, SubjectAssignment
+    student_semester = StudentSemester.objects.filter(
+        student=user,
+        session=current_session,
+        is_active=True
+    ).select_related('branch', 'semester').first()
     
+    if not student_semester:
+        return Response({
+            'error': 'You are not enrolled in the current feedback session',
+            'message': 'Please contact your HOD to enroll you in this session.'
+        }, status=404)
+    
+    student_branch = student_semester.branch
+    student_sem = student_semester.semester
+    
+    # --- RESOLVE BRANCH: handle duplicate/variant branches ---
+    # If the student's exact branch has no SubjectOffering records,
+    # look for a related branch that DOES have offerings for this semester.
+    # This handles cases where students are imported under "IT" (id=13)
+    # but offerings exist under "Information Technology" (IT101, id=1).
+    from .models import Branch as BranchModel
+    
+    offering_branch = student_branch  # default: use student's own branch
+    
+    has_direct_offerings = SubjectOffering.objects.filter(
+        branch=student_branch,
+        semester=student_sem,
+        is_active=True,
+    ).exists()
+    
+    if not has_direct_offerings:
+        # Try to find a related branch that has offerings for this semester
+        branch_name_lower = student_branch.name.lower()
+        branch_code_lower = student_branch.code.lower()
+        
+        candidate_branches = BranchModel.objects.exclude(id=student_branch.id)
+        
+        for candidate in candidate_branches:
+            # Match by: branch code is a prefix/substring of candidate name,
+            # or candidate code is a prefix/substring of student branch name,
+            # or they share the same department
+            name_match = (
+                branch_code_lower in candidate.name.lower() or
+                branch_name_lower in candidate.name.lower() or
+                candidate.code.lower() in branch_name_lower or
+                candidate.name.lower() in branch_name_lower
+            )
+            dept_match = (
+                student_branch.department_id and 
+                candidate.department_id and 
+                student_branch.department_id == candidate.department_id
+            )
+            
+            if name_match or dept_match:
+                has_offerings = SubjectOffering.objects.filter(
+                    branch=candidate,
+                    semester=student_sem,
+                    is_active=True,
+                ).exists()
+                if has_offerings:
+                    print(f"[active-form] Branch resolve: student branch "
+                          f"'{student_branch.code}' (id={student_branch.id}) -> "
+                          f"offering branch '{candidate.code}' (id={candidate.id})")
+                    offering_branch = candidate
+                    break
+    
+    # --- AUTO-SYNC: Create SessionOffering records from SubjectOffering ---
+    # Find SubjectOfferings for the resolved branch+semester that have a teacher
+    # assigned but do NOT yet have a SessionOffering for the active session.
+    base_offerings_with_teacher = SubjectOffering.objects.filter(
+        branch=offering_branch,
+        semester=student_sem,
+        is_active=True,
+        assignment__is_active=True,     # has an active teacher assignment
+    ).select_related('assignment__teacher').exclude(
+        session_offerings__session=current_session  # not already linked
+    )
+    
+    created_count = 0
+    for offering in base_offerings_with_teacher:
+        teacher = offering.assignment.teacher
+        SessionOffering.objects.get_or_create(
+            session=current_session,
+            base_offering=offering,
+            defaults={
+                'teacher': teacher,
+                'max_students': offering.max_students,
+                'is_active': True,
+            }
+        )
+        created_count += 1
+    
+    if created_count:
+        print(f"[active-form] Auto-created {created_count} SessionOfferings "
+              f"for {offering_branch.code} Sem {student_sem.number}")
+    
+    # --- QUERY: Get all SessionOfferings for this student ---
+    # Query using the resolved offering_branch
     student_offerings = SessionOffering.objects.filter(
         session=current_session,
-        base_offering__branch=user.student_profile.branch,
-        base_offering__semester=user.student_profile.semester,
+        base_offering__branch=offering_branch,
+        base_offering__semester=student_sem,
         is_active=True
+    ).select_related(
+        'base_offering__subject', 'base_offering__branch',
+        'base_offering__semester', 'teacher', 'session'
     )
     
     # Check which offerings the student has already submitted feedback for
-    submitted_offerings = FeedbackSubmission.objects.filter(
+    submitted_offerings = set(FeedbackSubmission.objects.filter(
         student=user,
         session=current_session,
         is_completed=True
-    ).values_list('offering_id', flat=True)
+    ).values_list('offering_id', flat=True))
     
-    available_offerings = student_offerings.exclude(id__in=submitted_offerings)
+    # Serialize all offerings and add feedback_submitted flag
+    serialized_offerings = SessionOfferingSerializer(student_offerings, many=True).data
+    for offering in serialized_offerings:
+        offering['feedback_submitted'] = offering['id'] in submitted_offerings
     
     return Response({
         'session': FeedbackSessionSerializer(current_session).data,
         'form': FeedbackFormSerializer(active_form).data,
-        'available_offerings': SessionOfferingSerializer(available_offerings, many=True).data,
+        'subjects': serialized_offerings,
         'submitted_count': len(submitted_offerings),
         'total_offerings': student_offerings.count(),
         'can_submit_feedback': current_session.can_submit_feedback
@@ -389,56 +500,103 @@ def submit_feedback(request):
     if existing_submission and existing_submission.is_completed:
         return Response({'error': 'Feedback already submitted for this offering'}, status=400)
     
-    # Create or update submission
-    if existing_submission:
-        submission = existing_submission
-    else:
-        submission = FeedbackSubmission.objects.create(
-            session=offering.session,
-            form=offering.session.forms.filter(is_active=True).first(),
-            offering=offering,
-            student=user,
-            ip_address=request.META.get('REMOTE_ADDR'),
-            user_agent=request.META.get('HTTP_USER_AGENT', '')
-        )
+    from django.db import transaction
     
-    # Process responses
-    created_responses = []
-    for response_data in responses:
-        question_id = response_data.get('question_id')
-        
-        question = get_object_or_404(Question, pk=question_id)
-        
-        # Validate response based on question type
-        if question.question_type == 'RATING' and 'rating' not in response_data:
-            return Response({'error': f'Rating required for question {question_id}'}, status=400)
-        elif question.question_type == 'TEXT' and 'text_response' not in response_data:
-            return Response({'error': f'Text response required for question {question_id}'}, status=400)
-        elif question.question_type == 'MULTIPLE_CHOICE' and 'multiple_choice_response' not in response_data:
-            return Response({'error': f'Choice required for question {question_id}'}, status=400)
-        
-        # Create or update response
-        response, created = FeedbackResponse.objects.update_or_create(
-            submission=submission,
-            session=offering.session,
-            form=submission.form,
-            offering=offering,
-            student=user,
-            question=question,
-            defaults={
-                'rating': response_data.get('rating'),
-                'text_response': response_data.get('text_response', ''),
-                'multiple_choice_response': response_data.get('multiple_choice_response', ''),
-                'ip_address': request.META.get('REMOTE_ADDR'),
-                'user_agent': request.META.get('HTTP_USER_AGENT', '')
+    try:
+        with transaction.atomic():
+            # Create or update submission
+            if existing_submission:
+                submission = existing_submission
+                submission.overall_remark = request.data.get('overall_remark', '')
+                submission.save()
+            else:
+                submission = FeedbackSubmission.objects.create(
+                    session=offering.session,
+                    form=offering.session.forms.filter(is_active=True).first(),
+                    offering=offering,
+                    student=user,
+                    ip_address=request.META.get('REMOTE_ADDR'),
+                    user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                    overall_remark=request.data.get('overall_remark', '')
+                )
+            
+            # Process responses
+            created_responses = []
+            for response_data in responses:
+                question_id = response_data.get('question_id')
+                question = get_object_or_404(Question, pk=question_id)
+                
+                # Create or update response
+                response, created = FeedbackResponse.objects.update_or_create(
+                    session=offering.session,
+                    form=submission.form,
+                    offering=offering,
+                    student=user,
+                    question=question,
+                    defaults={
+                        'rating': response_data.get('rating'),
+                        'text_response': response_data.get('text_response', ''),
+                        'multiple_choice_response': response_data.get('multiple_choice_response', ''),
+                        'ip_address': request.META.get('REMOTE_ADDR'),
+                        'user_agent': request.META.get('HTTP_USER_AGENT', '')
+                    }
+                )
+                created_responses.append(FeedbackResponseSerializer(response).data)
+            
+            # Update completion status
+            submission.update_completion()
+            
+            # 🔥 SYNC TO LEGACY FEEDBACK TABLE (for user's SQL tool visibility)
+            # Map categories to legacy fields
+            category_map = {
+                'PUNCTUALITY': 'punctuality_rating',
+                'TEACHING': 'teaching_rating',
+                'CLARITY': 'clarity_rating',
+                'INTERACTION': 'interaction_rating',
+                'BEHAVIOR': 'behavior_rating'
             }
-        )
-        
-        created_responses.append(FeedbackResponseSerializer(response).data)
-    
-    # Update completion status
-    submission.update_completion()
-    
+            
+            legacy_data = {
+                'punctuality_rating': 5,
+                'teaching_rating': 5,
+                'clarity_rating': 5,
+                'interaction_rating': 5,
+                'behavior_rating': 5,
+                'comment': submission.overall_remark,
+                'sentiment': 'neutral' # Default
+            }
+            
+            # Calculate averages for each category
+            for cat, field in category_map.items():
+                cat_avg = FeedbackResponse.objects.filter(
+                    submission=submission, 
+                    question__category=cat
+                ).aggregate(Avg('rating'))['rating__avg']
+                if cat_avg:
+                    legacy_data[field] = int(round(cat_avg))
+
+            # Determine sentiment from overall rating
+            overall_avg = FeedbackResponse.objects.filter(
+                submission=submission
+            ).aggregate(Avg('rating'))['rating__avg'] or 0
+            
+            legacy_data['overall_rating'] = round(overall_avg, 2)
+            
+            if overall_avg >= 4.5: legacy_data['sentiment'] = 'positive'
+            elif overall_avg < 3.0: legacy_data['sentiment'] = 'negative'
+            else: legacy_data['sentiment'] = 'neutral'
+
+            Feedback.objects.update_or_create(
+                student=user,
+                offering=offering.base_offering,
+                defaults=legacy_data
+            )
+
+    except Exception as e:
+        print(f"Error submitting feedback securely: {e}")
+        return Response({'error': f'Failed to store feedback: {str(e)}'}, status=500)
+
+
     return Response({
         'message': 'Feedback submitted successfully',
         'submission': FeedbackSubmissionSerializer(submission).data,
@@ -464,14 +622,15 @@ def teacher_analytics(request):
     if user.role not in ['teacher', 'hod', 'admin']:
         return Response({'error': 'Access denied'}, status=403)
     
-    session_id = request.query_params.get('session')
+    # Force focus on the ACTIVE session only
+    active_session = FeedbackSession.objects.filter(is_active=True).last()
+    if not active_session:
+        return Response({'error': 'No active session found'}, status=404)
+    
     offering_id = request.query_params.get('offering')
     
-    # Base queryset for responses
-    responses = FeedbackResponse.objects.all()
-    
-    if session_id:
-        responses = responses.filter(session_id=session_id)
+    # Base queryset for responses (Filtered by active session)
+    responses = FeedbackResponse.objects.filter(session=active_session)
     
     if offering_id:
         responses = responses.filter(offering_id=offering_id)
@@ -532,45 +691,26 @@ def hod_analytics(request):
     if user.role not in ['hod', 'admin']:
         return Response({'error': 'Access denied'}, status=403)
     
-    current_session_id = request.query_params.get('current_session')
-    previous_session_id = request.query_params.get('previous_session')
+    # Force focus on the ACTIVE session only
+    current_session = FeedbackSession.objects.filter(is_active=True).last()
     
-    if not current_session_id:
-        # Get latest session
-        current_session = FeedbackSession.objects.filter(is_active=True).last()
-        if current_session:
-            current_session_id = current_session.id
+    if not current_session:
+        return Response({'error': 'No active session found'}, status=404)
     
-    if not current_session_id:
-        return Response({'error': 'No session specified'}, status=400)
+    current_session_id = current_session.id
     
-    # Get current session analytics
+    # Calculate current session analytics (Strictly current)
     current_responses = FeedbackResponse.objects.filter(session_id=current_session_id)
     current_analytics = _calculate_session_analytics(current_responses)
     
-    # Get previous session analytics for comparison
-    previous_analytics = None
-    improvement_percentage = 0
-    
-    if previous_session_id:
-        previous_responses = FeedbackResponse.objects.filter(session_id=previous_session_id)
-        previous_analytics = _calculate_session_analytics(previous_responses)
-        
-        # Calculate improvement percentage
-        if previous_analytics['average_rating'] > 0:
-            improvement_percentage = (
-                (current_analytics['average_rating'] - previous_analytics['average_rating']) /
-                previous_analytics['average_rating'] * 100
-            )
-    
-    # Generate trend analysis
-    trend_analysis = _generate_trend_analysis(current_analytics, previous_analytics)
-    
     return Response({
         'current_session': current_analytics,
-        'previous_session': previous_analytics,
-        'improvement_percentage': round(improvement_percentage, 2),
-        'trend_analysis': trend_analysis
+        'message': f"Showing analytics for active session: {current_session.name}",
+        'session_info': {
+            'id': current_session.id,
+            'name': current_session.name,
+            'year': current_session.year
+        }
     })
 
 
@@ -653,4 +793,150 @@ def generate_report(request):
         'session_id': session_id,
         'offering_id': offering_id,
         'format': format_type
+    })
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def hod_comprehensive_report(request, teacher_id):
+    """
+    Comprehensive HOD report using the new session-based feedback tables.
+    Includes qualitative fields logic exactly as defined by the user.
+    """
+    if request.user.role not in ['hod', 'admin']:
+        return Response({'error': 'Only HOD or Admin allowed'}, status=403)
+        
+    try:
+        teacher = User.objects.get(pk=teacher_id, role__in=['teacher', 'hod'])
+    except User.DoesNotExist:
+        return Response({'error': 'Teacher not found'}, status=404)
+        
+    session_id = request.query_params.get('session')
+    if session_id:
+        session = get_object_or_404(FeedbackSession, pk=session_id)
+    else:
+        session = FeedbackSession.objects.filter(is_active=True).order_by('-year').first()
+        
+    if not session:
+        return Response({'error': 'No active session found'}, status=404)
+        
+    # Get offerings for this teacher in this session
+    offerings = SessionOffering.objects.filter(
+        session=session,
+        teacher=teacher,
+        is_active=True
+    ).select_related('base_offering__subject', 'base_offering__branch', 'base_offering__semester')
+    
+    # Get all responses for this teacher in this session
+    responses = FeedbackResponse.objects.filter(
+        session=session,
+        offering__in=offerings
+    )
+    
+    # Quantitative Analytics
+    rating_responses = responses.filter(question__question_type='RATING')
+    
+    # Category-wise averages
+    cat_agg = {}
+    for category in Question.QUESTION_CATEGORIES:
+        cat_responses = rating_responses.filter(question__category=category[0])
+        if cat_responses.exists():
+            avg = cat_responses.aggregate(avg=Avg('rating'))['avg'] or 0
+            cat_agg[category[0]] = round(avg, 2)
+            
+    # Calculate overall metrics
+    overall_score = sum(v for v in cat_agg.values())
+    overall_percentage = round((overall_score / 25) * 100, 2) if len(cat_agg) > 0 else 0
+    overall_avg = overall_score / 5 if len(cat_agg) > 0 else 0
+    
+    # Question-wise averages
+    question_averages = {}
+    for qa in rating_responses.values('question__text').annotate(avg_rating=Avg('rating')).order_by('-avg_rating'):
+        question_averages[qa['question__text']] = round(qa['avg_rating'] or 0, 2)
+
+    
+    # Qualitative Analytics - Most frequent comment
+    text_responses = responses.filter(question__question_type='TEXT').exclude(text_response__isnull=True).exclude(text_response='')
+    
+    from collections import Counter
+    if text_responses.exists():
+        comments = text_responses.values_list('text_response', flat=True)
+        most_common = Counter(comments).most_common(1)
+        key_observations = most_common[0][0] if most_common else "No specific observations derived from student comments."
+    else:
+        key_observations = "No specific observations derived from student comments."
+        
+    # Find past session comparison
+    past_percentage = None
+    prev_sessions = FeedbackSession.objects.filter(
+        year__lt=session.year,
+        type=session.type
+    ).order_by('-year')
+    
+    if prev_sessions.exists():
+        prev_session = prev_sessions.first()
+        past_responses = FeedbackResponse.objects.filter(
+            session=prev_session,
+            offering__teacher=teacher,
+            question__question_type='RATING'
+        )
+        if past_responses.exists():
+            past_score = 0
+            for category in Question.QUESTION_CATEGORIES:
+                cat_responses = past_responses.filter(question__category=category[0])
+                if cat_responses.exists():
+                    avg = cat_responses.aggregate(avg=Avg('rating'))['avg'] or 0
+                    past_score += avg
+            past_percentage = round((past_score / 25) * 100, 2)
+            
+    # Logic for Qualitative Fields
+    obs_status = "Pending"
+    if overall_percentage >= 90:
+        obs_status = "Completed"
+    elif overall_percentage >= 70:
+        obs_status = "Ongoing"
+        
+    faculty_resp = ""
+    if obs_status == "Completed":
+        faculty_resp = "Faculty member have acknowledged student feedback."
+        
+    trend = ""
+    if past_percentage is not None and overall_percentage > past_percentage:
+        trend = "Feedback is improved as compared to previous year. Excellent teaching."
+
+    hod_comments = ""
+    if trend:
+        hod_comments = trend
+    elif overall_avg >= 4.5:
+        hod_comments = "Feedback is excellent. Students are satisfied with the faculty member."
+    elif overall_avg >= 3.5:
+        hod_comments = "Feedback is good. Students are satisfied with the faculty member."
+    else:
+        hod_comments = "Feedback is poor. Students are not satisfied, need improvements (domain...)."
+        
+    return Response({
+        "teacher": {
+            "id": teacher.id,
+            "name": teacher.get_full_name() or teacher.username,
+            "department": teacher.department.name if getattr(teacher, 'department', None) else "N/A"
+        },
+        "session": {
+            "id": session.id,
+            "name": session.name
+        },
+        "quantitative": {
+            "category_averages": cat_agg,
+            "question_averages": question_averages,
+            "overall_percentage": overall_percentage,
+            "overall_average": overall_avg,
+            "total_responses": responses.values('student').distinct().count()
+        },
+        "qualitative": {
+            "key_observations": key_observations,
+            "corrective_action": "Appreciated the faculty.",
+            "observation_status": obs_status,
+            "faculty_response": faculty_resp,
+            "hod_comments": hod_comments,
+            "conclusion": "Student feedback is collected, analyzed and corrective action has been taken. Future plans includes regularly reviewing feedback to ensure continuous improvement."
+        }
     })

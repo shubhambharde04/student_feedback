@@ -1,7 +1,7 @@
 import axios from "axios";
 
 // 1. Standardize to 127.0.0.1 (Safest for Windows/Chrome dev)
-const BASE_URL = "http://127.0.0.1:8000/api";
+const BASE_URL = "http://127.0.0.1:8000/api/";
 
 const API = axios.create({
   baseURL: BASE_URL,
@@ -56,7 +56,8 @@ const emitBackendStatusChange = (isOffline) => {
 // Check backend health
 const checkBackendHealth = async () => {
   try {
-    const response = await axios.get(`${BASE_URL}/health/`, { 
+    // Fixed: BASE_URL already has a trailing slash
+    const response = await axios.get(`${BASE_URL}health/`, { 
       timeout: 5000,
       validateStatus: (status) => status < 500
     });
@@ -127,7 +128,7 @@ API.interceptors.request.use(
       });
     }
 
-    console.log(`🚀 Request: ${config.method.toUpperCase()} ${config.baseURL}${config.url}`);
+    console.log(`🚀 Request: ${config.method.toUpperCase()} ${config.baseURL}/${config.url}`);
     return config;
   },
   (error) => Promise.reject(error)

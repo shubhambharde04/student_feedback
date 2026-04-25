@@ -31,14 +31,6 @@ export default function HODDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Comparison states
-  const [comparisonData, setComparisonData] = useState(null);
-  const [comparisonType, setComparisonType] = useState('department'); // 'department' or 'branch'
-  const [currentSemester, setCurrentSemester] = useState(6);
-  const [previousSemester, setPreviousSemester] = useState(5);
-  const [departmentId, setDepartmentId] = useState(1);
-  const [loadingComparison, setLoadingComparison] = useState(false);
-  
   const location = useLocation();
   const [activeSection, setActiveSection] = useState(location.state?.activeSection || "overview");
   
@@ -48,64 +40,46 @@ export default function HODDashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchInitial = async () => {
+      try {
+        const profileRes = await API.get("auth/profile/");
+        if (profileRes.status === 'ok' || profileRes.data) {
+          const userData = profileRes.data.user;
+          setUser(userData);
+        }
+      } catch (err) {
+        console.error("Error fetching initial data:", err);
+      }
+    };
+    fetchInitial();
+  }, []);
+
+  // Fetch active session data
+  useEffect(() => {
+    const fetchActiveData = async () => {
+      setLoading(true);
       try {
         const results = await Promise.allSettled([
-          API.get("hod/dashboard/"),
-          API.get("hod/teachers/"),
-          API.get("hod/analytics/"),
-          API.get("hod/statistics/"),
-          API.get("auth/profile/")
+          API.get(`hod/dashboard/`),
+          API.get(`hod/teachers/`),
+          API.get(`hod/analytics/`),
+          API.get(`hod/statistics/`),
         ]);
         if (results[0].status === 'fulfilled') setOverview(results[0].value.data);
         if (results[1].status === 'fulfilled') setTeachers(results[1].value.data);
         if (results[2].status === 'fulfilled') setAnalytics(results[2].value.data);
         if (results[3].status === 'fulfilled') setStatistics(results[3].value.data);
-        if (results[4].status === 'fulfilled') setUser(results[4].value.data.user);
-
-        // Log failures for debugging
-        const names = ['overview', 'teachers', 'analytics', 'statistics', 'profile'];
-        results.forEach((r, i) => {
-          if (r.status === 'rejected') {
-            console.error(`Failed to load ${names[i]}:`, r.reason);
-          }
-        });
       } catch (err) {
         console.error("Error fetching HOD data:", err);
-        setError("Failed to load dashboard data. Please ensure the backend is running.");
+        setError("Failed to load dashboard data.");
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
+    fetchActiveData();
   }, []);
 
-  // Fetch comparison data when comparison section is active
-  useEffect(() => {
-    if (activeSection === 'comparison') {
-      fetchComparisonData();
-    }
-  }, [activeSection, comparisonType, currentSemester, previousSemester, departmentId]);
-
-  const fetchComparisonData = async () => {
-    setLoadingComparison(true);
-    try {
-      let url;
-      if (comparisonType === 'department') {
-        url = `/analytics/department/?department_id=${departmentId}&current_semester=${currentSemester}&previous_semester=${previousSemester}`;
-      } else {
-        url = `/analytics/branch-comparison/?department_id=${departmentId}&current_semester=${currentSemester}&previous_semester=${previousSemester}`;
-      }
-      
-      const response = await API.get(url);
-      setComparisonData(response.data);
-    } catch (err) {
-      console.error('Error fetching comparison data:', err);
-      setError('Failed to load comparison data');
-    } finally {
-      setLoadingComparison(false);
-    }
-  };
+  // Comparison section removed as per strict current-session requirement
 
   if (loading) {
     return (
@@ -126,14 +100,21 @@ export default function HODDashboard() {
     );
   }
 
-  // ============================================================
-  // OVERVIEW SECTION
-  // ============================================================
   const renderOverview = () => (
     <div className="animate-fade-in">
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-surface-100 font-display">Dashboard Overview</h2>
-        <p className="text-surface-400 text-sm mt-1">High-level department metrics.</p>
+      <div className="mb-8 flex justify-between items-end">
+        <div>
+          <h2 className="text-2xl font-bold text-surface-100 font-display">Dashboard Overview</h2>
+          <p className="text-surface-400 text-sm mt-1">
+            Current Session: <span className="text-primary-400 font-bold">{overview?.session?.name || 'Active'}</span>
+          </p>
+        </div>
+        <div className="bg-primary-500/10 border border-primary-500/20 px-4 py-2 rounded-xl">
+          <span className="text-xs font-bold text-primary-400 uppercase tracking-widest flex items-center gap-2">
+            <span className="w-2 h-2 bg-primary-500 rounded-full animate-pulse"></span>
+            Strict Active Mode
+          </span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 stagger">
@@ -799,11 +780,20 @@ export default function HODDashboard() {
     const summary = statistics?.summary || {};
     const details = statistics?.details || [];
 
+    const knownKeys = ['subject', 'subject_code', 'teacher', 'total_feedback', 'avg_overall', 'sentiment_summary'];
+    const categoryKeys = details.length > 0 
+      ? Object.keys(details[0]).filter(k => !knownKeys.includes(k)) 
+      : [];
+
     return (
       <div className="animate-fade-in">
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-surface-100 font-display">Feedback Statistics</h2>
-          <p className="text-surface-400 text-sm mt-1">Comprehensive subject-wise feedback breakdown.</p>
+        <div className="mb-8 flex justify-between items-end">
+          <div>
+            <h2 className="text-2xl font-bold text-surface-100 font-display">Feedback Statistics</h2>
+            <p className="text-surface-400 text-sm mt-1">
+              {overview?.session?.name ? `Session: ${overview.session.name}` : 'Comprehensive subject-wise feedback breakdown.'}
+            </p>
+          </div>
         </div>
 
         {/* Summary Cards */}
@@ -843,11 +833,9 @@ export default function HODDashboard() {
                   <th className="p-4 font-medium">Teacher</th>
                   <th className="p-4 font-medium">Feedback</th>
                   <th className="p-4 font-medium">Overall</th>
-                  <th className="p-4 font-medium">Punctuality</th>
-                  <th className="p-4 font-medium">Teaching</th>
-                  <th className="p-4 font-medium">Clarity</th>
-                  <th className="p-4 font-medium">Interaction</th>
-                  <th className="p-4 font-medium">Behavior</th>
+                  {categoryKeys.map(cat => (
+                    <th key={cat} className="p-4 font-medium capitalize">{cat.replace('_', ' ')}</th>
+                  ))}
                   <th className="p-4 font-medium">Sentiment</th>
                 </tr>
               </thead>
@@ -861,11 +849,9 @@ export default function HODDashboard() {
                     <td className="p-4 text-surface-300">{row.teacher}</td>
                     <td className="p-4 text-surface-300">{row.total_feedback}</td>
                     <td className="p-4 text-primary-400 font-bold">{row.avg_overall}</td>
-                    <td className="p-4 text-surface-300">{row.avg_punctuality}</td>
-                    <td className="p-4 text-surface-300">{row.avg_teaching}</td>
-                    <td className="p-4 text-surface-300">{row.avg_clarity}</td>
-                    <td className="p-4 text-surface-300">{row.avg_interaction}</td>
-                    <td className="p-4 text-surface-300">{row.avg_behavior}</td>
+                    {categoryKeys.map(cat => (
+                      <td key={cat} className="p-4 text-surface-300">{row[cat] || '—'}</td>
+                    ))}
                     <td className="p-4">
                       <div className="flex gap-1 text-xs whitespace-nowrap">
                         <span className="text-accent-emerald">😊{row.sentiment_summary?.positive || 0}</span>
@@ -905,7 +891,7 @@ export default function HODDashboard() {
           {activeSection === "teachers" && renderTeachers()}
           {activeSection === "analytics" && renderAnalytics()}
           {activeSection === "statistics" && renderStatistics()}
-          {activeSection === "comparison" && renderComparison()}
+          {/* {activeSection === "comparison" && renderComparison()} */}
         </div>
       </main>
     </div>

@@ -16,6 +16,7 @@ import ChangePassword from "./pages/ChangePassword";
 import StudentManagement from "./pages/StudentManagement";
 import TeacherManagement from "./pages/TeacherManagement";
 import SubjectManagement from "./pages/SubjectManagement";
+import DepartmentManagement from "./pages/DepartmentManagement";
 import SessionManagement from "./pages/SessionManagement";
 import FormBuilder from "./pages/FormBuilder";
 import { checkBackendHealth } from "./api";
@@ -152,6 +153,15 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['hod']}>
                 <SessionManagement />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/hod/structure" 
+            element={
+              <ProtectedRoute allowedRoles={['hod']}>
+                <DepartmentManagement />
               </ProtectedRoute>
             } 
           />

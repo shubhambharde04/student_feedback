@@ -37,6 +37,15 @@ export default function SubjectManagement() {
     teacher_id: ""
   });
 
+  const [subjectData, setSubjectData] = useState({
+    name: "",
+    code: "",
+    description: "",
+    credits: 4
+  });
+
+  const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false);
+
   const fetchData = useCallback(async () => {
     try {
       const queryParams = new URLSearchParams();
@@ -76,6 +85,23 @@ export default function SubjectManagement() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const handleCreateSubject = async (e) => {
+    e.preventDefault();
+    setProcessing(true);
+    try {
+      const res = await API.post("subjects/", subjectData);
+      setToast({ message: "Subject created successfully", type: "success" });
+      setIsSubjectModalOpen(false);
+      setSubjectData({ name: "", code: "", description: "", credits: 4 });
+      fetchData(); // Refresh subject list
+    } catch (err) {
+      const msg = err.response?.data?.detail || "Failed to create subject";
+      setToast({ message: msg, type: "error" });
+    } finally {
+      setProcessing(false);
+    }
+  };
 
   const handleCreateOffering = async (e) => {
     e.preventDefault();
@@ -219,10 +245,16 @@ export default function SubjectManagement() {
                 {sessions.map(s => <option key={s.id} value={s.id}>{s.name} ({s.year})</option>)}
               </select>
               <button
+                onClick={() => setIsSubjectModalOpen(true)}
+                className="btn-secondary py-2.5 px-4 text-sm flex items-center gap-2"
+              >
+                <Bookmark size={18} /> New Subject
+              </button>
+              <button
                 onClick={() => { setModalType("offering"); setIsModalOpen(true); }}
                 className="btn-primary py-2.5 px-4 text-sm flex items-center gap-2"
               >
-                <Plus size={18} /> Add Subject Offering
+                <Plus size={18} /> Add Offering
               </button>
             </div>
           </header>
@@ -454,6 +486,88 @@ export default function SubjectManagement() {
                   className="flex-[2] py-3 px-4 rounded-xl font-bold bg-primary-600 text-white hover:bg-primary-500 shadow-lg shadow-primary-900/20 transition-all flex items-center justify-center gap-2"
                 >
                   {processing ? <Loader2 className="w-5 h-5 animate-spin" /> : "Confirm Action"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* New Subject Modal */}
+      {isSubjectModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm animate-fade-in">
+          <div className="glass-card w-full max-w-md shadow-2xl animate-scale-in">
+            <div className="p-6 border-b border-surface-700/50 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-surface-100 font-display">Create New Subject</h3>
+              <button
+                onClick={() => setIsSubjectModalOpen(false)}
+                className="text-surface-500 hover:text-white transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateSubject} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-surface-400 mb-2">Subject Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Machine Learning"
+                  className="input-dark"
+                  value={subjectData.name}
+                  onChange={(e) => setSubjectData(prev => ({ ...prev, name: e.target.value }))}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-surface-400 mb-2">Subject Code</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. CS101"
+                    className="input-dark font-mono uppercase"
+                    value={subjectData.code}
+                    onChange={(e) => setSubjectData(prev => ({ ...prev, code: e.target.value.toUpperCase() }))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-surface-400 mb-2">Credits</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    max="10"
+                    className="input-dark"
+                    value={subjectData.credits}
+                    onChange={(e) => setSubjectData(prev => ({ ...prev, credits: parseInt(e.target.value) }))}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-surface-400 mb-2">Description (Optional)</label>
+                <textarea
+                  className="input-dark h-24"
+                  placeholder="Subject overview..."
+                  value={subjectData.description}
+                  onChange={(e) => setSubjectData(prev => ({ ...prev, description: e.target.value }))}
+                ></textarea>
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsSubjectModalOpen(false)}
+                  className="flex-1 py-3 px-4 rounded-xl font-bold bg-surface-800 text-surface-400 hover:bg-surface-700 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={processing}
+                  className="flex-[2] py-3 px-4 rounded-xl font-bold bg-accent-indigo text-white hover:bg-accent-indigo/80 shadow-lg shadow-indigo-900/20 transition-all flex items-center justify-center gap-2"
+                >
+                  {processing ? <Loader2 className="w-5 h-5 animate-spin" /> : "Create Subject"}
                 </button>
               </div>
             </form>

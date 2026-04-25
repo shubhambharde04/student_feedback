@@ -4,9 +4,22 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'feedback_system.settings')
 django.setup()
 
-from users.models import User, Department, Branch, Semester, StudentSemester
+from users.models import User, Department, Branch, Semester, StudentSemester, FeedbackSession
+from django.utils import timezone
 
 def setup_test_data():
+    # 0. Active Session
+    session, _ = FeedbackSession.objects.get_or_create(
+        name='ODD 2024',
+        defaults={
+            'type': 'ODD',
+            'year': 2024,
+            'is_active': True,
+            'start_date': timezone.now().date(),
+            'end_date': (timezone.now() + timezone.timedelta(days=30)).date()
+        }
+    )
+
     # 1. Department
     dept, _ = Department.objects.get_or_create(name='Computer Science')
     
@@ -50,9 +63,14 @@ def setup_test_data():
     
     StudentSemester.objects.update_or_create(
         student=student,
-        defaults={'branch': branch, 'semester': semester}
+        session=session,
+        defaults={
+            'branch': branch, 
+            'semester': semester,
+            'class_name': semester.year_name
+        }
     )
-    print(f"Student test_student ready with CS Sem 1.")
+    print(f"Student test_student ready with CS Sem 1 in session {session.name}.")
 
 if __name__ == "__main__":
     setup_test_data()

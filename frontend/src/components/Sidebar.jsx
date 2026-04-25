@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 import API from "../api";
 
 const TEACHER_MENU = [
@@ -13,11 +14,11 @@ const HOD_MENU = [
   { key: "teacher-mgmt", label: "Manage Teachers", icon: "users", path: "/hod/teachers-manage" },
   { key: "analytics", label: "Performance Analytics", icon: "chart", path: "/hod-dashboard" },
   { key: "statistics", label: "Feedback Statistics", icon: "bar", path: "/hod-dashboard" },
-  { key: "comparison", label: "Feedback Comparison", icon: "trending", path: "/hod-dashboard" },
   { key: "students", label: "Students", icon: "users", path: "/hod/students" },
   { key: "enrollments", label: "Enrollments", icon: "users", path: "/hod/enrollments" },
   { key: "reports", label: "Reports", icon: "doc", path: "/hod/reports" },
   { key: "sessions", label: "Academic Sessions", icon: "clock", path: "/hod/sessions" },
+  { key: "departments", label: "Academic Structure", icon: "grid", path: "/hod/structure" },
   { key: "formbuilder", label: "Form Matrix", icon: "grid", path: "/hod/forms" },
 ];
 
@@ -73,11 +74,49 @@ const icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
     </svg>
   ),
+  sun: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="4" strokeWidth="1.5"></circle>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+    </svg>
+  ),
+  moon: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"></path>
+    </svg>
+  ),
 };
 
 export default function Sidebar({ role, activeSection, onSectionChange, user }) {
   const navigate = useNavigate();
   const menu = role === "hod" ? HOD_MENU : TEACHER_MENU;
+  
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return document.documentElement.classList.contains("dark");
+  });
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme");
+    if (savedTheme === "dark") {
+      document.documentElement.classList.add("dark");
+      setIsDarkMode(true);
+    } else if (savedTheme === "light") {
+      document.documentElement.classList.remove("dark");
+      setIsDarkMode(false);
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    if (isDarkMode) {
+      document.documentElement.classList.remove("dark");
+      setIsDarkMode(false);
+      localStorage.setItem("theme", "light");
+    } else {
+      document.documentElement.classList.add("dark");
+      setIsDarkMode(true);
+      localStorage.setItem("theme", "dark");
+    }
+  };
 
   const handleNavClick = (item) => {
     if (item.path && window.location.pathname !== item.path) {
@@ -104,28 +143,26 @@ export default function Sidebar({ role, activeSection, onSectionChange, user }) 
   };
 
   return (
-    <aside className="w-64 min-h-screen bg-surface-900/80 backdrop-blur-xl border-r border-surface-700/50 flex flex-col fixed left-0 top-0 z-30">
-      {/* GPN Brand */}
-      <div className="p-4 border-b border-surface-700/50 bg-gradient-to-b from-[#1a365d] to-surface-900/80">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center flex-shrink-0 shadow-lg">
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            </svg>
-          </div>
-          <div className="min-w-0">
-            <h2 className="text-xs font-bold text-white font-display leading-tight">Govt. Polytechnic</h2>
-            <h2 className="text-xs font-bold text-blue-200 font-display">Nagpur</h2>
-          </div>
+    <aside className="w-64 min-h-screen bg-white border-r border-surface-700 flex flex-col fixed left-0 top-0 z-30 shadow-sm">
+      {/* GPN Brand - Official Header Style */}
+      <div className="p-4 gpn-sidebar-brand text-white flex items-center gap-3">
+        <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-md overflow-hidden flex-shrink-0">
+          <img src="/gpn_logo.png" alt="GPN Logo" className="w-full h-full object-contain p-0.5" />
         </div>
-        <div className="ml-0">
-          <p className="text-[10px] text-amber-300 font-semibold">Online Academic Feedback System</p>
-          <p className="text-[10px] text-blue-300/60 capitalize">{role} Panel</p>
+        <div className="flex flex-col">
+          <h2 className="text-xs font-bold leading-tight uppercase">Government Polytechnic</h2>
+          <h2 className="text-xs font-bold uppercase">Nagpur</h2>
+          <p className="text-[9px] text-amber-200 mt-0.5 uppercase tracking-wider font-semibold">Academic Feedback</p>
         </div>
       </div>
 
+      <div className="gpn-sidebar-menu-header text-white font-bold text-xs px-4 py-2 uppercase tracking-wide">
+        Main Menu ({role})
+      </div>
+
+
       {/* Nav Items */}
-      <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+      <nav className="flex-1 p-0 overflow-y-auto">
         {menu.map((item) => (
           <button
             key={item.key}
@@ -145,14 +182,14 @@ export default function Sidebar({ role, activeSection, onSectionChange, user }) 
         {/* Change Password */}
         <button
           onClick={() => navigate("/change-password")}
-          className="sidebar-item w-full text-left text-accent-amber/80 hover:text-accent-amber hover:bg-accent-amber/10"
+          className="sidebar-item w-full text-left text-accent-amber/80 hover:text-accent-amber"
         >
           {icons.key}
           <span>Change Password</span>
         </button>
       </nav>
 
-      {/* User + Logout */}
+      {/* User + Controls + Logout */}
       <div className="p-4 border-t border-surface-700/50">
         {user && (
           <div className="flex items-center gap-3 mb-3">
@@ -167,7 +204,28 @@ export default function Sidebar({ role, activeSection, onSectionChange, user }) 
             </div>
           </div>
         )}
-        <button onClick={handleLogout} className="sidebar-item w-full text-left text-accent-rose/80 hover:text-accent-rose hover:bg-accent-rose/10">
+        
+        {/* Theme Toggle */}
+        <div className="px-2 mb-2">
+          <button 
+            onClick={toggleTheme} 
+            className="w-full flex items-center justify-between p-2.5 rounded-xl bg-surface-800/50 border border-surface-700/50 hover:bg-surface-800 transition-all group"
+          >
+            <div className="flex items-center gap-3">
+              <div className={`p-1.5 rounded-lg ${isDarkMode ? 'bg-amber-500/10 text-amber-500' : 'bg-blue-500/10 text-blue-500'}`}>
+                {isDarkMode ? icons.sun : icons.moon}
+              </div>
+              <span className="text-xs font-bold text-surface-400 group-hover:text-surface-200">
+                {isDarkMode ? "Light Mode" : "Dark Mode"}
+              </span>
+            </div>
+            <div className={`w-8 h-4 rounded-full relative transition-colors ${isDarkMode ? 'bg-primary-500/50' : 'bg-surface-700'}`}>
+              <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all shadow-sm ${isDarkMode ? 'left-4.5' : 'left-0.5'}`} />
+            </div>
+          </button>
+        </div>
+
+        <button onClick={handleLogout} className="sidebar-item w-full text-left text-accent-rose/80 hover:text-accent-rose">
           {icons.logout}
           <span>Logout</span>
         </button>

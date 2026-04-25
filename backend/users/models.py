@@ -32,15 +32,26 @@ class Branch(models.Model):
 
 
 class Semester(models.Model):
-    """Academic semesters (1-8)"""
+    """Academic semesters (1-6)"""
     id = models.AutoField(primary_key=True)
-    number = models.IntegerField(unique=True, validators=[MinValueValidator(1), MaxValueValidator(8)])
+    number = models.IntegerField(unique=True, validators=[MinValueValidator(1), MaxValueValidator(6)])
     name = models.CharField(max_length=50)
 
     @property
     def year(self):
         """Derive year from semester: 1st/2nd sem -> year 1, 3rd/4th -> year 2, etc."""
         return (self.number + 1) // 2  # type: ignore
+
+    @property
+    def year_name(self):
+        """Map semester number to year name (1st, 2nd, 3rd Year)"""
+        if self.number in [1, 2]:
+            return "1st Year"
+        elif self.number in [3, 4]:
+            return "2nd Year"
+        elif self.number in [5, 6]:
+            return "3rd Year"
+        return f"Year {(self.number + 1) // 2}"
 
     def __str__(self) -> str:
         return f"{self.name} ({self.number})"
@@ -571,6 +582,7 @@ class FeedbackSubmission(models.Model):
     completion_percentage = models.FloatField(default=0.0)
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     user_agent = models.TextField(blank=True)
+    overall_remark = models.TextField(blank=True, null=True)
     
     class Meta:
         ordering = ['-submitted_at']
@@ -585,7 +597,11 @@ class FeedbackSubmission(models.Model):
     
     @property
     def response_count(self):
-        return self.responses.count()
+        return FeedbackResponse.objects.filter(
+            student=self.student,
+            offering=self.offering,
+            session=self.session
+        ).count()
     
     @property
     def total_questions(self):

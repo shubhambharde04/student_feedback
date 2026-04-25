@@ -32,29 +32,7 @@ export default function TeacherDashboard() {
   const [viewMode, setViewMode] = useState('combined');
   const [isRefetching, setIsRefetching] = useState(false);
   
-  // Semester comparison state
-  const [semesters, setSemesters] = useState([]);
-  const [currentSemester, setCurrentSemester] = useState("");
-  const [previousSemester, setPreviousSemester] = useState("");
-
-  // Fetch semesters once
-  useEffect(() => {
-    const fetchSemesters = async () => {
-      try {
-        const res = await API.get("semesters/");
-        setSemesters(res.data);
-        // Default current to the latest/active one if possible
-        if (res.data.length > 0) {
-          const sorted = [...res.data].sort((a, b) => b.number - a.number);
-          setCurrentSemester(sorted[0].id.toString());
-          if (sorted.length > 1) setPreviousSemester(sorted[1].id.toString());
-        }
-      } catch (err) {
-        console.error("Error fetching semesters:", err);
-      }
-    };
-    fetchSemesters();
-  }, []);
+  // Fetch data (strictly for active session)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -63,9 +41,7 @@ export default function TeacherDashboard() {
 
       try {
         const queryParams = new URLSearchParams({
-          view: viewMode,
-          curr_sem: currentSemester,
-          prev_sem: previousSemester
+          view: viewMode
         }).toString();
         
         console.log(`[TeacherDashboard] Fetching data with params: ${queryParams}`);
@@ -96,7 +72,7 @@ export default function TeacherDashboard() {
       }
     };
     if (activeSection !== 'profile') fetchData(); // Skip if purely profile section
-  }, [viewMode, currentSemester, previousSemester, activeSection]);
+  }, [viewMode, activeSection]);
 
   if (loading) {
     return (
@@ -114,29 +90,8 @@ export default function TeacherDashboard() {
           <p className="text-surface-400 text-sm mt-1">Summary of your assigned subjects and feedback.</p>
         </div>
         <div className="flex flex-wrap items-center gap-4">
-          {/* Semester Selectors */}
-          <div className="flex items-center gap-2 bg-surface-800/50 rounded-lg p-1 px-3 border border-surface-700/50">
-            <span className="text-xs text-surface-400 font-medium">Semester:</span>
-            <select 
-              value={currentSemester} 
-              onChange={(e) => setCurrentSemester(e.target.value)}
-              className="bg-transparent text-sm text-surface-100 border-none focus:ring-0 cursor-pointer"
-            >
-              <option value="">Current/Active</option>
-              {semesters.map(s => <option key={s.id} value={s.id}>{s.name} ({s.number})</option>)}
-            </select>
-          </div>
-          
-          <div className="flex items-center gap-2 bg-surface-800/50 rounded-lg p-1 px-3 border border-surface-700/50">
-            <span className="text-xs text-surface-400 font-medium">Compare with:</span>
-            <select 
-              value={previousSemester} 
-              onChange={(e) => setPreviousSemester(e.target.value)}
-              className="bg-transparent text-sm text-surface-100 border-none focus:ring-0 cursor-pointer"
-            >
-              <option value="">None</option>
-              {semesters.map(s => <option key={s.id} value={s.id}>{s.name} ({s.number})</option>)}
-            </select>
+          <div className="bg-primary-500/10 border border-primary-500/20 px-3 py-1.5 rounded-lg">
+            <span className="text-xs font-bold text-primary-400 uppercase tracking-wider">Active Session Only</span>
           </div>
 
           {/* View Toggle */}
@@ -281,6 +236,13 @@ export default function TeacherDashboard() {
       }))
     : [];
 
+  const questionBarData = chartData?.question_averages
+    ? chartData.question_averages.labels.map((label, i) => ({
+        name: label,
+        value: chartData.question_averages.values[i],
+      }))
+    : [];
+
   const pieData = chartData?.rating_distribution
     ? chartData.rating_distribution.labels.map((label, i) => ({
         name: label,
@@ -388,6 +350,32 @@ export default function TeacherDashboard() {
             </div>
           ) : (
             <div className="h-[280px] flex items-center justify-center text-surface-500">No data available</div>
+          )}
+        </div>
+
+        {/* Bar Chart — Question-wise Averages */}
+        <div className="glass-card p-6 animate-fade-in lg:col-span-2">
+          <h3 className="text-lg font-semibold text-surface-100 font-display mb-4">Question Analysis</h3>
+          {questionBarData.length > 0 ? (
+            <div className="h-[280px]">
+              <ExpandableChartModal title="Current Questions Analysis" subtitle="Average rating for current session questions">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={questionBarData} margin={{ top: 5, right: 20, left: 0, bottom: 55 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" />
+                    <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} angle={-45} textAnchor="end" interval={0} />
+                    <YAxis domain={[0, 5]} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                    <Tooltip contentStyle={chartTooltipStyle} />
+                    <Bar dataKey="value" fill="#10b981" radius={[6, 6, 0, 0]} barSize={30}>
+                      {questionBarData.map((_, i) => (
+                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </ExpandableChartModal>
+            </div>
+          ) : (
+            <div className="h-[280px] flex items-center justify-center text-surface-500">No question data available</div>
           )}
         </div>
 

@@ -15,7 +15,7 @@ import logging
 
 from .models import (
     User, FeedbackSession, StudentSemester, StudentProfile, 
-    Branch, Semester, Department
+    Branch, Semester, Department, SessionOffering
 )
 from .serializers import (
     UserSerializer, StudentSemesterSerializer, FeedbackSessionSerializer
@@ -363,7 +363,7 @@ class StudentImportService:
                         defaults={
                             'branch': branch_obj,
                             'semester': semester_obj,
-                            'class_name': f"{branch_obj.code}-{semester_obj.number}",
+                            'class_name': semester_obj.year_name,
                             'is_active': True
                         }
                     )
@@ -523,6 +523,10 @@ def assign_student_to_session(request):
         branch = get_object_or_404(Branch, pk=branch_id)
         semester = get_object_or_404(Semester, pk=semester_id)
         
+        # Auto-calculate class name if not provided or set to default
+        if not class_name or class_name == 'A':
+            class_name = semester.year_name
+
         student_semester, created = StudentSemester.objects.update_or_create(
             student=student,
             session=session,

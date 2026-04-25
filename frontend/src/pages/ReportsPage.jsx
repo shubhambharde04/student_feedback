@@ -15,12 +15,13 @@ export default function ReportsPage() {
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const [sessions, setSessions] = useState([]);
+  const [selectedSession, setSelectedSession] = useState('');
+
   // Class report filters
   const [branches, setBranches] = useState([]);
-  const [sessions, setSessions] = useState([]);
   const [selectedBranch, setSelectedBranch] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
-  const [selectedSession, setSelectedSession] = useState('');
 
   // Editable qualitative fields (teacher report)
   const [keyObservations, setKeyObservations] = useState('');
@@ -34,35 +35,49 @@ export default function ReportsPage() {
   const reportRef = useRef(null);
 
   useEffect(() => {
-    const fetchInitialData = async () => {
+    const fetchSessions = async () => {
       try {
-        const [teacherRes, classRes] = await Promise.all([
-          API.get('hod/teachers/'),
-          API.get('hod/department/report/'),
-        ]);
-        setTeachers(teacherRes.data);
-        // Pre-load filter options from class report
-        if (classRes.data.available_branches) setBranches(classRes.data.available_branches);
-        if (classRes.data.available_sessions) setSessions(classRes.data.available_sessions);
+        const res = await API.get('sessions/');
+        setSessions(res.data);
+        const active = res.data.find(s => s.is_active);
+        if (active) setSelectedSession(active.id);
+        else if (res.data.length > 0) setSelectedSession(res.data[0].id);
       } catch (err) {
-        console.error('Failed to load initial data', err);
+        console.error('Failed to load sessions', err);
       } finally {
         setPageLoading(false);
       }
     };
-    fetchInitialData();
+    fetchSessions();
   }, []);
+
+  // Fetch teachers when selectedSession changes
+  useEffect(() => {
+    if (selectedSession) {
+      const fetchTeachers = async () => {
+        try {
+          const res = await API.get(`hod/teachers/?session_id=${selectedSession}`);
+          setTeachers(res.data);
+          setSelectedTeacher(''); // Reset teacher when session changes
+        } catch (err) {
+          console.error('Failed to load teachers', err);
+        }
+      };
+      fetchTeachers();
+    }
+  }, [selectedSession]);
 
   // Fetch filter options on class report toggle
   useEffect(() => {
-    if (reportType === 'department') {
+    if (reportType === 'department' && selectedSession) {
       fetchClassReport();
     } else {
       setReportData(null);
     }
-  }, [reportType]);
+  }, [reportType, selectedSession]);
 
   const fetchClassReport = async () => {
+    if (!selectedSession) return;
     setLoading(true);
     setError('');
     setReportData(null);
@@ -70,12 +85,12 @@ export default function ReportsPage() {
       const params = new URLSearchParams();
       if (selectedBranch) params.append('branch', selectedBranch);
       if (selectedYear) params.append('year', selectedYear);
-      if (selectedSession) params.append('session', selectedSession);
+      params.append('session_id', selectedSession);
       const response = await API.get(`hod/department/report/?${params.toString()}`);
       setReportData(response.data);
       setOverallRemarks(response.data.overall_remarks || '');
       if (response.data.available_branches) setBranches(response.data.available_branches);
-      if (response.data.available_sessions) setSessions(response.data.available_sessions);
+      if (response.data.available_branches) setBranches(response.data.available_branches);
     } catch (err) {
       setError('Failed to fetch class report.');
     } finally {
@@ -84,7 +99,7 @@ export default function ReportsPage() {
   };
 
   const generateTeacherReport = async () => {
-    if (!selectedTeacher) {
+    if (!selectedTeacher || !selectedSession) {
       setError('Please select a teacher to generate their report.');
       return;
     }
@@ -92,9 +107,7 @@ export default function ReportsPage() {
     setError('');
     setReportData(null);
     try {
-      const params = new URLSearchParams();
-      if (selectedSession) params.append('session', selectedSession);
-      const response = await API.get(`hod/teacher/${selectedTeacher}/report/?${params.toString()}`);
+      const response = await API.get(`hod/teacher/${selectedTeacher}/report/?session_id=${selectedSession}`);
       setReportData(response.data);
       // Reset editable fields
       setKeyObservations(response.data.key_observations || '');
@@ -297,6 +310,7 @@ export default function ReportsPage() {
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.text(reportData.class_label || '', margin, y);
+    doc.text(`Sample: ${reportData.sample_size} (${reportData.participation_rate}% students)`, pageWidth / 2, y, { align: 'center' });
     doc.text(reportData.session_year || '', pageWidth - margin, y, { align: 'right' });
     y += 6;
 
@@ -430,9 +444,8 @@ export default function ReportsPage() {
                       onChange={e => setSelectedSession(e.target.value)}
                       className="w-48 bg-surface-800 border border-surface-700 rounded-lg px-4 py-2.5 text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     >
-                      <option value="">Latest Active</option>
                       {sessions.map(s => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
+                        <option key={s.id} value={s.id}>{s.name} ({s.year})</option>
                       ))}
                     </select>
                   </div>
@@ -466,7 +479,6 @@ export default function ReportsPage() {
                       <option value="1">1st Year</option>
                       <option value="2">2nd Year</option>
                       <option value="3">3rd Year</option>
-                      <option value="4">4th Year</option>
                     </select>
                   </div>
                   <div>
@@ -476,9 +488,8 @@ export default function ReportsPage() {
                       onChange={e => setSelectedSession(e.target.value)}
                       className="w-48 bg-surface-800 border border-surface-700 rounded-lg px-4 py-2.5 text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     >
-                      <option value="">Latest Active</option>
                       {sessions.map(s => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
+                        <option key={s.id} value={s.id}>{s.name} ({s.year})</option>
                       ))}
                     </select>
                   </div>
@@ -729,6 +740,7 @@ export default function ReportsPage() {
                 <div className="flex justify-between px-4 py-2 border-b border-black text-sm">
                   <span><strong>{reportData.class_label}</strong></span>
                   <span><strong>{reportData.session_year}</strong></span>
+                  <span><strong>Sample: {reportData.sample_size} ({reportData.participation_rate}% students)</strong></span>
                 </div>
 
                 {/* Branch Comparisons Summary */}

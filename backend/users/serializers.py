@@ -177,12 +177,14 @@ class TeacherListSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
     subject_count = serializers.SerializerMethodField()
 
+    assigned_departments = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name', 'full_name',
             'department', 'department_name', 'designation', 'is_active',
-            'subject_count', 'date_joined'
+            'subject_count', 'assigned_departments', 'date_joined'
         ]
 
     def get_full_name(self, obj):
@@ -190,6 +192,13 @@ class TeacherListSerializer(serializers.ModelSerializer):
 
     def get_subject_count(self, obj):
         return obj.assignments.filter(is_active=True).count() if hasattr(obj, 'assignments') else 0
+
+    def get_assigned_departments(self, obj):
+        if not hasattr(obj, 'assignments'):
+            return []
+        # Get all distinct department IDs where this teacher is assigned a subject
+        dept_ids = obj.assignments.filter(is_active=True).values_list('offering__branch__department_id', flat=True).distinct()
+        return list(filter(None, dept_ids))
 
 
 class StudentSemesterSerializer(serializers.ModelSerializer):

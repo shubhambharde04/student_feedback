@@ -51,7 +51,6 @@ export default function Feedback() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!allRated) { setError("Please rate all categories."); return; }
-    if (comment.trim().length < 10) { setError("Comment must be at least 10 characters."); return; }
     setLoading(true);
     setError("");
 
@@ -59,7 +58,7 @@ export default function Feedback() {
       await API.post("feedback/", {
         subject: subject.id,
         ...ratings,
-        comment: comment.trim(),
+        comment: comment.trim() || "",
       });
       setSubmitted(true);
     } catch (err) {
@@ -200,19 +199,16 @@ export default function Feedback() {
 
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-2">
-                💬 Your Comment <span className="text-accent-rose">*</span>
+                💬 Your Comment <span className="text-surface-500 text-xs font-normal ml-1">(Optional)</span>
               </label>
               <textarea
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
-                placeholder="Share your detailed thoughts about this subject... (min 10 characters)"
+                placeholder="Share any additional thoughts about this subject... (optional)"
                 className="input-dark"
                 rows={4}
                 disabled={loading}
               />
-              <p className={`text-xs mt-1 ${comment.trim().length < 10 ? "text-accent-amber" : "text-accent-emerald"}`}>
-                {comment.trim().length}/10 characters minimum
-              </p>
             </div>
 
             <button

@@ -7845,3 +7845,1187 @@ Traceback (most recent call last):
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 AttributeError: 'User' object has no attribute 'student_profile'
 [2026-04-22 16:29:10,274] ERROR django.server "GET /api/student-subjects/ HTTP/1.1" 500 21085
+[2026-04-22 17:05:18,519] WARNING django.server "POST /api/subject-offerings/ HTTP/1.1" 400 85
+[2026-04-22 17:14:17,983] WARNING django.server "GET /api/hod/export-report/?type=teacher&id=2&format=pdf HTTP/1.1" 404 23
+[2026-04-23 16:46:17,615] ERROR users.student_import Error processing student upload
+Traceback (most recent call last):
+  File "D:\student_feedback\backend\users\student_import.py", line 262, in process
+    stats = cls.save_to_db(all_results, uploaded_by, update_existing)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\student_import.py", line 379, in save_to_db
+    has_offerings = SessionOffering.objects.filter(
+                    ^^^^^^^^^^^^^^^
+NameError: name 'SessionOffering' is not defined
+[2026-04-23 16:46:18,801] ERROR users.student_import Error processing student upload
+Traceback (most recent call last):
+  File "D:\student_feedback\backend\users\student_import.py", line 262, in process
+    stats = cls.save_to_db(all_results, uploaded_by, update_existing)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\student_import.py", line 379, in save_to_db
+    has_offerings = SessionOffering.objects.filter(
+                    ^^^^^^^^^^^^^^^
+NameError: name 'SessionOffering' is not defined
+[2026-04-23 18:05:40,985] WARNING django.server "GET /api/auth/profile/ HTTP/1.1" 401 58
+[2026-04-23 18:05:40,985] WARNING django.server "GET /api/sessions/ HTTP/1.1" 401 58
+[2026-04-23 18:05:40,988] WARNING django.server "GET /api/auth/profile/ HTTP/1.1" 401 58
+[2026-04-23 18:05:40,988] WARNING django.server "GET /api/sessions/ HTTP/1.1" 401 58
+[2026-04-23 18:05:50,814] WARNING django.server "GET /api/users/teachers/ HTTP/1.1" 401 58
+[2026-04-23 18:05:50,814] WARNING django.server "GET /api/auth/profile/ HTTP/1.1" 401 58
+[2026-04-23 18:05:50,820] WARNING django.server "GET /api/auth/profile/ HTTP/1.1" 401 58
+[2026-04-23 18:05:50,820] WARNING django.server "GET /api/branches/ HTTP/1.1" 401 58
+[2026-04-23 18:05:50,820] WARNING django.server "GET /api/users/teachers/ HTTP/1.1" 401 58
+[2026-04-23 18:05:50,822] WARNING django.server "GET /api/branches/ HTTP/1.1" 401 58
+[2026-04-23 18:05:56,690] WARNING django.server "GET /api/auth/profile/ HTTP/1.1" 401 58
+[2026-04-23 18:05:56,690] WARNING django.server "GET /api/sessions/ HTTP/1.1" 401 58
+[2026-04-23 18:05:56,693] WARNING django.server "GET /api/sessions/ HTTP/1.1" 401 58
+[2026-04-23 18:05:56,693] WARNING django.server "GET /api/auth/profile/ HTTP/1.1" 401 58
+[2026-04-23 18:05:58,652] WARNING django.server "GET /api/users/teachers/ HTTP/1.1" 401 58
+[2026-04-23 18:05:58,652] WARNING django.server "GET /api/auth/profile/ HTTP/1.1" 401 58
+[2026-04-23 18:05:58,652] WARNING django.server "GET /api/branches/ HTTP/1.1" 401 58
+[2026-04-23 18:05:58,658] WARNING django.server "GET /api/users/teachers/ HTTP/1.1" 401 58
+[2026-04-23 18:05:58,658] WARNING django.server "GET /api/branches/ HTTP/1.1" 401 58
+[2026-04-23 18:05:58,658] WARNING django.server "GET /api/auth/profile/ HTTP/1.1" 401 58
+[2026-04-23 18:06:00,508] WARNING django.server "GET /api/auth/profile/ HTTP/1.1" 401 58
+[2026-04-23 18:06:00,509] WARNING django.server "GET /api/sessions/ HTTP/1.1" 401 58
+[2026-04-23 18:06:00,512] WARNING django.server "GET /api/sessions/ HTTP/1.1" 401 58
+[2026-04-23 18:06:00,512] WARNING django.server "GET /api/auth/profile/ HTTP/1.1" 401 58
+[2026-04-23 18:06:03,238] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-23 18:33:01,065] WARNING django.server "GET /api/users/teachers/ HTTP/1.1" 401 172
+[2026-04-23 18:33:01,065] WARNING django.server "GET /api/branches/ HTTP/1.1" 401 172
+[2026-04-23 18:33:01,065] WARNING django.server "GET /api/auth/profile/ HTTP/1.1" 401 172
+[2026-04-23 18:41:47,261] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-23 18:42:02,178] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-23 20:00:50,363] WARNING django.server "GET /api/auth/profile/ HTTP/1.1" 401 172
+[2026-04-23 20:00:50,365] WARNING django.server "GET /api/auth/profile/ HTTP/1.1" 401 172
+[2026-04-24 08:26:33,994] WARNING django.server "GET /api/feedback/active-form/ HTTP/1.1" 404 23
+[2026-04-24 08:26:38,812] WARNING django.server "GET /api/feedback/active-form/ HTTP/1.1" 404 23
+[2026-04-24 08:58:04,312] WARNING django.server "GET /api/feedback/active-form/ HTTP/1.1" 404 23
+[2026-04-24 08:58:06,735] WARNING django.server "GET /api/feedback/active-form/ HTTP/1.1" 404 23
+[2026-04-24 08:58:07,623] WARNING django.server "GET /api/feedback/active-form/ HTTP/1.1" 404 23
+[2026-04-24 08:58:17,294] WARNING django.server "GET /api/feedback/active-form/ HTTP/1.1" 404 23
+[2026-04-24 09:17:00,447] WARNING django.server "GET /api/feedback/active-form/ HTTP/1.1" 404 23
+[2026-04-24 09:33:35,816] WARNING django.server "PATCH /api/users/teachers/9/ HTTP/1.1" 400 52
+[2026-04-24 09:33:57,396] WARNING django.server "PATCH /api/users/teachers/9/ HTTP/1.1" 400 52
+[2026-04-24 15:16:57,836] ERROR django.request Internal Server Error: /api/feedback/submit/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\mysql\base.py", line 76, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\cursors.py", line 153, in execute
+    result = self._query(query)
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\cursors.py", line 322, in _query
+    conn.query(q)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 575, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 826, in _read_query_result
+    result.read()
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 1203, in read
+    first_packet = self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 782, in _read_packet
+    packet.raise_for_error()
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.OperationalError: (1054, "Unknown column 'users_feedbacksubmission.overall_remark' in 'field list'")
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\session_views.py", line 498, in submit_feedback
+    ).first()
+      ^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 1106, in first
+    for obj in queryset[:1]:
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 386, in __iter__
+    self._fetch_all()
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 1954, in _fetch_all
+    self._result_cache = list(self._iterable_class(self))
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 93, in __iter__
+    results = compiler.execute_sql(
+              ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\sql\compiler.py", line 1623, in execute_sql
+    cursor.execute(sql, params)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\mysql\base.py", line 76, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\cursors.py", line 153, in execute
+    result = self._query(query)
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\cursors.py", line 322, in _query
+    conn.query(q)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 575, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 826, in _read_query_result
+    result.read()
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 1203, in read
+    first_packet = self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 782, in _read_packet
+    packet.raise_for_error()
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+django.db.utils.OperationalError: (1054, "Unknown column 'users_feedbacksubmission.overall_remark' in 'field list'")
+[2026-04-24 15:16:57,850] ERROR django.server "POST /api/feedback/submit/ HTTP/1.1" 500 27181
+[2026-04-24 15:17:03,203] ERROR django.request Internal Server Error: /api/feedback/submit/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\mysql\base.py", line 76, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\cursors.py", line 153, in execute
+    result = self._query(query)
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\cursors.py", line 322, in _query
+    conn.query(q)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 575, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 826, in _read_query_result
+    result.read()
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 1203, in read
+    first_packet = self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 782, in _read_packet
+    packet.raise_for_error()
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.OperationalError: (1054, "Unknown column 'users_feedbacksubmission.overall_remark' in 'field list'")
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\session_views.py", line 498, in submit_feedback
+    ).first()
+      ^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 1106, in first
+    for obj in queryset[:1]:
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 386, in __iter__
+    self._fetch_all()
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 1954, in _fetch_all
+    self._result_cache = list(self._iterable_class(self))
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 93, in __iter__
+    results = compiler.execute_sql(
+              ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\sql\compiler.py", line 1623, in execute_sql
+    cursor.execute(sql, params)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\mysql\base.py", line 76, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\cursors.py", line 153, in execute
+    result = self._query(query)
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\cursors.py", line 322, in _query
+    conn.query(q)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 575, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 826, in _read_query_result
+    result.read()
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 1203, in read
+    first_packet = self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 782, in _read_packet
+    packet.raise_for_error()
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+django.db.utils.OperationalError: (1054, "Unknown column 'users_feedbacksubmission.overall_remark' in 'field list'")
+[2026-04-24 15:17:03,212] ERROR django.server "POST /api/feedback/submit/ HTTP/1.1" 500 27181
+[2026-04-24 15:17:22,615] ERROR django.request Internal Server Error: /api/feedback/submit/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\mysql\base.py", line 76, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\cursors.py", line 153, in execute
+    result = self._query(query)
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\cursors.py", line 322, in _query
+    conn.query(q)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 575, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 826, in _read_query_result
+    result.read()
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 1203, in read
+    first_packet = self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 782, in _read_packet
+    packet.raise_for_error()
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.OperationalError: (1054, "Unknown column 'users_feedbacksubmission.overall_remark' in 'field list'")
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\session_views.py", line 498, in submit_feedback
+    ).first()
+      ^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 1106, in first
+    for obj in queryset[:1]:
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 386, in __iter__
+    self._fetch_all()
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 1954, in _fetch_all
+    self._result_cache = list(self._iterable_class(self))
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 93, in __iter__
+    results = compiler.execute_sql(
+              ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\sql\compiler.py", line 1623, in execute_sql
+    cursor.execute(sql, params)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\mysql\base.py", line 76, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\cursors.py", line 153, in execute
+    result = self._query(query)
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\cursors.py", line 322, in _query
+    conn.query(q)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 575, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 826, in _read_query_result
+    result.read()
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 1203, in read
+    first_packet = self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 782, in _read_packet
+    packet.raise_for_error()
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+django.db.utils.OperationalError: (1054, "Unknown column 'users_feedbacksubmission.overall_remark' in 'field list'")
+[2026-04-24 15:17:22,621] ERROR django.server "POST /api/feedback/submit/ HTTP/1.1" 500 27181
+[2026-04-24 15:17:33,116] ERROR django.request Internal Server Error: /api/feedback/submit/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\mysql\base.py", line 76, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\cursors.py", line 153, in execute
+    result = self._query(query)
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\cursors.py", line 322, in _query
+    conn.query(q)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 575, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 826, in _read_query_result
+    result.read()
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 1203, in read
+    first_packet = self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 782, in _read_packet
+    packet.raise_for_error()
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.OperationalError: (1054, "Unknown column 'users_feedbacksubmission.overall_remark' in 'field list'")
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\session_views.py", line 498, in submit_feedback
+    ).first()
+      ^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 1106, in first
+    for obj in queryset[:1]:
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 386, in __iter__
+    self._fetch_all()
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 1954, in _fetch_all
+    self._result_cache = list(self._iterable_class(self))
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\query.py", line 93, in __iter__
+    results = compiler.execute_sql(
+              ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\sql\compiler.py", line 1623, in execute_sql
+    cursor.execute(sql, params)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\backends\mysql\base.py", line 76, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\cursors.py", line 153, in execute
+    result = self._query(query)
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\cursors.py", line 322, in _query
+    conn.query(q)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 575, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 826, in _read_query_result
+    result.read()
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 1203, in read
+    first_packet = self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\connections.py", line 782, in _read_packet
+    packet.raise_for_error()
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\pymysql\err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+django.db.utils.OperationalError: (1054, "Unknown column 'users_feedbacksubmission.overall_remark' in 'field list'")
+[2026-04-24 15:17:33,122] ERROR django.server "POST /api/feedback/submit/ HTTP/1.1" 500 27181
+[2026-04-24 17:59:01,547] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-24 17:59:01,935] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-24 17:59:02,307] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-24 18:40:27,271] WARNING django.server "GET / HTTP/1.1" 404 2836
+[2026-04-24 18:40:27,406] WARNING django.server "GET /favicon.ico HTTP/1.1" 404 2887
+[2026-04-24 18:57:56,843] WARNING django.server "GET / HTTP/1.1" 404 2836
+[2026-04-24 18:57:56,978] WARNING django.server "GET /favicon.ico HTTP/1.1" 404 2887
+[2026-04-24 18:58:39,024] ERROR django.request Internal Server Error: /admin/users/sessionoffering/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\options.py", line 683, in get_field
+    return self.fields_map[field_name]
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^
+KeyError: 'form'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\contrib\admin\utils.py", line 290, in lookup_field
+    f = _get_non_gfk_field(opts, name)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\contrib\admin\utils.py", line 330, in _get_non_gfk_field
+    field = opts.get_field(name)
+            ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\db\models\options.py", line 685, in get_field
+    raise FieldDoesNotExist(
+django.core.exceptions.FieldDoesNotExist: SessionOffering has no field named 'form'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 220, in _get_response
+    response = response.render()
+               ^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\template\response.py", line 114, in render
+    self.content = self.rendered_content
+                   ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\template\response.py", line 92, in rendered_content
+    return template.render(context, self._request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\template\backends\django.py", line 107, in render
+    return self.template.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\template\base.py", line 172, in render
+    return self._render(context)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\template\base.py", line 164, in _render
+    return self.nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\template\base.py", line 1018, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\template\base.py", line 1018, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\template\base.py", line 979, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\template\loader_tags.py", line 159, in render
+    return compiled_parent._render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\template\base.py", line 164, in _render
+    return self.nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\template\base.py", line 1018, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\template\base.py", line 1018, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\template\base.py", line 979, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\template\loader_tags.py", line 159, in render
+    return compiled_parent._render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\template\base.py", line 164, in _render
+    return self.nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\template\base.py", line 1018, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\template\base.py", line 1018, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\template\base.py", line 979, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\template\loader_tags.py", line 65, in render
+    result = block.nodelist.render(context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\template\base.py", line 1018, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\template\base.py", line 1018, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\template\base.py", line 979, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\template\loader_tags.py", line 65, in render
+    result = block.nodelist.render(context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\template\base.py", line 1018, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\template\base.py", line 1018, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\template\base.py", line 979, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\contrib\admin\templatetags\base.py", line 47, in render
+    return super().render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\template\library.py", line 362, in render
+    _dict = self.func(*resolved_args, **resolved_kwargs)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\contrib\admin\templatetags\admin_list.py", line 354, in result_list
+    "results": list(results(cl)),
+               ^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\contrib\admin\templatetags\admin_list.py", line 330, in results
+    yield ResultList(None, items_for_result(cl, res, None))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\contrib\admin\templatetags\admin_list.py", line 321, in __init__
+    super().__init__(*items)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\contrib\admin\templatetags\admin_list.py", line 219, in items_for_result
+    f, attr, value = lookup_field(field_name, result, cl.model_admin)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\contrib\admin\utils.py", line 299, in lookup_field
+    value = attr(obj)
+            ^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\forms\models.py", line 360, in __init__
+    opts = self._meta
+           ^^^^^^^^^^
+AttributeError: 'ModelForm' object has no attribute '_meta'
+[2026-04-24 18:58:39,033] ERROR django.server "GET /admin/users/sessionoffering/ HTTP/1.1" 500 455107
+[2026-04-24 19:02:36,999] WARNING django.server "GET / HTTP/1.1" 404 2836
+[2026-04-25 02:24:09,730] WARNING django.server "GET / HTTP/1.1" 404 2836
+[2026-04-25 02:24:09,837] WARNING django.server "GET /favicon.ico HTTP/1.1" 404 2887
+[2026-04-25 02:44:23,220] WARNING django.server "GET /api/hod/export-report/?type=teacher&id=2&format=pdf HTTP/1.1" 404 23
+[2026-04-25 02:44:24,930] WARNING django.server "GET /api/hod/export-report/?type=teacher&id=2&format=pdf HTTP/1.1" 404 23
+[2026-04-25 02:44:26,656] WARNING django.server "GET /api/hod/export-report/?type=teacher&id=2&format=pdf HTTP/1.1" 404 23
+[2026-04-25 02:44:29,700] WARNING django.server "GET /api/hod/export-report/?type=teacher&id=2&format=pdf HTTP/1.1" 404 23
+[2026-04-25 02:46:24,943] WARNING django.server "GET /api/hod/export-report/?type=teacher&id=2&format=pdf HTTP/1.1" 404 23
+[2026-04-25 02:48:39,490] WARNING django.server "GET /api/hod/export-report/?type=teacher&id=2&format=pdf HTTP/1.1" 404 23
+[2026-04-25 02:52:11,696] WARNING django.server "GET /api/hod/export-report/?type=teacher&id=2&format=pdf HTTP/1.1" 404 23
+[2026-04-25 02:55:55,220] WARNING django.server "GET /api/hod/export-report/?type=teacher&id=2&format=pdf HTTP/1.1" 404 23
+[2026-04-25 03:02:37,170] WARNING django.server "GET /api/hod/export-report/?type=teacher&id=2&format=pdf HTTP/1.1" 404 23
+[2026-04-25 03:02:37,367] WARNING django.server "GET /favicon.ico HTTP/1.1" 404 2887
+[2026-04-25 03:02:42,212] WARNING django.server "GET /api/hod/export_report/?type=teacher&id=2&format=pdf HTTP/1.1" 404 40596
+[2026-04-25 03:02:54,953] WARNING django.server "GET /api//health/ HTTP/1.1" 404 40529
+[2026-04-25 03:02:55,003] WARNING django.server "GET /api/auth/profile/ HTTP/1.1" 404 40544
+[2026-04-25 03:02:55,007] WARNING django.server "GET /api//health/ HTTP/1.1" 404 40529
+[2026-04-25 03:02:55,028] WARNING django.server "GET /api/auth/profile/ HTTP/1.1" 404 40544
+[2026-04-25 03:02:55,108] WARNING django.server "GET /api//health/ HTTP/1.1" 404 40529
+[2026-04-25 03:02:55,130] WARNING django.server "GET /api//health/ HTTP/1.1" 404 40529
+[2026-04-25 03:02:58,139] WARNING django.server "GET /api//health/ HTTP/1.1" 404 40529
+[2026-04-25 03:02:58,157] WARNING django.server "GET /api//health/ HTTP/1.1" 404 40529
+[2026-04-25 03:03:02,243] WARNING django.server "GET /api//health/ HTTP/1.1" 404 40529
+[2026-04-25 03:03:02,258] WARNING django.server "GET /api//health/ HTTP/1.1" 404 40529
+[2026-04-25 03:03:02,284] WARNING django.server "GET /api//health/ HTTP/1.1" 404 40529
+[2026-04-25 03:03:02,301] WARNING django.server "GET /api//health/ HTTP/1.1" 404 40529
+[2026-04-25 03:03:05,369] WARNING django.server "GET /api//health/ HTTP/1.1" 404 40529
+[2026-04-25 03:03:05,407] WARNING django.server "GET /api//health/ HTTP/1.1" 404 40529
+[2026-04-25 03:03:26,099] WARNING django.server "GET /api//health/ HTTP/1.1" 404 40529
+[2026-04-25 03:03:35,507] WARNING django.server "GET /api//health/ HTTP/1.1" 404 40529
+[2026-04-25 03:03:35,522] WARNING django.server "GET /api//health/ HTTP/1.1" 404 40529
+[2026-04-25 03:03:35,535] WARNING django.server "GET /api//health/ HTTP/1.1" 404 40529
+[2026-04-25 03:03:35,552] WARNING django.server "GET /api//health/ HTTP/1.1" 404 40529
+[2026-04-25 03:03:38,542] WARNING django.server "GET /api//health/ HTTP/1.1" 404 40529
+[2026-04-25 03:03:38,560] WARNING django.server "GET /api//health/ HTTP/1.1" 404 40529
+[2026-04-25 03:03:47,525] WARNING django.server "GET /api/ HTTP/1.1" 401 5009
+[2026-04-25 03:03:53,454] WARNING django.server "GET /api//health/ HTTP/1.1" 404 40529
+[2026-04-25 03:03:53,470] WARNING django.server "GET /api//health/ HTTP/1.1" 404 40529
+[2026-04-25 03:03:53,486] WARNING django.server "GET /api//health/ HTTP/1.1" 404 40529
+[2026-04-25 03:03:53,501] WARNING django.server "GET /api//health/ HTTP/1.1" 404 40529
+[2026-04-25 03:03:56,509] WARNING django.server "GET /api//health/ HTTP/1.1" 404 40529
+[2026-04-25 03:03:56,527] WARNING django.server "GET /api//health/ HTTP/1.1" 404 40529
+[2026-04-25 03:09:58,426] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-25 03:10:46,294] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-25 03:11:27,243] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-25 03:13:03,194] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-25 03:15:27,865] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-25 03:16:30,716] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-25 03:17:16,065] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-25 03:17:54,522] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-25 03:18:20,757] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-25 03:24:19,737] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-25 03:25:58,069] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-25 03:26:37,307] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-25 03:27:11,977] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-25 03:27:28,411] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-25 03:27:58,837] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-25 03:28:46,453] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-25 03:29:05,119] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-25 03:29:29,968] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-25 03:29:47,128] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-25 03:29:55,698] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-25 03:34:49,617] WARNING django.server "GET /api/hod/export-report-pdf/?type=teacher&id=2&format=pdf HTTP/1.1" 404 23
+[2026-04-25 03:36:33,437] WARNING django.server "GET /api/hod/pdf-report/?type=teacher&id=2&format=pdf HTTP/1.1" 404 44170
+[2026-04-25 03:37:26,154] WARNING django.server "GET /api/hod/pdf-report/?type=teacher&id=2&format=pdf HTTP/1.1" 404 44170
+[2026-04-25 03:38:31,613] WARNING django.server "GET /api/hod/pdf-report/?type=teacher&id=2&format=pdf HTTP/1.1" 404 44170
+[2026-04-25 03:41:34,211] WARNING django.server "GET /api/hod/pdf-report/?type=teacher&id=2&format=pdf HTTP/1.1" 404 23
+[2026-04-25 03:42:14,749] WARNING django.server "GET /api/hod/pdf-report/?type=teacher&id=2&format=pdf HTTP/1.1" 404 23
+[2026-04-25 03:42:47,589] WARNING django.server "GET /pdf/?type=teacher&id=2&format=pdf HTTP/1.1" 404 3102
+[2026-04-25 03:45:06,401] WARNING django.server "GET / HTTP/1.1" 404 3035
+[2026-04-25 03:45:06,452] WARNING django.server "GET /favicon.ico HTTP/1.1" 404 3086
+[2026-04-25 03:45:19,000] WARNING django.server "GET /hod-dashboard HTTP/1.1" 404 3092
+[2026-04-25 03:45:37,779] WARNING django.server "GET / HTTP/1.1" 404 3035
+[2026-04-25 03:45:49,622] WARNING django.server "GET / HTTP/1.1" 404 3035
+[2026-04-25 03:46:34,637] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-25 03:46:52,064] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-25 03:47:07,855] WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 49
+[2026-04-25 03:47:51,085] WARNING django.server "GET / HTTP/1.1" 404 3035
+[2026-04-25 03:48:41,135] WARNING django.server "GET /api/hod/pdf-report/?type=teacher&id=2&format=pdf HTTP/1.1" 404 23
+[2026-04-25 03:48:48,698] WARNING django.server "GET /pdf/?type=teacher&id=2&format=pdf HTTP/1.1" 404 3102
+[2026-04-25 03:49:16,130] WARNING django.server "GET /api/hod/export-report/?type=teacher&id=2&format=pdf HTTP/1.1" 404 44371
+[2026-04-25 03:49:25,831] WARNING django.server "GET /api/hod/teachers/ HTTP/1.1" 401 5189
+[2026-04-25 04:37:03,061] WARNING django.server "GET / HTTP/1.1" 404 2836
+[2026-04-25 04:37:03,097] WARNING django.server "GET / HTTP/1.1" 404 2836
+[2026-04-25 04:37:03,261] WARNING django.server "GET /favicon.ico HTTP/1.1" 404 2887
+[2026-04-25 04:47:49,690] WARNING django.server "GET / HTTP/1.1" 404 2836
+[2026-04-25 04:47:49,795] WARNING django.server "GET /favicon.ico HTTP/1.1" 404 2887
+[2026-04-25 05:30:09,520] ERROR django.request Internal Server Error: /api/hod/department/report/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\views.py", line 2189, in hod_department_report
+    branch=branch_obj if branch_obj else department.branches.first(),
+                                         ^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'branches'
+[2026-04-25 05:30:09,525] ERROR django.server "GET /api/hod/department/report/ HTTP/1.1" 500 21147
+[2026-04-25 05:30:09,577] ERROR django.request Internal Server Error: /api/hod/department/report/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\views.py", line 2189, in hod_department_report
+    branch=branch_obj if branch_obj else department.branches.first(),
+                                         ^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'branches'
+[2026-04-25 05:30:09,579] ERROR django.server "GET /api/hod/department/report/ HTTP/1.1" 500 21147
+[2026-04-25 05:30:21,628] ERROR django.request Internal Server Error: /api/hod/department/report/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\views.py", line 2189, in hod_department_report
+    branch=branch_obj if branch_obj else department.branches.first(),
+                                         ^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'branches'
+[2026-04-25 05:30:21,630] ERROR django.server "GET /api/hod/department/report/? HTTP/1.1" 500 21147
+[2026-04-25 05:31:30,322] ERROR django.request Internal Server Error: /api/hod/department/report/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\views.py", line 2189, in hod_department_report
+    branch=branch_obj if branch_obj else department.branches.first(),
+                                         ^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'branches'
+[2026-04-25 05:31:30,324] ERROR django.server "GET /api/hod/department/report/? HTTP/1.1" 500 21147
+[2026-04-25 05:51:27,880] ERROR django.request Internal Server Error: /api/hod/department/report/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\views.py", line 2189, in hod_department_report
+    branch=branch_obj if branch_obj else department.branches.first(),
+                                         ^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'branches'
+[2026-04-25 05:51:27,885] ERROR django.server "GET /api/hod/department/report/ HTTP/1.1" 500 21142
+[2026-04-25 05:51:27,944] ERROR django.request Internal Server Error: /api/hod/department/report/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\views.py", line 2189, in hod_department_report
+    branch=branch_obj if branch_obj else department.branches.first(),
+                                         ^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'branches'
+[2026-04-25 05:51:27,946] ERROR django.server "GET /api/hod/department/report/ HTTP/1.1" 500 21142
+[2026-04-25 05:51:32,611] ERROR django.request Internal Server Error: /api/hod/department/report/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\views.py", line 2189, in hod_department_report
+    branch=branch_obj if branch_obj else department.branches.first(),
+                                         ^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'branches'
+[2026-04-25 05:51:32,616] ERROR django.server "GET /api/hod/department/report/ HTTP/1.1" 500 21142
+[2026-04-25 05:51:32,687] ERROR django.request Internal Server Error: /api/hod/department/report/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\views.py", line 2189, in hod_department_report
+    branch=branch_obj if branch_obj else department.branches.first(),
+                                         ^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'branches'
+[2026-04-25 05:51:32,691] ERROR django.server "GET /api/hod/department/report/ HTTP/1.1" 500 21142
+[2026-04-25 05:53:40,094] ERROR django.request Internal Server Error: /api/hod/department/report/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\views.py", line 2189, in hod_department_report
+    branch=branch_obj if branch_obj else department.branches.first(),
+                                         ^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'branches'
+[2026-04-25 05:53:40,098] ERROR django.server "GET /api/hod/department/report/ HTTP/1.1" 500 21142
+[2026-04-25 05:53:40,160] ERROR django.request Internal Server Error: /api/hod/department/report/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\views.py", line 2189, in hod_department_report
+    branch=branch_obj if branch_obj else department.branches.first(),
+                                         ^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'branches'
+[2026-04-25 05:53:40,161] ERROR django.server "GET /api/hod/department/report/ HTTP/1.1" 500 21142
+[2026-04-25 05:53:44,186] ERROR django.request Internal Server Error: /api/hod/department/report/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\views.py", line 2189, in hod_department_report
+    branch=branch_obj if branch_obj else department.branches.first(),
+                                         ^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'branches'
+[2026-04-25 05:53:44,189] ERROR django.server "GET /api/hod/department/report/? HTTP/1.1" 500 21142
+[2026-04-25 05:59:42,926] WARNING django.server "GET /api/sessions/ HTTP/1.1" 401 58
+[2026-04-25 06:10:42,146] ERROR django.request Internal Server Error: /api/hod/department/report/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\views.py", line 2194, in hod_department_report
+    branch=branch_obj if branch_obj else department.branches.first(),
+                                         ^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'branches'
+[2026-04-25 06:10:42,151] ERROR django.server "GET /api/hod/department/report/?session_id=3 HTTP/1.1" 500 21157
+[2026-04-25 06:10:50,496] ERROR django.request Internal Server Error: /api/hod/department/report/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\views.py", line 2194, in hod_department_report
+    branch=branch_obj if branch_obj else department.branches.first(),
+                                         ^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'branches'
+[2026-04-25 06:10:50,499] ERROR django.server "GET /api/hod/department/report/?session_id=3 HTTP/1.1" 500 21157
+[2026-04-25 06:11:13,791] ERROR django.request Internal Server Error: /api/hod/department/report/
+Traceback (most recent call last):
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shubh\AppData\Roaming\Python\Python311\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\student_feedback\backend\users\views.py", line 2194, in hod_department_report
+    branch=branch_obj if branch_obj else department.branches.first(),
+                                         ^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'branches'
+[2026-04-25 06:11:13,793] ERROR django.server "GET /api/hod/department/report/?session_id=3 HTTP/1.1" 500 21157
