@@ -15,6 +15,9 @@ from django.core.mail import EmailMessage
 from django.shortcuts import get_object_or_404
 from django.conf import settings
 import csv
+import logging
+
+logger = logging.getLogger(__name__)
 import io
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -640,6 +643,8 @@ def teacher_dashboard(request):
 
             # PREVIOUS DATA (Match by Subject + Branch in Previous Semester)
             prev_avg = 0
+            prev_sem_id = None
+            teacher_all_offerings = SubjectOffering.objects.none()
             if prev_sem_id:
                 prev_offering = teacher_all_offerings.filter(
                     semester_id=prev_sem_id, 
@@ -2709,8 +2714,12 @@ class BranchViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """Return all branches to allow scalable management by Admin and HOD"""
-        return super().get_queryset()
+        """Return all branches, filtered by department if provided"""
+        queryset = super().get_queryset()
+        department_id = self.request.query_params.get('department')
+        if department_id:
+            queryset = queryset.filter(department_id=department_id)
+        return queryset
 
     def get_permissions(self):
         """Only HOD/Admin can modify branches"""
