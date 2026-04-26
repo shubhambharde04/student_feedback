@@ -473,19 +473,22 @@ export default function TeacherDashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-mesh flex">
-      <Sidebar 
-        role="teacher" 
-        activeSection={activeSection} 
-        onSectionChange={setActiveSection} 
-        user={user} 
-      />
-      <main className="flex-1 ml-64 p-8 overflow-y-auto">
-        <div className="max-w-6xl mx-auto">
-          {activeSection === "dashboard" && renderDashboard()}
-          {activeSection === "performance" && renderPerformance()}
-        </div>
-      </main>
+    <div className="min-h-screen bg-mesh flex flex-col">
+      <Header user={user} />
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar 
+          role="teacher" 
+          activeSection={activeSection} 
+          onSectionChange={setActiveSection} 
+          user={user} 
+        />
+        <main className="flex-1 ml-64 p-8 overflow-y-auto">
+          <div className="max-w-6xl mx-auto">
+            {activeSection === "dashboard" && renderDashboard()}
+            {activeSection === "performance" && renderPerformance()}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

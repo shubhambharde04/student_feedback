@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 from .models import (
     User, Subject, SubjectOffering, SubjectAssignment, 
     FeedbackResponse, FeedbackSession, Branch, Semester,
-    Department, StudentSemester, SessionOffering
+    Department, StudentSemester, SessionOffering, Answer, SubmissionTracker
 )
 from .serializers import (
     BranchSerializer, SemesterSerializer, SubjectSerializer,

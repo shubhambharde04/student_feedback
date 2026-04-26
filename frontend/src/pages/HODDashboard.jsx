@@ -932,6 +932,7 @@ export default function HODDashboard() {
         </div>
       </main>
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      </div>
     </div>
   );
 }

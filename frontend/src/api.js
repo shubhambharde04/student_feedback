@@ -1,7 +1,10 @@
 import axios from "axios";
 
-// 1. Standardize to 127.0.0.1 (Safest for Windows/Chrome dev)
-const BASE_URL = "http://127.0.0.1:8000/api/";
+// 1. Load API URL from environment variables, fallback to localhost for development
+let BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api/";
+if (!BASE_URL.endsWith('/')) {
+  BASE_URL += '/';
+}
 
 const API = axios.create({
   baseURL: BASE_URL,

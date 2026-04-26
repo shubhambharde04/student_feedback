@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import API from '../api';
 import Sidebar from '../components/Sidebar';
 import ReportToggle from '../components/ReportToggle';
@@ -106,7 +106,6 @@ export default function ReportsPage() {
       setReportData(response.data);
       setOverallRemarks(response.data.overall_remarks || '');
       if (response.data.available_branches) setBranches(response.data.available_branches);
-      if (response.data.available_branches) setBranches(response.data.available_branches);
     } catch (err) {
       setError('Failed to fetch class report.');
     } finally {
@@ -188,16 +187,16 @@ export default function ReportsPage() {
     const tableBody = offerings.map(o => [
       reportData.teacher?.name || '',
       `${o.course_name} (${o.course_code})`,
-      o.punctuality?.toFixed(4) || '0',
-      o.domain_knowledge?.toFixed(4) || '0',
-      o.presentation_skills?.toFixed(4) || '0',
-      o.resolve_difficulties?.toFixed(4) || '0',
-      o.teaching_aids?.toFixed(4) || '0',
-      o.score?.toFixed(4) || '0',
-      o.percentage?.toFixed(2) || '0',
+      Number(o.punctuality || 0).toFixed(4),
+      Number(o.domain_knowledge || 0).toFixed(4),
+      Number(o.presentation_skills || 0).toFixed(4),
+      Number(o.resolve_difficulties || 0).toFixed(4),
+      Number(o.teaching_aids || 0).toFixed(4),
+      o.threshold_met ? Number(o.score || 0).toFixed(4) : `In Progress (${o.feedback_percentage}%)`,
+      o.threshold_met ? Number(o.percentage || 0).toFixed(2) : 'In Progress',
     ]);
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: y,
       head: [[
         'Faculty', 'Course Name (Course Code)',
@@ -225,7 +224,7 @@ export default function ReportsPage() {
       margin: { left: margin, right: margin },
     });
 
-    y = doc.lastAutoTable.finalY + 6;
+    y = (doc.lastAutoTable?.finalY || doc.autoTable?.previous?.finalY || y + 20) + 6;
 
     // Section 2: Past Feedback
     doc.setFont('helvetica', 'bold');
@@ -250,7 +249,7 @@ export default function ReportsPage() {
     doc.text('(Qualitative Analysis)', margin + 35, y);
     y += 2;
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: y,
       head: [['Key Observations', 'Corrective Action Taken', 'Status (Completed/Ongoing/Pending)']],
       body: [[keyObservations || '-', correctiveAction || '-', observationStatus || 'Pending']],
@@ -259,7 +258,7 @@ export default function ReportsPage() {
       bodyStyles: { fontSize: 8 },
       margin: { left: margin, right: margin },
     });
-    y = doc.lastAutoTable.finalY + 6;
+    y = (doc.lastAutoTable?.finalY || doc.autoTable?.previous?.finalY || y + 10) + 6;
 
     // Section 4: Faculty Response
     doc.setFont('helvetica', 'bold');
@@ -335,16 +334,16 @@ export default function ReportsPage() {
     const teacherRows = (reportData.teachers || []).map(t => [
       t.faculty,
       `${t.course_name}\n(${t.course_code})`,
-      t.punctuality?.toFixed(4) || '0',
-      t.domain_knowledge?.toFixed(4) || '0',
-      t.presentation_skills?.toFixed(4) || '0',
-      t.resolve_difficulties?.toFixed(4) || '0',
-      t.teaching_aids?.toFixed(4) || '0',
-      t.score?.toFixed(4) || '0',
-      t.percentage?.toFixed(2) || '0',
+      Number(t.punctuality || 0).toFixed(4),
+      Number(t.domain_knowledge || 0).toFixed(4),
+      Number(t.presentation_skills || 0).toFixed(4),
+      Number(t.resolve_difficulties || 0).toFixed(4),
+      Number(t.teaching_aids || 0).toFixed(4),
+      t.threshold_met ? Number(t.score || 0).toFixed(4) : `In Progress (${t.feedback_percentage}%)`,
+      t.threshold_met ? Number(t.percentage || 0).toFixed(2) : 'In Progress',
     ]);
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: y,
       head: [[
         'Faculty', 'Course Name',
@@ -372,7 +371,7 @@ export default function ReportsPage() {
       margin: { left: margin, right: margin },
     });
 
-    y = doc.lastAutoTable.finalY + 6;
+    y = (doc.lastAutoTable?.finalY || doc.autoTable?.previous?.finalY || y + 20) + 6;
 
     // Overall Remarks
     doc.setFont('helvetica', 'bold');
@@ -686,16 +685,10 @@ export default function ReportsPage() {
                             placeholder="Enter corrective actions..."
                           />
                         </td>
-                        <td className="border border-black px-2 py-1">
-                          <select
-                            value={observationStatus}
-                            onChange={e => setObservationStatus(e.target.value)}
-                            className="w-full bg-transparent outline-none text-sm"
-                          >
-                            <option value="Pending">Pending</option>
-                            <option value="Ongoing">Ongoing</option>
-                            <option value="Completed">Completed</option>
-                          </select>
+                        <td className="border border-black px-2 py-1 align-top">
+                          <div className="w-full bg-transparent px-1 py-1 text-sm font-semibold">
+                            {observationStatus}
+                          </div>
                         </td>
                       </tr>
                     </tbody>

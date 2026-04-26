@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404
 from .models import (
     FeedbackSession, Question, FeedbackForm, FormQuestionMapping,
     SessionOffering, FeedbackResponse, FeedbackSubmission,
-    User, SubjectOffering, FeedbackResponse
+    User, SubjectOffering, Answer, SubmissionTracker
 )
 from .serializers import (
     FeedbackSessionSerializer, QuestionSerializer, FeedbackFormSerializer,
@@ -467,6 +467,9 @@ def get_active_feedback_form(request):
     })
 
 
+from django_ratelimit.decorators import ratelimit
+
+@ratelimit(key='ip', rate='5/m', block=True)
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def submit_feedback(request):
@@ -681,7 +684,7 @@ def teacher_analytics(request):
     # Category-wise averages
     category_averages = {}
     for category in Question.QUESTION_CATEGORIES:
-        category_responses = rating_responses.filter(question__category=category[0])
+        category_responses = rating_answers.filter(question__category=category[0])
         if category_responses.exists():
             avg = category_responses.aggregate(avg=Avg('rating'))['avg'] or 0
             category_averages[category[0]] = round(avg, 2)
@@ -754,13 +757,13 @@ def _calculate_session_analytics(responses):
     # Category-wise averages
     category_averages = {}
     for category in Question.QUESTION_CATEGORIES:
-        category_responses = rating_responses.filter(question__category=category[0])
+        category_responses = rating_answers.filter(question__category=category[0])
         if category_responses.exists():
             avg = category_responses.aggregate(avg=Avg('rating'))['avg'] or 0
             category_averages[category[0]] = round(avg, 2)
     
     # Sentiment distribution (for text responses)
-    text_responses = responses.filter(question__question_type='TEXT')
+    text_responses = answers.filter(question__question_type='TEXT')
     sentiment_distribution = {'positive': 0, 'neutral': 0, 'negative': 0}
     
     # This would require sentiment analysis integration
@@ -823,7 +826,7 @@ def generate_report(request):
 def hod_comprehensive_report(request, teacher_id):
     """
     Comprehensive HOD report using the new session-based feedback tables.
-    Includes qualitative fields logic exactly as defined by the user.
+    Returns per-offering quantitative data + qualitative fields for the GPN report format.
     """
     if request.user.role not in ['hod', 'admin']:
         return Response({'error': 'Only HOD or Admin allowed'}, status=403)
@@ -833,7 +836,8 @@ def hod_comprehensive_report(request, teacher_id):
     except User.DoesNotExist:
         return Response({'error': 'Teacher not found'}, status=404)
         
-    session_id = request.query_params.get('session')
+    # Accept both 'session_id' (frontend) and 'session' (legacy) query params
+    session_id = request.query_params.get('session_id') or request.query_params.get('session')
     if session_id:
         session = get_object_or_404(FeedbackSession, pk=session_id)
     else:
@@ -841,6 +845,8 @@ def hod_comprehensive_report(request, teacher_id):
         
     if not session:
         return Response({'error': 'No active session found'}, status=404)
+
+    bypass = request.query_params.get('bypass_threshold') == 'true'
         
     # Get offerings for this teacher in this session
     offerings = SessionOffering.objects.filter(
@@ -848,119 +854,233 @@ def hod_comprehensive_report(request, teacher_id):
         teacher=teacher,
         is_active=True
     ).select_related('base_offering__subject', 'base_offering__branch', 'base_offering__semester')
-    
-    # Get all responses for this teacher in this session
-    responses = FeedbackResponse.objects.filter(
-        session=session,
-        offering__in=offerings
-    )
-    
-    # Quantitative Analytics
-    rating_responses = responses.filter(question__question_type='RATING')
-    
-    # Category-wise averages
-    cat_agg = {}
-    for category in Question.QUESTION_CATEGORIES:
-        cat_responses = rating_responses.filter(question__category=category[0])
-        if cat_responses.exists():
-            avg = cat_responses.aggregate(avg=Avg('rating'))['avg'] or 0
-            cat_agg[category[0]] = round(avg, 2)
-            
-    # Calculate overall metrics
-    overall_score = sum(v for v in cat_agg.values())
-    overall_percentage = round((overall_score / 25) * 100, 2) if len(cat_agg) > 0 else 0
-    overall_avg = overall_score / 5 if len(cat_agg) > 0 else 0
-    
-    # Question-wise averages
-    question_averages = {}
-    for qa in rating_responses.values('question__text').annotate(avg_rating=Avg('rating')).order_by('-avg_rating'):
-        question_averages[qa['question__text']] = round(qa['avg_rating'] or 0, 2)
 
+    if not offerings.exists():
+        return Response({
+            'data_available': False,
+            'session': session.name,
+            'no_data_message': f'No subject offerings found for {teacher.get_full_name() or teacher.username} in session {session.name}.'
+        })
     
-    # Qualitative Analytics - Most frequent comment
-    text_responses = responses.filter(question__question_type='TEXT').exclude(text_response__isnull=True).exclude(text_response='')
-    
+    # ================================================================
+    # BUILD PER-OFFERING ROWS (one row per subject the teacher teaches)
+    # ================================================================
     from collections import Counter
-    if text_responses.exists():
-        comments = text_responses.values_list('text_response', flat=True)
-        most_common = Counter(comments).most_common(1)
-        key_observations = most_common[0][0] if most_common else "No specific observations derived from student comments."
-    else:
-        key_observations = "No specific observations derived from student comments."
-        
-    # Find past session comparison
-    past_percentage = None
-    prev_sessions = FeedbackSession.objects.filter(
+    from datetime import date
+
+    all_answers = Answer.objects.filter(
+        response_parent__session=session,
+        response_parent__offering__in=offerings
+    )
+    all_rating_answers = all_answers.filter(question__question_type='RATING')
+    all_responses = FeedbackResponse.objects.filter(session=session, offering__in=offerings)
+
+    offerings_data = []
+    semester_labels = set()
+
+    for offering in offerings:
+        sem = offering.base_offering.semester
+        semester_labels.add(sem.name if hasattr(sem, 'name') else f"Semester {sem.number}")
+
+        # Get rating answers for this specific offering
+        offering_answers = all_rating_answers.filter(response_parent__offering=offering)
+        total_resp = offering_answers.values('response_parent').distinct().count()
+
+        # Calculate threshold based on branch capacity
+        branch_name = offering.base_offering.branch.name.upper() if offering.base_offering.branch else ''
+        if 'AI' in branch_name or 'ARTIFICIAL' in branch_name:
+            max_students = 40
+        elif 'IT' in branch_name or 'INFORMATION' in branch_name:
+            max_students = 80
+        else:
+            max_students = offering.max_students or 60
+            
+        threshold_met = bypass or (total_resp >= (max_students * 0.3))
+
+        # Category averages for this offering
+        cat_aggs = offering_answers.values('question__category').annotate(avg_rating=Avg('rating'))
+        cats = {item['question__category']: round(float(item['avg_rating'] or 0), 4) for item in cat_aggs}
+
+        punctuality = cats.get('PUNCTUALITY', 0)
+        domain_knowledge = cats.get('TEACHING', 0)
+        presentation_skills = cats.get('CLARITY', 0)
+        resolve_difficulties = cats.get('INTERACTION', 0)
+        teaching_aids = cats.get('BEHAVIOR', 0)
+
+        # Score out of 25 is exactly the sum of the 5 categories (each out of 5)
+        sum_categories = punctuality + domain_knowledge + presentation_skills + resolve_difficulties + teaching_aids
+        score_25 = float(sum_categories)
+        percentage = (score_25 / 25.0) * 100
+
+        offerings_data.append({
+            'course_name': offering.base_offering.subject.name,
+            'course_code': offering.base_offering.subject.code,
+            'punctuality': punctuality,
+            'domain_knowledge': domain_knowledge,
+            'presentation_skills': presentation_skills,
+            'resolve_difficulties': resolve_difficulties,
+            'teaching_aids': teaching_aids,
+            'score': round(score_25, 4),
+            'percentage': round(percentage, 2),
+            'threshold_met': threshold_met,
+            'feedback_percentage': int((total_resp / max_students) * 100) if max_students > 0 else 0
+        })
+
+    # ================================================================
+    # OVERALL PERCENTAGE across all offerings
+    # ================================================================
+    overall_avg_val = all_rating_answers.aggregate(overall=Avg('rating'))['overall'] or 0
+    overall_avg = float(overall_avg_val)
+    overall_percentage = round((overall_avg / 5.0) * 100, 2)
+
+    # ================================================================
+    # SECTION 2: PAST FEEDBACK (Comparative Study)
+    # ================================================================
+    past_comparison = None
+    prev_session = FeedbackSession.objects.filter(
         year__lt=session.year,
         type=session.type
-    ).order_by('-year')
-    
-    if prev_sessions.exists():
-        prev_session = prev_sessions.first()
-        past_responses = FeedbackResponse.objects.filter(
-            session=prev_session,
-            offering__teacher=teacher,
+    ).order_by('-year').first()
+
+    if prev_session:
+        past_answers = Answer.objects.filter(
+            response_parent__session=prev_session,
+            response_parent__offering__teacher=teacher,
             question__question_type='RATING'
         )
-        if past_responses.exists():
-            past_score = 0
-            for category in Question.QUESTION_CATEGORIES:
-                cat_responses = past_responses.filter(question__category=category[0])
-                if cat_responses.exists():
-                    avg = cat_responses.aggregate(avg=Avg('rating'))['avg'] or 0
-                    past_score += avg
-            past_percentage = round((past_score / 25) * 100, 2)
-            
-    # Logic for Qualitative Fields
-    obs_status = "Pending"
-    if overall_percentage >= 90:
+        if past_answers.exists():
+            past_avg = past_answers.aggregate(avg=Avg('rating'))['avg'] or 0
+            past_pct = round((float(past_avg) / 5.0) * 100, 2)
+            past_comparison = {
+                'percentage': past_pct,
+                'session_name': prev_session.name,
+            }
+        else:
+            past_comparison = {
+                'percentage': None,
+                'note': 'No past data available for this teacher.',
+                'session_name': prev_session.name,
+            }
+
+    # ================================================================
+    # SECTION 3: KEY OBSERVATIONS (most frequent student comment/remark)
+    # ================================================================
+    # Check overall remarks from FeedbackResponse first
+    remark_responses = all_responses.exclude(
+        overall_remark__isnull=True
+    ).exclude(overall_remark='')
+
+    if remark_responses.exists():
+        remarks = remark_responses.values_list('overall_remark', flat=True)
+        most_common = Counter(remarks).most_common(1)
+        key_observations = most_common[0][0] if most_common else "Good Teaching"
+    else:
+        # Fallback to text answers
+        text_answers = all_answers.filter(
+            question__question_type='TEXT'
+        ).exclude(text_response__isnull=True).exclude(text_response='')
+        if text_answers.exists():
+            comments = text_answers.values_list('text_response', flat=True)
+            most_common = Counter(comments).most_common(1)
+            key_observations = most_common[0][0] if most_common else "Good Teaching"
+        else:
+            key_observations = "Good Teaching"
+
+    # Corrective action: most frequent positive remark (exact words)
+    corrective_action = "Appreciated the faculty."
+    if remark_responses.exists():
+        all_remarks = list(remark_responses.values_list('overall_remark', flat=True))
+        positive_keywords = ['good', 'excellent', 'great', 'best', 'nice', 'appreciated', 'helpful', 'clear']
+        positive_remarks = [r for r in all_remarks if any(kw in r.lower() for kw in positive_keywords)]
+        if positive_remarks:
+            most_common_positive = Counter(positive_remarks).most_common(1)
+            corrective_action = most_common_positive[0][0]
+
+    # ================================================================
+    # STATUS based on overall percentage thresholds
+    # <70% = Pending, 70-90% = Ongoing, >=90% = Completed (only if feedback threshold is met)
+    # ================================================================
+    any_threshold_met = any(o['threshold_met'] for o in offerings_data)
+    
+    if overall_percentage >= 90 and any_threshold_met:
         obs_status = "Completed"
-    elif overall_percentage >= 70:
+    elif overall_percentage >= 70 and any_threshold_met:
         obs_status = "Ongoing"
-        
-    faculty_resp = ""
-    if obs_status == "Completed":
-        faculty_resp = "Faculty member have acknowledged student feedback."
-        
-    trend = ""
-    if past_percentage is not None and overall_percentage > past_percentage:
-        trend = "FeedbackResponse is improved as compared to previous year. Excellent teaching."
+    else:
+        obs_status = "Pending"
+
+    # ================================================================
+    # SECTION 4: FACULTY RESPONSE (exact words)
+    # ================================================================
+    faculty_resp = "Faculty member have acknowledged student feedback."
+
+    # ================================================================
+    # SECTION 5: HOD COMMENTS
+    # ================================================================
+    past_pct_value = past_comparison['percentage'] if past_comparison and past_comparison.get('percentage') is not None else None
 
     hod_comments = ""
-    if trend:
-        hod_comments = trend
+    # If feedback is excellent AND improved from past session
+    if overall_avg >= 4.5 and past_pct_value is not None and overall_percentage > past_pct_value:
+        hod_comments = (
+            "Feedback is excellent Students are satisfied with the faculty member.\n"
+            "Feedback is improved as compared to previous year. Excellent teaching."
+        )
+    elif past_pct_value is not None and overall_percentage > past_pct_value:
+        hod_comments = "Feedback is improved as compared to previous year. Excellent teaching."
     elif overall_avg >= 4.5:
-        hod_comments = "FeedbackResponse is excellent. Students are satisfied with the faculty member."
+        hod_comments = "Feedback is excellent Students are satisfied with the faculty member."
     elif overall_avg >= 3.5:
-        hod_comments = "FeedbackResponse is good. Students are satisfied with the faculty member."
+        hod_comments = "Feedback is good. Students are satisfied with the faculty member."
     else:
-        hod_comments = "FeedbackResponse is poor. Students are not satisfied, need improvements (domain...)."
-        
+        hod_comments = "Feedback needs improvement. Students have raised concerns."
+
+    # ================================================================
+    # SECTION 6: CONCLUSION (exact words)
+    # ================================================================
+    conclusion = (
+        "Student feedback is collected, analyzed and corrective action has been taken. "
+        "Future plans includes regularly reviewing feedback to ensure continuous improvement."
+    )
+
+    # ================================================================
+    # METADATA
+    # ================================================================
+    department_name = "N/A"
+    if getattr(teacher, 'department', None) and teacher.department:
+        department_name = teacher.department.name
+    elif getattr(request.user, 'department', None) and request.user.department:
+        department_name = request.user.department.name
+
+    semester_label = ', '.join(sorted(semester_labels)) if semester_labels else 'N/A'
+
     return Response({
+        "data_available": True,
         "teacher": {
             "id": teacher.id,
             "name": teacher.get_full_name() or teacher.username,
-            "department": teacher.department.name if getattr(teacher, 'department', None) else "N/A"
+            "department": department_name
         },
-        "session": {
+        "session": session.name,
+        "session_info": {
             "id": session.id,
-            "name": session.name
+            "name": session.name,
+            "year": session.year,
+            "type": session.type
         },
-        "quantitative": {
-            "category_averages": cat_agg,
-            "question_averages": question_averages,
-            "overall_percentage": overall_percentage,
-            "overall_average": overall_avg,
-            "total_responses": responses.values('student').distinct().count()
-        },
-        "qualitative": {
-            "key_observations": key_observations,
-            "corrective_action": "Appreciated the faculty.",
-            "observation_status": obs_status,
-            "faculty_response": faculty_resp,
-            "hod_comments": hod_comments,
-            "conclusion": "Student feedback is collected, analyzed and corrective action has been taken. Future plans includes regularly reviewing feedback to ensure continuous improvement."
-        }
+        "department": department_name + " Department",
+        "semester_label": semester_label,
+        "report_date": date.today().strftime('%d/%m/%Y'),
+        "offerings": offerings_data,
+        "overall_percentage": overall_percentage,
+        "past_comparison": past_comparison,
+        # Flat qualitative fields for direct frontend binding
+        "key_observations": key_observations,
+        "corrective_action": corrective_action,
+        "observation_status": obs_status,
+        "faculty_response": faculty_resp,
+        "hod_comments": hod_comments,
+        "conclusion": conclusion,
     })
 
 
@@ -988,7 +1108,9 @@ def hod_department_comprehensive_report(request):
     from .models import SessionOffering, Answer, Branch
     from django.db.models import Avg, Count
     
-    offerings = SessionOffering.objects.filter(session=session, is_active=True).select_related(
+    offerings = SessionOffering.objects.filter(
+        session=session, is_active=True, teacher__isnull=False
+    ).select_related(
         'teacher', 'base_offering__subject', 'base_offering__branch', 'base_offering__semester'
     )
     
@@ -1006,20 +1128,35 @@ def hod_department_comprehensive_report(request):
             'no_data_message': 'No subjects found for the selected criteria.'
         })
         
+    from datetime import date
+
     teachers_data = []
     total_answers = Answer.objects.filter(response_parent__session=session)
+    total_max_students = 0
+    total_respondents = 0
     
     for offering in offerings:
         offering_answers = total_answers.filter(response_parent__offering=offering)
         total_resp = offering_answers.values('response_parent').distinct().count()
         
-        # Calculate threshold
-        max_students = offering.max_students or 60
+        # Calculate threshold based on branch capacity
+        branch_name = offering.base_offering.branch.name.upper() if offering.base_offering.branch else ''
+        if 'AI' in branch_name or 'ARTIFICIAL' in branch_name:
+            max_students = 40
+        elif 'IT' in branch_name or 'INFORMATION' in branch_name:
+            max_students = 80
+        else:
+            max_students = offering.max_students or 60
+            
         threshold_met = bypass or (total_resp >= (max_students * 0.3))
+
+        # Track totals for participation rate
+        total_max_students += max_students
+        total_respondents += total_resp
         
         # calculate category averages
         cat_aggs = offering_answers.values('question__category').annotate(avg_rating=Avg('rating'))
-        cats = {item['question__category']: item['avg_rating'] for item in cat_aggs}
+        cats = {item['question__category']: round(float(item['avg_rating'] or 0), 4) for item in cat_aggs}
         
         punctuality = cats.get('PUNCTUALITY', 0)
         domain = cats.get('TEACHING', 0)
@@ -1027,9 +1164,10 @@ def hod_department_comprehensive_report(request):
         resolve = cats.get('INTERACTION', 0)
         teaching_aids = cats.get('BEHAVIOR', 0)
         
-        avg_score = offering_answers.aggregate(overall=Avg('rating'))['overall'] or 0
-        score_25 = float(avg_score) * 5
-        percentage = (float(avg_score) / 5.0) * 100
+        # Score out of 25 is exactly the sum of the 5 categories (each out of 5)
+        sum_categories = punctuality + domain + presentation + resolve + teaching_aids
+        score_25 = round(float(sum_categories), 4)
+        percentage = round((score_25 / 25.0) * 100, 2)
         
         teachers_data.append({
             'faculty': offering.teacher.get_full_name() if offering.teacher else 'Unassigned',
@@ -1058,15 +1196,39 @@ def hod_department_comprehensive_report(request):
         
     branches = Branch.objects.all().values('id', 'name', 'code')
     sample_size = total_answers.filter(response_parent__offering__in=offerings).values('response_parent').distinct().count()
+
+    # Calculate actual participation rate
+    participation_rate = round((total_respondents / total_max_students) * 100, 1) if total_max_students > 0 else 0
+
+    # Use HOD's actual department
+    department_name = "Information Technology"
+    if getattr(request.user, 'department', None) and request.user.department:
+        department_name = request.user.department.name
+
+    # Dynamic overall remarks based on data
+    if teachers_data:
+        avg_pct = sum(t['percentage'] for t in teachers_data) / len(teachers_data)
+        if avg_pct >= 90:
+            overall_remarks = "Feedback is excellent. Students are highly satisfied with the faculty members."
+        elif avg_pct >= 75:
+            overall_remarks = "Feedback is good. Students are generally satisfied with the faculty members."
+        elif avg_pct >= 60:
+            overall_remarks = "Feedback is satisfactory. Some areas need improvement."
+        else:
+            overall_remarks = "Feedback needs improvement. Faculty members should address student concerns."
+    else:
+        overall_remarks = "No feedback data available."
     
     return Response({
-        'department': 'Information Technology',
+        'data_available': True,
+        'department': department_name + " Department",
         'class_label': class_label,
         'session_year': f"Session: {session.name}",
         'sample_size': sample_size,
-        'participation_rate': 0,
+        'participation_rate': participation_rate,
         'teachers': teachers_data,
-        'overall_remarks': "Feedback is generally positive.",
-        'available_branches': list(branches)
+        'overall_remarks': overall_remarks,
+        'available_branches': list(branches),
+        'report_date': date.today().strftime('%d/%m/%Y'),
     })
 

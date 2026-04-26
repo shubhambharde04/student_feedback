@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800&family=Tiro+Devanagari+Marathi&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -337,14 +337,28 @@ textarea.input-dark { resize: vertical; min-height: 6rem; }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ─── Marathi Font Support ────────────────────────────── */
+
+.Marathi-font {
+  font-family: 'Tiro Devanagari Marathi', serif;
+}
+
 /* ─── GPN Institutional Header ───────────────────────── */
 .gpn-header {
-  background: linear-gradient(to right, #0d3c5f, #1f5f8b);
+  background: linear-gradient(135deg, #0d3c5f 0%, #154c79 50%, #1f5f8b 100%);
+  background-size: 200% 200%;
+  animation: gradient-shift 15s ease infinite;
   border-bottom: 3px solid #c4a35a;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  z-index: 10;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+  z-index: 50;
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 .gpn-header::before {
