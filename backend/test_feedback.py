@@ -3,18 +3,17 @@ import os
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "feedback_system.settings")
 django.setup()
 
-from users.models import Feedback, SubjectOffering, SubjectAssignment
+from users.models import FeedbackSubmission, SessionOffering, SubjectAssignment
 
-feedbacks = Feedback.objects.all()
+feedbacks = FeedbackSubmission.objects.all()
 for f in feedbacks:
     offering = getattr(f, 'offering', None)
-    subject = offering.subject.name if offering and offering.subject else "None"
+    base_offering = offering.base_offering if offering else None
+    subject = base_offering.subject.name if base_offering and base_offering.subject else "None"
     teacher = "Unassigned"
-    if offering:
-        assignment = getattr(offering, 'assignment', None)
-        if assignment and assignment.is_active:
-            teacher = assignment.teacher.username
-    print(f"Feedback ID: {f.id}, Student: {f.student.username}, Offering ID: {f.offering_id}, Subject: {subject}, Teacher: {teacher}")
+    if offering and offering.teacher:
+        teacher = offering.teacher.username
+    print(f"Feedback ID: {f.id}, Student: {f.student.username}, Session Offering ID: {f.offering_id}, Subject: {subject}, Teacher: {teacher}")
 
 print("\n--- Teacher Offerings ---")
 assignments = SubjectAssignment.objects.all()

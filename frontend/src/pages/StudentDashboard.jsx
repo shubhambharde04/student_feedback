@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../api";
+import Header from "../components/Header";
 
 export default function StudentDashboard() {
   const [subjects, setSubjects] = useState([]);
@@ -115,45 +116,9 @@ export default function StudentDashboard() {
   const totalSubjects = subjects?.length ?? 0;
   const submitted = subjects?.filter((s) => s?.feedback_submitted)?.length ?? 0;
   const pending = totalSubjects - submitted;
-
   return (
     <div className="min-h-screen flex flex-col bg-surface-50">
-      <header className="gpn-header sticky top-0 z-30 shadow-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center gap-4">
-          <div className="gpn-logo-circle animate-float">
-            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            </svg>
-          </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-lg font-bold text-white font-display leading-tight">
-              Government Polytechnic, Nagpur
-            </h1>
-            <p className="text-xs text-amber-300 font-semibold">Online Academic Feedback System</p>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <button 
-              onClick={toggleTheme} 
-              className="p-2.5 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all border border-white/20 hover:border-white/40 shadow-inner"
-              title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            >
-              {isDarkMode ? (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" strokeWidth="2"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
-              ) : (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-              )}
-            </button>
-            <button onClick={() => navigate("/change-password")} className="btn-secondary text-xs flex items-center gap-1.5" title="Change Password">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
-              <span className="hidden sm:inline">Change Password</span>
-            </button>
-            <button onClick={handleLogout} className="btn-danger text-xs flex items-center gap-1.5">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-              Logout
-            </button>
-          </div>
-        </div>
-      </header>
+      <Header user={user} />
 
       <nav className="bg-white border-b border-surface-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between">

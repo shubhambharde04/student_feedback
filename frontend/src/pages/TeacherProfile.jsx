@@ -46,21 +46,8 @@ export default function TeacherProfile() {
     }
   };
 
-  const generatePDFReport = async () => {
-    try {
-      const response = await API.get(`hod/pdf-report/?type=teacher&id=${id}&format=pdf`, {
-        responseType: 'blob'
-      });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `Teacher_Report_${teacher.teacher.name.replace(/\s+/g, '_')}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode.removeChild(link);
-    } catch (err) {
-      alert(`Failed to generate PDF report: ${err.response?.data?.error || err.message}`);
-    }
+  const generatePDFReport = () => {
+    navigate('/hod/reports', { state: { reportType: 'teacher', teacherId: id } });
   };
 
   if (loading) {
@@ -153,7 +140,7 @@ export default function TeacherProfile() {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
-              {sendingEmail ? "Sending..." : "Quick Report"}
+              {sendingEmail ? "Sending..." : "Email Report"}
             </button>
             <button 
               onClick={() => setShowEmailComposer(true)}

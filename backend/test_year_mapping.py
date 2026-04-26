@@ -1,7 +1,11 @@
 import os
+import sys
 import django
 import pandas as pd
 from io import BytesIO
+
+# Add the current directory to sys.path to ensure 'users' can be imported
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'feedback_system.settings')
 django.setup()
@@ -29,7 +33,6 @@ def test_mapping():
         {'name': 'Student 1', 'enrollment_no': 'S1', 'department': 'IT', 'semester': '1', 'session': 'TEST SESSION'},
         {'name': 'Student 2', 'enrollment_no': 'S2', 'department': 'IT', 'semester': '3', 'session': 'TEST SESSION'},
         {'name': 'Student 3', 'enrollment_no': 'S3', 'department': 'IT', 'semester': '5', 'session': 'TEST SESSION'},
-        {'name': 'Student 4', 'enrollment_no': 'S4', 'department': 'IT', 'semester': '7', 'session': 'TEST SESSION'},
     ]
     
     # Create a user to act as uploader
@@ -42,7 +45,7 @@ def test_mapping():
     print(f"Import result: {result['created']} created, {result['updated']} updated")
     
     # Verify mappings
-    for enroll, expected_class in [('S1', '1st Year'), ('S2', '2nd Year'), ('S3', '3rd Year'), ('S4', 'Year 4')]:
+    for enroll, expected_class in [('S1', '1st Year'), ('S2', '2nd Year'), ('S3', '3rd Year')]:
         ss = StudentSemester.objects.filter(student__username=enroll, session=session).first()
         if ss:
             print(f"Enrollment {enroll} (Sem {ss.semester.number}) -> Class: '{ss.class_name}' (Expected: '{expected_class}')")

@@ -10,20 +10,22 @@ def analyze_sentiment(text):
     Analyze the sentiment of text using TextBlob.
     
     Returns:
-        str: 'positive', 'neutral', or 'negative'
+        tuple: (polarity, label) where label is 'positive', 'neutral', or 'negative'
     """
     if not text or not text.strip():
-        return 'neutral'
+        return 0.0, 'neutral'
 
     blob = TextBlob(text)
     polarity = blob.sentiment[0]
 
     if polarity > 0.1:
-        return 'positive'
+        label = 'positive'
     elif polarity < -0.1:
-        return 'negative'
+        label = 'negative'
     else:
-        return 'neutral'
+        label = 'neutral'
+        
+    return round(float(polarity), 3), label
 
 
 def get_sentiment_emoji(sentiment):

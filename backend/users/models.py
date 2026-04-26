@@ -3,6 +3,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+import uuid
 
 
 class Department(models.Model):
@@ -51,7 +52,7 @@ class Semester(models.Model):
             return "2nd Year"
         elif self.number in [5, 6]:
             return "3rd Year"
-        return f"Year {(self.number + 1) // 2}"
+        return "Unknown Year"
 
     def __str__(self) -> str:
         return f"{self.name} ({self.number})"
@@ -156,6 +157,9 @@ class SubjectAssignment(models.Model):
     def __str__(self) -> str:  # type: ignore
         return f"{self.teacher.get_full_name()} - {self.offering}"  # type: ignore
 
+
+
+
 class User(AbstractUser):
     """Extended user model with role-based fields"""
 
@@ -202,97 +206,24 @@ class User(AbstractUser):
     def is_admin(self):
         return self.role == 'admin'
 
-
-class Feedback(models.Model):
-    """Student feedback for specific subject offering"""
-    id = models.AutoField(primary_key=True)
-    
-    student = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        limit_choices_to={'role': 'student'},
-        related_name="feedbacks"
-    )
-    
-    # CRITICAL: Link to SubjectOffering, not Subject directly
-    offering = models.ForeignKey(
-        SubjectOffering,
-        on_delete=models.CASCADE,
-        related_name="feedbacks",
-        default=1
-    )
-    
-    # Teacher is inferred from offering assignment
     @property
-    def teacher(self):
-        """Get teacher from the offering assignment"""
-        assignment = self.offering.assignment if hasattr(self.offering, 'assignment') and self.offering.assignment.is_active else None  # type: ignore
-        return assignment.teacher if assignment else None  # type: ignore
-
-    # Individual rating fields (1-5)
-    punctuality_rating = models.IntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(5)]
-    )
-    teaching_rating = models.IntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(5)]
-    )
-    clarity_rating = models.IntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(5)]
-    )
-    interaction_rating = models.IntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(5)]
-    )
-    behavior_rating = models.IntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(5)]
-    )
-
-    # Auto-calculated average of 5 ratings
-    overall_rating = models.FloatField(default=0)  # type: ignore
-
-    comment = models.TextField(blank=True, null=True)
-
-    # Sentiment analysis result
-    SENTIMENT_CHOICES = (
-        ('positive', 'Positive'),
-        ('neutral', 'Neutral'),
-        ('negative', 'Negative'),
-    )
-    sentiment = models.CharField(
-        max_length=10,
-        choices=SENTIMENT_CHOICES,
-        default='neutral'
-    )
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        # CRITICAL: Prevent duplicate feedback per student per offering
-        unique_together = ('offering', 'student')
-        ordering = ['-created_at']
-
-    def save(self, *args, **kwargs):
-        # Auto-calculate overall rating
-        ratings = [
-            self.punctuality_rating,
-            self.teaching_rating,
-            self.clarity_rating,
-            self.interaction_rating,
-            self.behavior_rating,
-        ]
-        self.overall_rating = round(sum(float(r) for r in ratings) / len(ratings), 2)  # type: ignore
-        super().save(*args, **kwargs)
-
-    def __str__(self) -> str:  # type: ignore
-        return f"{self.student.username} - {self.offering} - {self.overall_rating}"  # type: ignore
+    def student_profile(self):
+        """Bridge property to provide student's active academic profile (replaces legacy StudentProfile model)"""
+        if self.role != 'student':
+            return None
+        # Try to get the profile for the currently active session
+        from .models import FeedbackSession
+        active_session = FeedbackSession.objects.filter(is_active=True).first()
+        if active_session:
+            profile = self.student_semesters.filter(session=active_session).first()
+            if profile:
+                return profile
+        # Fallback to any active semester record
+        return self.student_semesters.filter(is_active=True).first()
 
 
-class FeedbackWindow(models.Model):
-    """Control when feedback is allowed"""
-    start_date = models.DateTimeField()
-    end_date = models.DateTimeField()
-    is_active = models.BooleanField(default=True)  # type: ignore
-    description = models.TextField(blank=True)
+# Legacy Feedback and FeedbackWindow models have been removed.
+# The system now uses the session-based FeedbackResponse and FeedbackSubmission models below.
 
 
 # ============================================================
@@ -374,7 +305,7 @@ class StudentSemester(models.Model):
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='student_semesters')
     branch = models.ForeignKey(Branch, on_delete=models.CASCADE)
     semester = models.ForeignKey(Semester, on_delete=models.CASCADE)
-    session = models.ForeignKey(FeedbackSession, on_delete=models.CASCADE, related_name='student_sessions')
+    session = models.ForeignKey(FeedbackSession, on_delete=models.CASCADE, related_name='student_sessions', null=True, blank=True)
     class_name = models.CharField(max_length=50, help_text="Class/Section name", default="A")
     roll_number = models.CharField(max_length=20, blank=True, null=True)
     is_active = models.BooleanField(default=True)
@@ -396,20 +327,6 @@ class StudentSemester(models.Model):
             raise ValidationError("Only students can be assigned to semesters")
 
 
-class StudentProfile(models.Model):
-    """
-    Extended student profile information
-    """
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='student_profile_extended')
-    enrollment_no = models.CharField(max_length=20, unique=True, help_text="Unique enrollment number")
-    date_of_birth = models.DateField(null=True, blank=True)
-    phone_number = models.CharField(max_length=15, blank=True)
-    address = models.TextField(blank=True)
-    blood_group = models.CharField(max_length=5, blank=True)
-    emergency_contact = models.CharField(max_length=15, blank=True)
-    
-    def __str__(self):
-        return f"{self.user.get_full_name()} ({self.enrollment_no})"
 
 
 class Question(models.Model):
@@ -507,7 +424,7 @@ class SessionOffering(models.Model):
     id = models.AutoField(primary_key=True)
     session = models.ForeignKey(FeedbackSession, on_delete=models.CASCADE, related_name='offerings')
     base_offering = models.ForeignKey(SubjectOffering, on_delete=models.CASCADE, related_name='session_offerings')
-    teacher = models.ForeignKey(User, on_delete=models.CASCADE, related_name='session_offerings', limit_choices_to={'role__in': ['teacher', 'hod']})
+    teacher = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='session_offerings', limit_choices_to={'role__in': ['teacher', 'hod']})
     
     # Session-specific data
     max_students = models.IntegerField(default=60)
@@ -522,95 +439,97 @@ class SessionOffering(models.Model):
         return f"{self.base_offering} - {self.session.name}"
 
 
-class FeedbackResponse(models.Model):
+class FeedbackSubmission(models.Model):
     """
-    Individual feedback responses - one row per answer
-    This replaces the old Feedback model for better analytics
+    LEGACY/COMPATIBILITY model for feedback submissions.
+    Ensures no data loss while transitioning to anonymous FeedbackResponse.
     """
     id = models.AutoField(primary_key=True)
-    session = models.ForeignKey(FeedbackSession, on_delete=models.CASCADE, related_name='responses')
-    form = models.ForeignKey(FeedbackForm, on_delete=models.CASCADE, related_name='responses')
-    offering = models.ForeignKey(SessionOffering, on_delete=models.CASCADE, related_name='responses')
-    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='feedback_responses', limit_choices_to={'role': 'student'})
-    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='responses')
+    session = models.ForeignKey('FeedbackSession', on_delete=models.CASCADE, related_name='submissions')
+    form = models.ForeignKey('FeedbackForm', on_delete=models.CASCADE)
+    offering = models.ForeignKey('SessionOffering', on_delete=models.CASCADE, related_name='submissions')
+    student = models.ForeignKey('User', on_delete=models.CASCADE, related_name='submissions')
     
-    # Response data
-    rating = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(1), MaxValueValidator(5)])
-    text_response = models.TextField(blank=True)
-    multiple_choice_response = models.CharField(max_length=200, blank=True)
+    # Anonymity tracking
+    anonymous_id = models.CharField(max_length=100, blank=True, null=True)
+    
+    # Status
+    is_completed = models.BooleanField(default=False)
+    completion_percentage = models.FloatField(default=0.0)
     
     # Metadata
     submitted_at = models.DateTimeField(auto_now_add=True)
     ip_address = models.GenericIPAddressField(null=True, blank=True)
-    user_agent = models.TextField(blank=True)
+    user_agent = models.TextField(blank=True, null=True)
     
+    # Overall Feedback
+    overall_remark = models.TextField(blank=True, null=True)
+    sentiment_score = models.FloatField(default=0.0)
+    sentiment_label = models.CharField(max_length=20, default='neutral')
+
     class Meta:
-        ordering = ['-submitted_at']
-        unique_together = ('student', 'offering', 'question')  # One response per student per offering per question
-        indexes = [
-            models.Index(fields=['session', 'student']),
-            models.Index(fields=['offering', 'question']),
-            models.Index(fields=['form', 'submitted_at']),
-        ]
-    
+        unique_together = ('student', 'offering')
+
     def __str__(self):
-        return f"{self.student.username} - {self.question.text[:30]}... - {self.rating or 'Text'}"
-    
-    def clean(self):
-        if self.question.question_type == 'RATING' and not self.rating:
-            raise ValidationError("Rating is required for rating questions")
-        if self.question.question_type == 'TEXT' and not self.text_response:
-            raise ValidationError("Text response is required for text questions")
-        if self.question.question_type == 'MULTIPLE_CHOICE' and not self.multiple_choice_response:
-            raise ValidationError("Choice selection is required for multiple choice questions")
+        return f"Submission {self.id} by {self.student.username}"
 
 
-class FeedbackSubmission(models.Model):
+class FeedbackResponse(models.Model):
     """
-    Tracks complete feedback submissions (all questions for a student-offering pair)
-    Prevents duplicate submissions and provides submission metadata
+    ANONYMOUS container for a feedback submission.
+    This model stores metadata and overall remarks but NO Student FK.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    session = models.ForeignKey(FeedbackSession, on_delete=models.CASCADE, related_name='responses')
+    form = models.ForeignKey(FeedbackForm, on_delete=models.CASCADE)
+    offering = models.ForeignKey(SessionOffering, on_delete=models.CASCADE)
+    teacher = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='feedback_responses', limit_choices_to={'role__in': ['teacher', 'hod']})
+    
+    # Aggregated/Overall data
+    overall_remark = models.TextField(blank=True, null=True)
+    sentiment_score = models.FloatField(default=0.0)
+    sentiment_label = models.CharField(max_length=20, default='neutral')
+    
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Response {self.id} for {self.teacher}"
+
+
+class Answer(models.Model):
+    """
+    Individual answers linked to an anonymous FeedbackResponse.
+    Supports rating, text, and choice types dynamically.
     """
     id = models.AutoField(primary_key=True)
-    session = models.ForeignKey(FeedbackSession, on_delete=models.CASCADE, related_name='submissions')
-    form = models.ForeignKey(FeedbackForm, on_delete=models.CASCADE, related_name='submissions')
-    offering = models.ForeignKey(SessionOffering, on_delete=models.CASCADE, related_name='submissions')
-    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='feedback_submissions', limit_choices_to={'role': 'student'})
+    response_parent = models.ForeignKey(FeedbackResponse, on_delete=models.CASCADE, related_name='answers')
+    question = models.ForeignKey(Question, on_delete=models.PROTECT)
     
-    # Submission metadata
-    submitted_at = models.DateTimeField(auto_now_add=True)
-    is_completed = models.BooleanField(default=False)
-    completion_percentage = models.FloatField(default=0.0)
-    ip_address = models.GenericIPAddressField(null=True, blank=True)
-    user_agent = models.TextField(blank=True)
-    overall_remark = models.TextField(blank=True, null=True)
+    rating = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(1), MaxValueValidator(5)])
+    text_response = models.TextField(blank=True)
+    choice_response = models.CharField(max_length=200, blank=True)
+
+    def __str__(self):
+        return f"Answer to {self.question.id} in {self.response_parent.id}"
+
+
+class SubmissionTracker(models.Model):
+    """
+    SECURE TRACKER: Links Student to a Response for duplicate prevention.
+    Stored separately to maintain practical anonymity in reports.
+    """
+    id = models.AutoField(primary_key=True)
+    student = models.ForeignKey(User, on_delete=models.CASCADE)
+    session = models.ForeignKey(FeedbackSession, on_delete=models.CASCADE)
+    offering = models.ForeignKey(SessionOffering, on_delete=models.CASCADE)
+    response_set = models.OneToOneField(FeedbackResponse, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
-        ordering = ['-submitted_at']
-        unique_together = ('student', 'offering')  # One submission per student per offering
+        unique_together = ('student', 'offering') # Enforcement: One submission per student per subject
         indexes = [
-            models.Index(fields=['session', 'student']),
-            models.Index(fields=['offering', 'submitted_at']),
+            models.Index(fields=['student', 'session']),
         ]
-    
+
     def __str__(self):
-        return f"{self.student.username} - {self.offering} - {'Completed' if self.is_completed else 'In Progress'}"
-    
-    @property
-    def response_count(self):
-        return FeedbackResponse.objects.filter(
-            student=self.student,
-            offering=self.offering,
-            session=self.session
-        ).count()
-    
-    @property
-    def total_questions(self):
-        return self.form.question_count
-    
-    def update_completion(self):
-        """Update completion status and percentage"""
-        total = self.total_questions
-        answered = self.response_count
-        self.completion_percentage = (answered / total * 100) if total > 0 else 0
-        self.is_completed = self.completion_percentage >= 100
-        self.save(update_fields=['completion_percentage', 'is_completed'])
+        return f"{self.student.username} submitted for {self.offering}"

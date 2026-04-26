@@ -7,8 +7,8 @@ from django.db.models.functions import Cast
 from django.shortcuts import get_object_or_404
 
 from .models import (
-    FeedbackSession, FeedbackResponse, SessionOffering, FeedbackSubmission,
-    User, Question
+    FeedbackSession, FeedbackResponse, SessionOffering, SubmissionTracker,
+    User, Question, Answer
 )
 from .serializers import (
     FeedbackSessionSerializer, SessionOfferingSerializer, AnalyticsSerializer
@@ -229,10 +229,15 @@ def calculate_session_overview(session, user):
     
     # Calculate basic metrics
     total_responses = responses.count()
-    rating_responses = responses.filter(question__question_type='RATING')
     
-    if rating_responses.exists():
-        average_rating = rating_responses.aggregate(
+    # NEW: Ratings are in Answer table
+    rating_answers = Answer.objects.filter(
+        response_parent__in=responses,
+        question__question_type='RATING'
+    )
+    
+    if rating_answers.exists():
+        average_rating = rating_answers.aggregate(
             avg_rating=Avg('rating')
         )['avg_rating'] or 0
     else:
@@ -240,10 +245,10 @@ def calculate_session_overview(session, user):
     
     # Question-wise averages
     question_averages = {}
-    for question in Question.objects.filter(question_type='RATING'):
-        question_responses = rating_responses.filter(question=question)
-        if question_responses.exists():
-            avg = question_responses.aggregate(avg=Avg('rating'))['avg'] or 0
+    for question in Question.objects.filter(question_type='RATING', is_active=True):
+        q_answers = rating_answers.filter(question=question)
+        if q_answers.exists():
+            avg = q_answers.aggregate(avg=Avg('rating'))['avg'] or 0
             question_averages[question.id] = {
                 'text': question.text,
                 'category': question.category,
@@ -253,9 +258,9 @@ def calculate_session_overview(session, user):
     # Category-wise averages
     category_averages = {}
     for category in Question.QUESTION_CATEGORIES:
-        category_responses = rating_responses.filter(question__category=category[0])
-        if category_responses.exists():
-            avg = category_responses.aggregate(avg=Avg('rating'))['avg'] or 0
+        cat_answers = rating_answers.filter(question__category=category[0])
+        if cat_answers.exists():
+            avg = cat_answers.aggregate(avg=Avg('rating'))['avg'] or 0
             category_averages[category[0]] = round(avg, 2)
     
     # Completion metrics
@@ -264,9 +269,8 @@ def calculate_session_overview(session, user):
         total_offerings = total_offerings.filter(teacher=user)
     
     total_possible_submissions = total_offerings.count()
-    completed_submissions = FeedbackSubmission.objects.filter(
-        session=session,
-        is_completed=True
+    completed_submissions = SubmissionTracker.objects.filter(
+        session=session
     )
     
     if user.role == 'teacher':
@@ -321,9 +325,9 @@ def get_session_subject_data(session, user):
         offerings = subject_info['offerings']
         
         # Get all rating responses for this subject
-        responses = FeedbackResponse.objects.filter(
-            session=session,
-            offering__in=offerings,
+        responses = Answer.objects.filter(
+            response_parent__session=session,
+            response_parent__offering__in=offerings,
             question__question_type='RATING'
         )
         
@@ -370,9 +374,9 @@ def get_session_teacher_data(session, user):
         offerings = teacher_info['offerings']
         
         # Get all rating responses for this teacher
-        responses = FeedbackResponse.objects.filter(
-            session=session,
-            offering__in=offerings,
+        responses = Answer.objects.filter(
+            response_parent__session=session,
+            response_parent__offering__in=offerings,
             question__question_type='RATING'
         )
         
@@ -419,9 +423,9 @@ def get_session_class_data(session, user):
         offerings = class_info['offerings']
         
         # Get all rating responses for this class
-        responses = FeedbackResponse.objects.filter(
-            session=session,
-            offering__in=offerings,
+        responses = Answer.objects.filter(
+            response_parent__session=session,
+            response_parent__offering__in=offerings,
             question__question_type='RATING'
         )
         

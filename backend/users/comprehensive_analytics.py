@@ -10,8 +10,8 @@ from django.utils import timezone
 from datetime import datetime
 
 from .models import (
-    FeedbackSession, FeedbackResponse, SessionOffering, FeedbackSubmission,
-    User, Question, SubjectOffering, Branch, Semester
+    FeedbackSession, FeedbackResponse, SessionOffering, SubmissionTracker,
+    User, Question, SubjectOffering, Branch, Semester, Answer
 )
 from .serializers import (
     FeedbackSessionSerializer, SessionOfferingSerializer, UserSerializer
@@ -86,12 +86,12 @@ def generate_quantitative_analysis(session, offerings_filter, user):
     GROUP BY subject_id, teacher_id, question_id
     """
     
-    # Base queryset for rating responses
-    rating_responses = FeedbackResponse.objects.filter(
-        session=session,
+    # Base queryset for rating responses (JOIN with Answer)
+    rating_responses = Answer.objects.filter(
+        response_parent__session=session,
         question__question_type='RATING'
     ).filter(
-        Q(offering__teacher=user) if user.role == 'teacher' else Q()
+        Q(response_parent__offering__teacher=user) if user.role == 'teacher' else Q()
     )
     
     # 1. Subject-wise quantitative analysis
@@ -117,7 +117,7 @@ def generate_quantitative_analysis(session, offerings_filter, user):
         offerings = subject_info['offerings']
         
         # Get rating responses for this subject
-        subject_responses = rating_responses.filter(offering__in=offerings)
+        subject_responses = rating_responses.filter(response_parent__offering__in=offerings)
         
         if subject_responses.exists():
             avg_rating = subject_responses.aggregate(avg=Avg('rating'))['avg'] or 0
@@ -166,7 +166,7 @@ def generate_quantitative_analysis(session, offerings_filter, user):
         offerings = teacher_info['offerings']
         
         # Get rating responses for this teacher
-        teacher_responses = rating_responses.filter(offering__in=offerings)
+        teacher_responses = rating_responses.filter(response_parent__offering__in=offerings)
         
         if teacher_responses.exists():
             avg_rating = teacher_responses.aggregate(avg=Avg('rating'))['avg'] or 0
@@ -175,7 +175,7 @@ def generate_quantitative_analysis(session, offerings_filter, user):
             # Subject-wise breakdown for this teacher
             subject_breakdown = []
             for offering in offerings:
-                subject_responses = teacher_responses.filter(offering=offering)
+                subject_responses = teacher_responses.filter(response_parent__offering=offering)
                 if subject_responses.exists():
                     subject_avg = subject_responses.aggregate(avg=Avg('rating'))['avg'] or 0
                     subject_breakdown.append({
@@ -206,7 +206,7 @@ def generate_quantitative_analysis(session, offerings_filter, user):
             # Category-wise breakdown
             category_stats = {}
             for offering in offerings:
-                category_responses = question_responses.filter(offering=offering)
+                category_responses = question_responses.filter(response_parent__offering=offering)
                 category = offering.base_offering.subject.category or 'GENERAL'
                 
                 if category not in category_stats:
@@ -273,11 +273,11 @@ def generate_cumulative_analysis(session, offerings_filter, user):
     """
     
     # Base queryset for rating responses
-    rating_responses = FeedbackResponse.objects.filter(
-        session=session,
+    rating_responses = Answer.objects.filter(
+        response_parent__session=session,
         question__question_type='RATING'
     ).filter(
-        Q(offering__teacher=user) if user.role == 'teacher' else Q()
+        Q(response_parent__offering__teacher=user) if user.role == 'teacher' else Q()
     )
     
     # Get all offerings for this session
@@ -303,7 +303,7 @@ def generate_cumulative_analysis(session, offerings_filter, user):
         offerings = branch_info['offerings']
         
         # Get rating responses for this branch
-        branch_responses = rating_responses.filter(offering__in=offerings)
+        branch_responses = rating_responses.filter(response_parent__offering__in=offerings)
         
         if branch_responses.exists():
             # Calculate comprehensive metrics
@@ -332,7 +332,7 @@ def generate_cumulative_analysis(session, offerings_filter, user):
             
             for semester_id, semester_info in semesters_data.items():
                 semester_offerings = semester_info['offerings']
-                semester_responses = branch_responses.filter(offering__in=semester_offerings)
+                semester_responses = branch_responses.filter(response_parent__offering__in=semester_offerings)
                 
                 if semester_responses.exists():
                     semester_metrics = semester_responses.aggregate(
@@ -616,11 +616,11 @@ def get_session_comparison_data(session, offerings_filter, user):
     """Helper function to get session data for comparison"""
     
     # Base queryset for rating responses
-    rating_responses = FeedbackResponse.objects.filter(
-        session=session,
+    rating_responses = Answer.objects.filter(
+        response_parent__session=session,
         question__question_type='RATING'
     ).filter(
-        Q(offering__teacher=user) if user.role == 'teacher' else Q()
+        Q(response_parent__offering__teacher=user) if user.role == 'teacher' else Q()
     )
     
     # Get offerings for this session
@@ -642,7 +642,7 @@ def get_session_comparison_data(session, offerings_filter, user):
     subjects = []
     for subject_id, subject_info in subjects_data.items():
         offerings = subject_info['offerings']
-        subject_responses = rating_responses.filter(offering__in=offerings)
+        subject_responses = rating_responses.filter(response_parent__offering__in=offerings)
         
         if subject_responses.exists():
             avg_rating = subject_responses.aggregate(avg=Avg('rating'))['avg'] or 0
@@ -669,7 +669,7 @@ def get_session_comparison_data(session, offerings_filter, user):
     teachers = []
     for teacher_id, teacher_info in teachers_data.items():
         offerings = teacher_info['offerings']
-        teacher_responses = rating_responses.filter(offering__in=offerings)
+        teacher_responses = rating_responses.filter(response_parent__offering__in=offerings)
         
         if teacher_responses.exists():
             avg_rating = teacher_responses.aggregate(avg=Avg('rating'))['avg'] or 0

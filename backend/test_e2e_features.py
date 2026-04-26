@@ -15,7 +15,8 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from users.models import (
     Branch, Semester, FeedbackSession, Subject, SubjectOffering, 
-    SubjectAssignment, StudentSemester, Feedback, Department
+    SubjectAssignment, StudentSemester, Department,
+    SessionOffering, Question, FeedbackForm, FormQuestionMapping, FeedbackSubmission, FeedbackResponse
 )
 from users.views import hod_teacher_report, hod_department_report
 from rest_framework.test import APIRequestFactory, force_authenticate
@@ -40,10 +41,10 @@ def run_e2e_tests():
     FeedbackSession.objects.filter(name__startswith="E2E_").delete()
     Subject.objects.filter(code=test_subj_code).delete()
     Branch.objects.filter(code=test_branch_code).delete()
-    Department.objects.filter(code=test_dept_code).delete()
+    Department.objects.filter(name="E2E Research Department").delete()
 
     # Create fresh Dept/Branch
-    dept = Department.objects.create(name="E2E Research Department", code=test_dept_code)
+    dept = Department.objects.create(name="E2E Research Department")
     branch = Branch.objects.create(code=test_branch_code, name="Test E2E Branch", department=dept)
     semester, _ = Semester.objects.get_or_create(number=6, defaults={"name": "E2E Semester"})
     
@@ -95,21 +96,41 @@ def run_e2e_tests():
         )
     print(f"Enrolled {len(students)} students.")
 
+    # Create Session Offering and Questions
+    session_offering = SessionOffering.objects.create(
+        session=session,
+        base_offering=offering,
+        teacher=teacher_user,
+        is_active=True
+    )
+    
+    q1 = Question.objects.create(text="How is the teacher?", question_type="RATING", category="PUNCTUALITY")
+    q2 = Question.objects.create(text="Domain knowledge?", question_type="RATING", category="TEACHING")
+    
+    # Create FeedbackForm
+    form = FeedbackForm.objects.create(session=session, name="E2E Feedback Form", is_active=True)
+    FormQuestionMapping.objects.create(form=form, question=q1, order=1)
+    FormQuestionMapping.objects.create(form=form, question=q2, order=2)
+
     # 2. TEST REPORT THRESHOLD (1/10 = 10% < 30%)
     print("\n--- 2. Testing 30% Threshold (Under) ---")
-    Feedback.objects.create(
+    sub1 = FeedbackSubmission.objects.create(
         student=students[0],
-        offering=offering,
-        punctuality_rating=5, teaching_rating=5, clarity_rating=5, interaction_rating=5, behavior_rating=5,
-        comment="Teacher is very punctual and has great domain knowledge."
+        session=session,
+        offering=session_offering,
+        form=form,
+        is_completed=True,
+        overall_remark="Teacher is very punctual and has great domain knowledge."
     )
+    FeedbackResponse.objects.create(form=form, session=session, student=students[0], offering=session_offering, question=q1, rating=5)
+    FeedbackResponse.objects.create(form=form, session=session, student=students[0], offering=session_offering, question=q2, rating=5)
     
     request = factory.get(f'/api/hod/teacher/{teacher_user.id}/report/', {'session': session.id})
     force_authenticate(request, user=hod_user)
     response = hod_teacher_report(request, pk=teacher_user.id)
     
     data = response.data
-    off_data = next((o for o in data['offerings'] if o['offering_id'] == offering.id), None)
+    off_data = next((o for o in data['offerings'] if o['offering_id'] == session_offering.id), None)
     
     print(f"Feedback Percentage: {off_data['feedback_percentage']}%")
     print(f"Threshold Met: {off_data['threshold_met']}")
@@ -120,14 +141,15 @@ def run_e2e_tests():
     # 3. TEST REPORT THRESHOLD (4/10 = 40% > 30%)
     print("\n--- 3. Testing 30% Threshold (Over) ---")
     for i in range(1, 4):
-        Feedback.objects.create(
-            student=students[i], offering=offering,
-            punctuality_rating=4, teaching_rating=4, clarity_rating=4, interaction_rating=4, behavior_rating=4,
-            comment="Good style."
+        sub = FeedbackSubmission.objects.create(
+            student=students[i], session=session, offering=session_offering, form=form,
+            is_completed=True, overall_remark="Punctual and good style."
         )
+        FeedbackResponse.objects.create(form=form, session=session, student=students[i], offering=session_offering, question=q1, rating=4)
+        FeedbackResponse.objects.create(form=form, session=session, student=students[i], offering=session_offering, question=q2, rating=4)
     
     response = hod_teacher_report(request, pk=teacher_user.id)
-    off_data = next((o for o in response.data['offerings'] if o['offering_id'] == offering.id), None)
+    off_data = next((o for o in response.data['offerings'] if o['offering_id'] == session_offering.id), None)
     
     print(f"Feedback Percentage: {off_data['feedback_percentage']}%")
     print(f"Threshold Met: {off_data['threshold_met']}")

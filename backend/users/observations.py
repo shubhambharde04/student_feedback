@@ -1,6 +1,6 @@
 import re
 from collections import Counter
-from .models import Feedback
+from .models import FeedbackResponse
 
 # mapping of categories to keywords and formal report statements
 OBSERVATION_MAPPING = {
@@ -43,19 +43,27 @@ def generate_key_observations(feedback_queryset):
     Returns:
         List[str]: A list of 2-4 professional observation statements.
     """
-    comments = feedback_queryset.exclude(comment__isnull=True).exclude(comment='').values_list('comment', 'sentiment')
+    comments_texts = feedback_queryset.exclude(overall_remark__isnull=True).exclude(overall_remark='').values_list('overall_remark', flat=True)
     
-    if not comments:
+    if not comments_texts:
         return ["No specific observations derived from student comments."]
     
     category_counts = Counter()
     positive_categories = Counter()
     negative_categories = Counter()
     
-    for comment_text, sentiment in comments:
-        # Clean text
-        text = re.sub(r'[^\w\s]', '', comment_text.lower())
-        words = set(text.split())
+    for comment_text in comments_texts:
+        text = comment_text.lower()
+        # Basic sentiment
+        sentiment = 'neutral'
+        if any(w in text for w in ['excellent', 'good', 'great', 'best', 'clear', 'helpful', 'nice']):
+            sentiment = 'positive'
+        elif any(w in text for w in ['bad', 'poor', 'worst', 'unclear', 'confusing', 'boring', 'arrogant', 'rude']):
+            sentiment = 'negative'
+            
+        # Clean text for keywords
+        clean_text = re.sub(r'[^\w\s]', '', text)
+        words = set(clean_text.split())
         
         matched_categories = []
         for category, config in OBSERVATION_MAPPING.items():
@@ -86,9 +94,9 @@ def generate_key_observations(feedback_queryset):
             
     # Fallback if no keywords matched
     if not observations:
-        # If we have sentiment, use that
-        pos_count = sum(1 for _, s in comments if s == 'positive')
-        neg_count = sum(1 for _, s in comments if s == 'negative')
+        # Calculate overall basic sentiment
+        pos_count = sum(1 for text in comments_texts if any(w in text.lower() for w in ['excellent', 'good', 'great', 'best', 'clear', 'helpful', 'nice']))
+        neg_count = sum(1 for text in comments_texts if any(w in text.lower() for w in ['bad', 'poor', 'worst', 'unclear', 'confusing', 'boring', 'arrogant', 'rude']))
         
         if pos_count > neg_count:
             return ["Overall positive feedback received from students regarding the course."]

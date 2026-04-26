@@ -54,7 +54,7 @@ export default function SubjectManagement() {
 
       const [offeringsRes, teacherRes, subjectRes, branchRes, semRes, profileRes, sessionRes] = await Promise.all([
         API.get(selectedSessionId ? `session-offerings/?session=${selectedSessionId}&${queryParams.toString()}` : `session-offerings/?${queryParams.toString()}`),
-        API.get("hod/teachers/"),
+        API.get("users/teachers/"),
         API.get("subjects/"),
         API.get("branches/"),
         API.get("semesters/"),
@@ -444,7 +444,7 @@ export default function SubjectManagement() {
                         onChange={(e) => setFormData(prev => ({ ...prev, teacher_id: e.target.value }))}
                       >
                         <option value="">Select Teacher</option>
-                        {teachers.map(t => <option key={t.id} value={t.id}>{t.name} ({t.department})</option>)}
+                        {teachers.map(t => <option key={t.id} value={t.id}>{t.full_name || t.username} ({t.department_name || 'No Dept'})</option>)}
                       </select>
                     </div>
                   </div>
@@ -466,7 +466,7 @@ export default function SubjectManagement() {
                       onChange={(e) => setFormData(prev => ({ ...prev, teacher_id: e.target.value }))}
                     >
                       <option value="">Select Teacher</option>
-                      {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                      {teachers.map(t => <option key={t.id} value={t.id}>{t.full_name || t.username}</option>)}
                     </select>
                   </div>
                 </>

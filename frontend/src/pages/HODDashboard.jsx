@@ -2,14 +2,17 @@ import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import API from "../api";
 import Sidebar from "../components/Sidebar";
+import Header from "../components/Header";
 import FeedbackWindowManager from "../components/FeedbackWindowManager";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
 import ChartModal from "../components/ChartModal";
-import { Maximize2 } from "lucide-react";
+import { Maximize2, Mail, FileText } from "lucide-react";
 import { motion } from "framer-motion";
+import EmailComposer from "../components/EmailComposer";
+import Toast from "../components/Toast";
 
 const CHART_COLORS = ['#6366f1', '#22d3ee', '#a78bfa', '#f59e0b', '#10b981', '#ef4444', '#ec4899', '#8b5cf6'];
 const PIE_COLORS = ['#10b981', '#94a3b8', '#ef4444'];
@@ -38,6 +41,10 @@ export default function HODDashboard() {
   const [expandedChart, setExpandedChart] = useState(null);
 
   const navigate = useNavigate();
+
+  const [showEmailComposer, setShowEmailComposer] = useState(false);
+  const [selectedTeacherForEmail, setSelectedTeacherForEmail] = useState(null);
+  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     const fetchInitial = async () => {
@@ -152,7 +159,7 @@ export default function HODDashboard() {
           </div>
         )}
 
-        {overview?.lowest_teacher && (
+        {overview?.lowest_teacher && overview.lowest_teacher.avg_rating < 3.5 && (
           <div className="glass-card p-6 border-l-4 border-l-accent-rose animate-fade-in">
             <h3 className="text-sm font-medium text-surface-400 uppercase tracking-wider mb-2">Needs Improvement</h3>
             <div className="flex justify-between items-end">
@@ -421,13 +428,45 @@ export default function HODDashboard() {
               </div>
 
               <div className="pt-4 border-t border-surface-700/50 flex justify-between items-center">
-                <span className={`badge ${performanceClass}`}>{teacher.performance}</span>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedTeacherForEmail(teacher);
+                      setShowEmailComposer(true);
+                    }}
+                    className="p-1.5 rounded-lg bg-accent-emerald/10 text-accent-emerald hover:bg-accent-emerald/20 transition-colors"
+                    title="Quick Email"
+                  >
+                    <Mail size={16} />
+                  </button>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate('/hod/reports', { state: { reportType: 'teacher', teacherId: teacher.id } });
+                    }}
+                    className="p-1.5 rounded-lg bg-primary-500/10 text-primary-400 hover:bg-primary-500/20 transition-colors"
+                    title="Generate Report"
+                  >
+                    <FileText size={16} />
+                  </button>
+                </div>
                 <span className="text-xs text-primary-400 font-medium group-hover:underline">View Profile →</span>
               </div>
             </div>
           );
         })}
       </div>
+      {showEmailComposer && selectedTeacherForEmail && (
+        <EmailComposer
+          teachers={[selectedTeacherForEmail]}
+          onEmailSent={() => {
+            setToast({ message: "Email sent successfully", type: "success" });
+            setShowEmailComposer(false);
+          }}
+          onClose={() => setShowEmailComposer(false)}
+        />
+      )}
       {teachers.length === 0 && (
          <div className="p-8 text-center text-surface-500 glass-card">No teachers found in the system.</div>
       )}
@@ -491,8 +530,7 @@ export default function HODDashboard() {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8 stagger">
         {/* Teacher Comparison Bar Chart */}
-        <motion.div 
-          layoutId="chart-teacher-comparison"
+        <div 
           className={`glass-card p-6 relative transition-all duration-300 ${activeChart && activeChart !== 'teacherComparison' ? 'opacity-50 grayscale-[50%]' : ''} ${activeChart === 'teacherComparison' ? 'ring-2 ring-primary-500 scale-[1.02]' : ''}`}
           onClick={() => setActiveChart(activeChart === 'teacherComparison' ? null : 'teacherComparison')}
         >
@@ -526,11 +564,10 @@ export default function HODDashboard() {
           ) : (
             <div className="h-[300px] flex items-center justify-center text-surface-500">No teacher data</div>
           )}
-        </motion.div>
+        </div>
 
         {/* Sentiment Distribution Pie */}
-        <motion.div 
-          layoutId="chart-sentiment-distribution"
+        <div 
           className={`glass-card p-6 relative transition-all duration-300 ${activeChart && activeChart !== 'sentimentDistribution' ? 'opacity-50 grayscale-[50%]' : ''} ${activeChart === 'sentimentDistribution' ? 'ring-2 ring-primary-500 scale-[1.02]' : ''}`}
           onClick={() => setActiveChart(activeChart === 'sentimentDistribution' ? null : 'sentimentDistribution')}
         >
@@ -567,11 +604,10 @@ export default function HODDashboard() {
           ) : (
             <div className="h-[300px] flex items-center justify-center text-surface-500">No sentiment data</div>
           )}
-        </motion.div>
+        </div>
 
         {/* Rating Distribution Bar */}
-        <motion.div 
-          layoutId="chart-rating-distribution"
+        <div 
           className={`glass-card p-6 relative transition-all duration-300 ${activeChart && activeChart !== 'ratingDistribution' ? 'opacity-50 grayscale-[50%]' : ''} ${activeChart === 'ratingDistribution' ? 'ring-2 ring-primary-500 scale-[1.02]' : ''}`}
           onClick={() => setActiveChart(activeChart === 'ratingDistribution' ? null : 'ratingDistribution')}
         >
@@ -601,11 +637,10 @@ export default function HODDashboard() {
           ) : (
             <div className="h-[300px] flex items-center justify-center text-surface-500">No rating data</div>
           )}
-        </motion.div>
+        </div>
 
         {/* Subject Performance Bar */}
-        <motion.div 
-          layoutId="chart-subject-performance"
+        <div 
           className={`glass-card p-6 relative transition-all duration-300 ${activeChart && activeChart !== 'subjectPerformance' ? 'opacity-50 grayscale-[50%]' : ''} ${activeChart === 'subjectPerformance' ? 'ring-2 ring-primary-500 scale-[1.02]' : ''}`}
           onClick={() => setActiveChart(activeChart === 'subjectPerformance' ? null : 'subjectPerformance')}
         >
@@ -635,7 +670,7 @@ export default function HODDashboard() {
           ) : (
             <div className="h-[300px] flex items-center justify-center text-surface-500">No subject data</div>
           )}
-        </motion.div>
+        </div>
       </div>
 
       {/* Top & Low Performers Table */}
@@ -684,7 +719,7 @@ export default function HODDashboard() {
         onClose={() => setExpandedChart(null)}
         title="Teacher Comparison"
       >
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height={450}>
           <BarChart data={teacherComparisonData} margin={{ top: 20, right: 30, left: 20, bottom: 25 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" />
             <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 14 }} />
@@ -708,7 +743,7 @@ export default function HODDashboard() {
         onClose={() => setExpandedChart(null)}
         title="Sentiment Distribution"
       >
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height={450}>
           <PieChart>
             <Pie
               data={sentimentPieData}
@@ -735,7 +770,7 @@ export default function HODDashboard() {
         onClose={() => setExpandedChart(null)}
         title="Rating Distribution"
       >
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height={450}>
           <BarChart data={ratingDistData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" />
             <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 14 }} />
@@ -755,7 +790,7 @@ export default function HODDashboard() {
         onClose={() => setExpandedChart(null)}
         title="Subject Performance"
       >
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height={450}>
           <BarChart data={subjectPerfData} margin={{ top: 20, right: 30, left: 20, bottom: 25 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" />
             <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 14 }} />
@@ -878,14 +913,16 @@ export default function HODDashboard() {
   // ============================================================
 
   return (
-    <div className="min-h-screen bg-mesh flex">
-      <Sidebar 
-        role="hod" 
-        activeSection={activeSection} 
-        onSectionChange={setActiveSection}
-        user={user} 
-      />
-      <main className="flex-1 ml-64 p-8 overflow-y-auto w-full">
+    <div className="min-h-screen bg-mesh flex flex-col">
+      <Header user={user} />
+      <div className="flex flex-1">
+        <Sidebar 
+          role="hod" 
+          activeSection={activeSection} 
+          onSectionChange={setActiveSection}
+          user={user} 
+        />
+        <main className="flex-1 ml-64 p-8 overflow-y-auto w-full">
         <div className="max-w-6xl mx-auto">
           {activeSection === "overview" && renderOverview()}
           {activeSection === "teachers" && renderTeachers()}
@@ -894,6 +931,7 @@ export default function HODDashboard() {
           {/* {activeSection === "comparison" && renderComparison()} */}
         </div>
       </main>
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   );
 }

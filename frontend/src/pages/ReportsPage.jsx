@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import API from '../api';
@@ -6,8 +7,9 @@ import Sidebar from '../components/Sidebar';
 import ReportToggle from '../components/ReportToggle';
 
 export default function ReportsPage() {
-  const [reportType, setReportType] = useState('teacher');
-  const [selectedTeacher, setSelectedTeacher] = useState('');
+  const location = useLocation();
+  const [reportType, setReportType] = useState(location.state?.reportType || 'teacher');
+  const [selectedTeacher, setSelectedTeacher] = useState(location.state?.teacherId || '');
 
   const [teachers, setTeachers] = useState([]);
   const [reportData, setReportData] = useState(null);
@@ -31,6 +33,7 @@ export default function ReportsPage() {
   const [hodComments, setHodComments] = useState('');
   const [conclusion, setConclusion] = useState('');
   const [overallRemarks, setOverallRemarks] = useState('');
+  const [bypassThreshold, setBypassThreshold] = useState(false);
 
   const reportRef = useRef(null);
 
@@ -76,6 +79,18 @@ export default function ReportsPage() {
     }
   }, [reportType, selectedSession]);
 
+  useEffect(() => {
+    if (location.state?.teacherId && teachers.length > 0) {
+      setSelectedTeacher(location.state.teacherId);
+      // Wait for state update then generate
+      setTimeout(() => {
+        if (!loading && !reportData) {
+           // We'll let the user click generate to be safe, or trigger it here
+        }
+      }, 500);
+    }
+  }, [location.state, teachers]);
+
   const fetchClassReport = async () => {
     if (!selectedSession) return;
     setLoading(true);
@@ -86,6 +101,7 @@ export default function ReportsPage() {
       if (selectedBranch) params.append('branch', selectedBranch);
       if (selectedYear) params.append('year', selectedYear);
       params.append('session_id', selectedSession);
+      if (bypassThreshold) params.append('bypass_threshold', 'true');
       const response = await API.get(`hod/department/report/?${params.toString()}`);
       setReportData(response.data);
       setOverallRemarks(response.data.overall_remarks || '');
@@ -107,7 +123,8 @@ export default function ReportsPage() {
     setError('');
     setReportData(null);
     try {
-      const response = await API.get(`hod/teacher/${selectedTeacher}/report/?session_id=${selectedSession}`);
+      const url = `hod/teacher/${selectedTeacher}/report/?session_id=${selectedSession}${bypassThreshold ? '&bypass_threshold=true' : ''}`;
+      const response = await API.get(url);
       setReportData(response.data);
       // Reset editable fields
       setKeyObservations(response.data.key_observations || '');
@@ -147,7 +164,7 @@ export default function ReportsPage() {
     doc.text('GOVERNMENT POLYTECHNIC NAGPUR', pageWidth / 2, y, { align: 'center' });
     y += 6;
     doc.setFontSize(10);
-    doc.text(reportData.department?.toUpperCase() || 'DEPARTMENT', pageWidth / 2, y, { align: 'center' });
+    doc.text(reportData.department?.toUpperCase() || 'INFORMATION TECHNOLOGY DEPARTMENT', pageWidth / 2, y, { align: 'center' });
     y += 7;
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
@@ -276,7 +293,7 @@ export default function ReportsPage() {
     y += 4;
     doc.setFont('helvetica', 'bold');
     doc.text('Faculty Member', margin + 50, y);
-    doc.text(`Dept. of ${reportData.department?.replace(' Department', '') || 'Information Technology'}`, pageWidth - margin - 60, y);
+    doc.text(`Dept. of ${reportData.department?.replace(' Department', '')?.replace(' department', '') || 'Information Technology'}`, pageWidth - margin - 40, y);
 
     doc.save(`teacher-report-${reportData.teacher?.name || 'report'}-${new Date().toISOString().split('T')[0]}.pdf`);
   };
@@ -449,6 +466,18 @@ export default function ReportsPage() {
                       ))}
                     </select>
                   </div>
+                  <div className="flex items-center gap-2 mb-2 ml-2">
+                    <input 
+                      type="checkbox" 
+                      id="bypass-teacher" 
+                      checked={bypassThreshold} 
+                      onChange={e => setBypassThreshold(e.target.checked)}
+                      className="w-4 h-4 text-primary-500 rounded border-surface-700 bg-surface-800"
+                    />
+                    <label htmlFor="bypass-teacher" className="text-xs text-surface-400 cursor-pointer">
+                      Bypass 30% Threshold
+                    </label>
+                  </div>
                   <button onClick={generateReport} disabled={loading} className="btn-primary">
                     {loading ? 'Generating...' : 'Generate Teacher Report'}
                   </button>
@@ -492,6 +521,18 @@ export default function ReportsPage() {
                         <option key={s.id} value={s.id}>{s.name} ({s.year})</option>
                       ))}
                     </select>
+                  </div>
+                  <div className="flex items-center gap-2 mb-2 ml-2">
+                    <input 
+                      type="checkbox" 
+                      id="bypass" 
+                      checked={bypassThreshold} 
+                      onChange={e => setBypassThreshold(e.target.checked)}
+                      className="w-4 h-4 text-primary-500 rounded border-surface-700 bg-surface-800"
+                    />
+                    <label htmlFor="bypass" className="text-xs text-surface-400 cursor-pointer">
+                      Bypass 30% Threshold (Show raw data)
+                    </label>
                   </div>
                   <button onClick={generateReport} disabled={loading} className="btn-primary">
                     {loading ? 'Generating...' : 'Generate Class Report'}
@@ -537,7 +578,7 @@ export default function ReportsPage() {
               <div className="bg-white text-black border-2 border-black">
                 <div className="text-center py-3 border-b border-black">
                   <h2 className="text-lg font-bold uppercase tracking-wide">Government Polytechnic Nagpur</h2>
-                  <p className="text-sm font-semibold uppercase">{reportData.department}</p>
+                  <p className="text-sm font-semibold uppercase">{reportData.department || 'Information Technology Department'}</p>
                 </div>
                 <div className="text-center py-2 border-b border-black">
                   <h3 className="text-sm font-bold uppercase">Feedback Analysis & Action Taken Report</h3>
@@ -715,7 +756,7 @@ export default function ReportsPage() {
                   </div>
                   <div className="text-right">
                     <p className="mt-4 font-bold">HoD</p>
-                    <p className="font-bold">Dept. of {reportData.department?.replace(' Department', '') || 'Information Technology'}</p>
+                    <p className="font-bold">Dept. of {reportData.department?.replace(' Department', '')?.replace(' department', '') || 'Information Technology'}</p>
                   </div>
                 </div>
               </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../api";
 import Sidebar from "../components/Sidebar";
+import Header from "../components/Header";
 import SubjectRadarChart from "../components/SubjectRadarChart";
 import ExpandableChartModal from "../components/ExpandableChartModal";
 import {

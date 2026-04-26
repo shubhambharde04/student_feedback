@@ -2,10 +2,11 @@ from django.utils import timezone
 from rest_framework import serializers
 from .models import (
     User, Subject, SubjectOffering, SubjectAssignment, 
-    Feedback, FeedbackWindow, Branch, Semester, Department,
+    Branch, Semester, Department,
     # New models
     FeedbackSession, Question, FeedbackForm, FormQuestionMapping,
-    SessionOffering, FeedbackResponse, FeedbackSubmission, StudentSemester
+    SessionOffering, FeedbackResponse, Answer, SubmissionTracker, 
+    StudentSemester
 )
 
 
@@ -14,6 +15,15 @@ class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Department
         fields = ['id', 'name']
+
+
+class TeacherSerializer(serializers.ModelSerializer):
+    """Serializer for Teachers (using User model)"""
+    full_name = serializers.CharField(source='get_full_name', read_only=True)
+    
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'full_name', 'email', 'department', 'designation', 'is_active']
 
 
 class BranchSerializer(serializers.ModelSerializer):
@@ -217,97 +227,8 @@ class StudentSemesterSerializer(serializers.ModelSerializer):
 
 
 
-class FeedbackSerializer(serializers.ModelSerializer):
-    """
-    Robust student feedback serializer with strict validation logic.
-    - Auto-assigns student from request.user
-    - Validates feedback window
-    - Validates student branch/semester
-    - Validates teacher assignment existence
-    - Prevents duplicate feedback
-    """
-    student_name = serializers.SerializerMethodField()
-    subject_name = serializers.CharField(source='offering.subject.name', read_only=True)
-    subject_code = serializers.CharField(source='offering.subject.code', read_only=True)
-    teacher_name = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = Feedback
-        fields = [
-            'id', 'offering', 'student',
-            'punctuality_rating', 'teaching_rating', 'clarity_rating',
-            'interaction_rating', 'behavior_rating', 'overall_rating',
-            'comment', 'sentiment', 'created_at',
-            'student_name', 'subject_name', 'subject_code', 'teacher_name'
-        ]
-        read_only_fields = ['student', 'overall_rating', 'sentiment', 'created_at']
-
-    def get_student_name(self, obj):
-        request = self.context.get("request")
-        if request and request.user.role in ["hod", "admin", "teacher"]:
-            return obj.student.get_full_name() or obj.student.username
-        return "Anonymous"
-
-    def get_teacher_name(self, obj):
-        # Using a more robust lookup for the OneToOne relationship
-        if not obj.offering:
-            return "Unassigned"
-            
-        # Try both 'assignment' (specified related_name) and 'subjectassignment' (default)
-        assignment = getattr(obj.offering, 'assignment', None)
-        if not assignment:
-            # Fallback to default name if related_name is somehow missing
-            assignment = getattr(obj.offering, 'subjectassignment', None)
-            
-        if assignment and assignment.teacher:
-            return assignment.teacher.get_full_name() or assignment.teacher.username
-        return "Unassigned"
-
-
-    def validate(self, attrs):
-        request = self.context.get('request')
-        user = request.user if request else None
-        if not user:
-            raise serializers.ValidationError("Authentication required.")
-        offering = attrs.get('offering')
-
-        if user.role != 'student':
-            raise serializers.ValidationError("Only students can submit feedback.")
-
-        # 1. Validate Feedback Window
-        from django.utils import timezone
-        window = FeedbackWindow.objects.filter(is_active=True).first()  # type: ignore
-        now = timezone.now()
-        if not window:
-            raise serializers.ValidationError("No active feedback window found.")
-        if not (window.start_date <= now <= window.end_date):
-            raise serializers.ValidationError("Feedback window is currently closed.")
-
-        # 2. Validate Student Branch & Semester
-        if not hasattr(user, 'student_profile') or offering.branch != user.student_profile.branch or offering.semester != user.student_profile.semester:
-            raise serializers.ValidationError(
-                "You can only submit feedback for subjects in your enrolled branch and semester."
-            )
-
-        # 3. Ensure Teacher Exists (OneToOne assignment)
-        if not hasattr(offering, 'assignment'):
-            raise serializers.ValidationError("Feedback cannot be submitted as no teacher is assigned to this subject.")
-
-        # 4. Prevent Duplicate Feedback
-        if Feedback.objects.filter(student=user, offering=offering).exists():  # type: ignore
-            raise serializers.ValidationError("You have already submitted feedback for this subject.")
-
-        # Assign student to attrs for save
-        attrs['student'] = user
-        return attrs
-
-
-
-class FeedbackWindowSerializer(serializers.ModelSerializer):
-    """Control when feedback is allowed"""
-    class Meta:
-        model = FeedbackWindow
-        fields = ['id', 'start_date', 'end_date', 'is_active', 'description']
+# Legacy FeedbackSerializer and FeedbackWindowSerializer have been removed.
+# The system now uses FeedbackResponseSerializer and FeedbackSubmissionSerializer below.
 
 
 class LoginSerializer(serializers.Serializer):
@@ -504,80 +425,46 @@ class SessionOfferingSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at']
 
 
-class FeedbackResponseSerializer(serializers.ModelSerializer):
-    """Serializer for individual feedback responses"""
+class AnswerSerializer(serializers.ModelSerializer):
+    """Serializer for individual answers"""
     question_text = serializers.CharField(source='question.text', read_only=True)
     question_type = serializers.CharField(source='question.question_type', read_only=True)
-    question_category = serializers.CharField(source='question.category', read_only=True)
-    student_name = serializers.CharField(source='student.get_full_name', read_only=True)
-    student_enrollment = serializers.CharField(source='student.enrollment_no', read_only=True)
+
+    class Meta:
+        model = Answer
+        fields = ['id', 'question', 'question_text', 'question_type', 'rating', 'text_response', 'choice_response']
+
+
+class FeedbackResponseSerializer(serializers.ModelSerializer):
+    """Serializer for anonymous feedback responses"""
+    answers = AnswerSerializer(many=True, read_only=True)
+    teacher_name = serializers.CharField(source='teacher.get_full_name', read_only=True)
+    session_name = serializers.CharField(source='session.name', read_only=True)
     
     class Meta:
         model = FeedbackResponse
-        fields = [
-            'id', 'session', 'form', 'offering', 'student', 'question',
-            'question_text', 'question_type', 'question_category',
-            'rating', 'text_response', 'multiple_choice_response',
-            'student_name', 'student_enrollment', 'submitted_at'
-        ]
-        read_only_fields = ['submitted_at']
+        fields = ['id', 'session', 'session_name', 'form', 'offering', 'teacher', 'teacher_name', 'overall_remark', 'sentiment_score', 'sentiment_label', 'submitted_at', 'answers']
 
 
-class FeedbackSubmissionSerializer(serializers.ModelSerializer):
-    """Serializer for feedback submissions"""
-    student_name = serializers.CharField(source='student.get_full_name', read_only=True)
-    student_enrollment = serializers.CharField(source='student.enrollment_no', read_only=True)
-    offering_details = SessionOfferingSerializer(source='offering', read_only=True)
-    response_count = serializers.IntegerField(read_only=True)
-    total_questions = serializers.IntegerField(read_only=True)
-    
+class SubmissionTrackerSerializer(serializers.ModelSerializer):
+    """Serializer for submission tracking"""
     class Meta:
-        model = FeedbackSubmission
-        fields = [
-            'id', 'session', 'form', 'offering', 'student',
-            'student_name', 'student_enrollment', 'offering_details',
-            'is_completed', 'completion_percentage', 'response_count',
-            'total_questions', 'submitted_at', 'ip_address'
-        ]
-        read_only_fields = ['submitted_at', 'completion_percentage']
-
-
-class FeedbackSubmissionCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating feedback submissions"""
-    responses = FeedbackResponseSerializer(many=True, write_only=True)
-    
-    class Meta:
-        model = FeedbackSubmission
-        fields = ['session', 'form', 'offering', 'student', 'responses']
-    
-    def create(self, validated_data):
-        responses_data = validated_data.pop('responses')
-        submission = FeedbackSubmission.objects.create(**validated_data)
-        
-        # Create individual responses
-        for response_data in responses_data:
-            response_data['submission'] = submission  # Add the submission reference
-            FeedbackResponse.objects.create(**response_data)
-        
-        # Update completion status
-        submission.update_completion()
-        return submission
+        model = SubmissionTracker
+        fields = ['id', 'student', 'session', 'offering', 'response_set']
 
 
 class AnalyticsSerializer(serializers.Serializer):
-    """Serializer for analytics data"""
-    total_responses = serializers.IntegerField()
-    average_rating = serializers.FloatField()
-    question_averages = serializers.DictField()
-    category_averages = serializers.DictField()
-    completion_rate = serializers.FloatField()
-    sentiment_distribution = serializers.DictField()
+    """Serializer for feedback analytics summary"""
+    session_id = serializers.IntegerField()
+    session_name = serializers.CharField()
+    overall_avg = serializers.FloatField()
+    total_submissions = serializers.IntegerField()
 
 
 class SessionComparisonSerializer(serializers.Serializer):
-    """Serializer for session comparison analytics"""
-    current_session = AnalyticsSerializer()
-    previous_session = AnalyticsSerializer()
+    """Serializer for comparing two sessions"""
+    session_1_avg = serializers.FloatField()
+    session_2_avg = serializers.FloatField()
+    trend = serializers.FloatField() 
     improvement_percentage = serializers.FloatField()
     trend_analysis = serializers.CharField()
-

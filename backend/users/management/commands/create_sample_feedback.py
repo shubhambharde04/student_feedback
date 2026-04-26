@@ -4,7 +4,7 @@ from datetime import date, timedelta
 import random
 from users.models import (
     FeedbackSession, FeedbackResponse, FeedbackSubmission, SessionOffering,
-    Question, FeedbackForm, User
+    Question, FeedbackForm, User, Answer
 )
 
 
@@ -68,25 +68,26 @@ class Command(BaseCommand):
                         }
                     )
                     
-                    # Create responses for each question
+                    # Create ANONYMOUS FeedbackResponse (teacher is User directly)
+                    response_container = FeedbackResponse.objects.create(
+                        session=current_session,
+                        form=submission.form,
+                        offering=offering,
+                        teacher=offering.teacher,
+                        overall_remark=random.choice(["Great teaching!", "Good explanation.", "Needs more interaction.", "Helpful.", "Excellent."])
+                    )
+
+                    # Create individual Answers for each question
                     for question in questions:
-                        # Generate realistic rating (3-5 with some variation)
                         rating = random.choices(
                             [5, 4, 3, 2, 1],
-                            weights=[40, 35, 15, 7, 3]  # More positive ratings
+                            weights=[40, 35, 15, 7, 3]
                         )[0]
                         
-                        FeedbackResponse.objects.get_or_create(
-                            session=current_session,
-                            form=submission.form,
-                            offering=offering,
-                            student=student,
+                        Answer.objects.create(
+                            response_parent=response_container,
                             question=question,
-                            defaults={
-                                'rating': rating,
-                                'ip_address': '127.0.0.1',
-                                'user_agent': 'Sample Data Generator'
-                            }
+                            rating=rating
                         )
                     
                     # Mark as completed

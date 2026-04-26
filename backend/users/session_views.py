@@ -9,13 +9,13 @@ from django.shortcuts import get_object_or_404
 from .models import (
     FeedbackSession, Question, FeedbackForm, FormQuestionMapping,
     SessionOffering, FeedbackResponse, FeedbackSubmission,
-    User, SubjectOffering, Feedback
+    User, SubjectOffering, FeedbackResponse
 )
 from .serializers import (
     FeedbackSessionSerializer, QuestionSerializer, FeedbackFormSerializer,
     FormQuestionMappingSerializer, SessionOfferingSerializer,
-    FeedbackResponseSerializer, FeedbackSubmissionSerializer,
-    FeedbackSubmissionCreateSerializer, AnalyticsSerializer,
+    FeedbackResponseSerializer, 
+     AnalyticsSerializer,
     SessionComparisonSerializer
 )
 
@@ -102,7 +102,7 @@ class FeedbackSessionViewSet(viewsets.ModelViewSet):
         session.close_session()
         
         return Response({
-            'message': f'Feedback for session {session.name} has been ended. No further submissions allowed.',
+            'message': f'FeedbackResponse for session {session.name} has been ended. No further submissions allowed.',
             'session': FeedbackSessionSerializer(session).data
         })
     
@@ -272,7 +272,8 @@ class SessionOfferingViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(
                     base_offering__branch=student_sem.branch,
                     base_offering__semester=student_sem.semester,
-                    is_active=True
+                    is_active=True,
+                    teacher__isnull=False  # Only show subjects with assigned teachers
                 )
             else:
                 queryset = queryset.none()
@@ -310,13 +311,13 @@ def get_active_feedback_form(request):
     if not current_session:
         return Response({
             'error': 'No active feedback session available',
-            'message': 'Feedback collection is currently closed'
+            'message': 'FeedbackResponse collection is currently closed'
         }, status=404)
     
     # Check if session allows feedback submission
     if not current_session.can_submit_feedback:
         return Response({
-            'error': 'Feedback submission is not allowed at this time',
+            'error': 'FeedbackResponse submission is not allowed at this time',
             'message': 'The feedback period has ended or not yet started',
             'session': FeedbackSessionSerializer(current_session).data
         }, status=403)
@@ -437,17 +438,18 @@ def get_active_feedback_form(request):
         session=current_session,
         base_offering__branch=offering_branch,
         base_offering__semester=student_sem,
-        is_active=True
+        is_active=True,
+        teacher__isnull=False  # Only show subjects with assigned teachers
     ).select_related(
         'base_offering__subject', 'base_offering__branch',
         'base_offering__semester', 'teacher', 'session'
     )
     
     # Check which offerings the student has already submitted feedback for
-    submitted_offerings = set(FeedbackSubmission.objects.filter(
+    from .models import SubmissionTracker
+    submitted_offerings = set(SubmissionTracker.objects.filter(
         student=user,
-        session=current_session,
-        is_completed=True
+        session=current_session
     ).values_list('offering_id', flat=True))
     
     # Serialize all offerings and add feedback_submitted flag
@@ -491,63 +493,88 @@ def submit_feedback(request):
             'session': FeedbackSessionSerializer(offering.session).data
         }, status=403)
     
+    from .models import SubmissionTracker, FeedbackResponse, Answer
+    
     # Check if student has already submitted feedback for this offering
-    existing_submission = FeedbackSubmission.objects.filter(
+    existing_submission = SubmissionTracker.objects.filter(
         student=user,
         offering=offering
     ).first()
     
-    if existing_submission and existing_submission.is_completed:
+    if existing_submission:
         return Response({'error': 'Feedback already submitted for this offering'}, status=400)
     
     from django.db import transaction
     
     try:
         with transaction.atomic():
-            # Create or update submission
-            if existing_submission:
-                submission = existing_submission
-                submission.overall_remark = request.data.get('overall_remark', '')
-                submission.save()
-            else:
-                submission = FeedbackSubmission.objects.create(
-                    session=offering.session,
-                    form=offering.session.forms.filter(is_active=True).first(),
-                    offering=offering,
-                    student=user,
-                    ip_address=request.META.get('REMOTE_ADDR'),
-                    user_agent=request.META.get('HTTP_USER_AGENT', ''),
-                    overall_remark=request.data.get('overall_remark', '')
-                )
+            overall_remark = request.data.get('overall_remark', '')
             
-            # Process responses
+            # 1. Create the ANONYMOUS FeedbackResponse Wrapper
+            form = offering.session.forms.filter(is_active=True).first()
+            if not form:
+                raise Exception("No active form found for this session")
+            
+            feedback_wrapper = FeedbackResponse.objects.create(
+                session=offering.session,
+                form=form,
+                offering=offering,
+                teacher=offering.teacher,
+                overall_remark=overall_remark
+            )
+            
+            # 2. Process responses and create Answer objects
+            total_rating = 0
+            rating_count = 0
             created_responses = []
+            
             for response_data in responses:
                 question_id = response_data.get('question_id')
                 question = get_object_or_404(Question, pk=question_id)
+                rating = response_data.get('rating')
                 
-                # Create or update response
-                response, created = FeedbackResponse.objects.update_or_create(
-                    session=offering.session,
-                    form=submission.form,
-                    offering=offering,
-                    student=user,
+                if rating is not None:
+                    try:
+                        rating = int(rating)
+                        total_rating += rating
+                        rating_count += 1
+                    except (ValueError, TypeError):
+                        pass
+
+                answer = Answer.objects.create(
+                    response_parent=feedback_wrapper,
                     question=question,
-                    defaults={
-                        'rating': response_data.get('rating'),
-                        'text_response': response_data.get('text_response', ''),
-                        'multiple_choice_response': response_data.get('multiple_choice_response', ''),
-                        'ip_address': request.META.get('REMOTE_ADDR'),
-                        'user_agent': request.META.get('HTTP_USER_AGENT', '')
-                    }
+                    rating=rating,
+                    text_response=response_data.get('text_response', ''),
+                    choice_response=response_data.get('multiple_choice_response', '')
                 )
-                created_responses.append(FeedbackResponseSerializer(response).data)
+                created_responses.append({
+                    'question_id': question.id,
+                    'rating': rating
+                })
             
-            # Update completion status
-            submission.update_completion()
+            # Update sentiment based on overall rating
+            if rating_count > 0:
+                overall_avg = total_rating / rating_count
+                feedback_wrapper.sentiment_score = overall_avg
+                if overall_avg >= 4.5:
+                    feedback_wrapper.sentiment_label = 'positive'
+                elif overall_avg < 3.0:
+                    feedback_wrapper.sentiment_label = 'negative'
+                else:
+                    feedback_wrapper.sentiment_label = 'neutral'
+                feedback_wrapper.save()
             
+            # 3. Create SECURE Tracker linking Student to the Wrapper
+            # This prevents duplicates without exposing student identity directly in reports
+            SubmissionTracker.objects.create(
+                student=user,
+                session=offering.session,
+                offering=offering,
+                response_set=feedback_wrapper
+            )
+
             # 🔥 SYNC TO LEGACY FEEDBACK TABLE (for user's SQL tool visibility)
-            # Map categories to legacy fields
             category_map = {
                 'PUNCTUALITY': 'punctuality_rating',
                 'TEACHING': 'teaching_rating',
@@ -562,51 +589,40 @@ def submit_feedback(request):
                 'clarity_rating': 5,
                 'interaction_rating': 5,
                 'behavior_rating': 5,
-                'comment': submission.overall_remark,
-                'sentiment': 'neutral' # Default
+                'comment': overall_remark,
+                'sentiment': feedback_wrapper.sentiment_label,
+                'overall_rating': round(feedback_wrapper.sentiment_score, 2)
             }
             
-            # Calculate averages for each category
+            from django.db.models import Avg
+            # Calculate averages for each category from the newly created Answers
             for cat, field in category_map.items():
-                cat_avg = FeedbackResponse.objects.filter(
-                    submission=submission, 
+                cat_avg = Answer.objects.filter(
+                    response_parent=feedback_wrapper, 
                     question__category=cat
                 ).aggregate(Avg('rating'))['rating__avg']
                 if cat_avg:
                     legacy_data[field] = int(round(cat_avg))
-
-            # Determine sentiment from overall rating
-            overall_avg = FeedbackResponse.objects.filter(
-                submission=submission
-            ).aggregate(Avg('rating'))['rating__avg'] or 0
             
-            legacy_data['overall_rating'] = round(overall_avg, 2)
-            
-            if overall_avg >= 4.5: legacy_data['sentiment'] = 'positive'
-            elif overall_avg < 3.0: legacy_data['sentiment'] = 'negative'
-            else: legacy_data['sentiment'] = 'neutral'
-
-            Feedback.objects.update_or_create(
+            from .models import FeedbackSubmission
+            # Store in the legacy model (FeedbackSubmission)
+            legacy_sub, _ = FeedbackSubmission.objects.update_or_create(
                 student=user,
-                offering=offering.base_offering,
-                defaults=legacy_data
+                offering=offering,
+                session=offering.session,
+                form=form,
+                defaults={'is_completed': True, 'overall_remark': overall_remark}
             )
+
+        return Response({
+            'message': 'Feedback submitted successfully',
+            'responses_saved': len(created_responses),
+            'wrapper_id': str(feedback_wrapper.id)
+        }, status=201)
 
     except Exception as e:
         print(f"Error submitting feedback securely: {e}")
         return Response({'error': f'Failed to store feedback: {str(e)}'}, status=500)
-
-
-    return Response({
-        'message': 'Feedback submitted successfully',
-        'submission': FeedbackSubmissionSerializer(submission).data,
-        'responses': created_responses,
-        'session_status': {
-            'name': offering.session.name,
-            'can_submit_feedback': offering.session.can_submit_feedback,
-            'is_closed': offering.session.is_closed
-        }
-    })
 
 
 # ============================================================
@@ -640,20 +656,23 @@ def teacher_analytics(request):
     
     # Calculate analytics
     total_responses = responses.count()
-    rating_responses = responses.filter(question__question_type='RATING')
     
-    if rating_responses.exists():
-        average_rating = rating_responses.aggregate(avg_rating=Avg('rating'))['avg_rating'] or 0
+    # Correct way: Filter Answers, not FeedbackResponse
+    answers = Answer.objects.filter(response_parent__in=responses)
+    rating_answers = answers.filter(question__question_type='RATING')
+    
+    if rating_answers.exists():
+        average_rating = rating_answers.aggregate(avg_rating=Avg('rating'))['avg_rating'] or 0
     else:
         average_rating = 0
     
     # Question-wise averages
     question_averages = {}
     for question in Question.objects.filter(question_type='RATING'):
-        question_responses = rating_responses.filter(question=question)
+        question_responses = rating_answers.filter(question=question)
         if question_responses.exists():
             avg = question_responses.aggregate(avg=Avg('rating'))['avg'] or 0
-            question_averages[question.id] = {
+            question_averages[str(question.id)] = {
                 'text': question.text,
                 'category': question.category,
                 'average': round(avg, 2)
@@ -716,18 +735,21 @@ def hod_analytics(request):
 
 def _calculate_session_analytics(responses):
     """Helper function to calculate analytics for a session"""
-    rating_responses = responses.filter(question__question_type='RATING')
-    
     total_responses = responses.count()
-    average_rating = rating_responses.aggregate(avg_rating=Avg('rating'))['avg_rating'] or 0
+    
+    # Correct way: Filter Answers
+    answers = Answer.objects.filter(response_parent__in=responses)
+    rating_answers = answers.filter(question__question_type='RATING')
+    
+    average_rating = rating_answers.aggregate(avg_rating=Avg('rating'))['avg_rating'] or 0
     
     # Question-wise averages
     question_averages = {}
     for question in Question.objects.filter(question_type='RATING'):
-        question_responses = rating_responses.filter(question=question)
+        question_responses = rating_answers.filter(question=question)
         if question_responses.exists():
             avg = question_responses.aggregate(avg=Avg('rating'))['avg'] or 0
-            question_averages[question.id] = round(avg, 2)
+            question_averages[str(question.id)] = round(avg, 2)
     
     # Category-wise averages
     category_averages = {}
@@ -902,17 +924,17 @@ def hod_comprehensive_report(request, teacher_id):
         
     trend = ""
     if past_percentage is not None and overall_percentage > past_percentage:
-        trend = "Feedback is improved as compared to previous year. Excellent teaching."
+        trend = "FeedbackResponse is improved as compared to previous year. Excellent teaching."
 
     hod_comments = ""
     if trend:
         hod_comments = trend
     elif overall_avg >= 4.5:
-        hod_comments = "Feedback is excellent. Students are satisfied with the faculty member."
+        hod_comments = "FeedbackResponse is excellent. Students are satisfied with the faculty member."
     elif overall_avg >= 3.5:
-        hod_comments = "Feedback is good. Students are satisfied with the faculty member."
+        hod_comments = "FeedbackResponse is good. Students are satisfied with the faculty member."
     else:
-        hod_comments = "Feedback is poor. Students are not satisfied, need improvements (domain...)."
+        hod_comments = "FeedbackResponse is poor. Students are not satisfied, need improvements (domain...)."
         
     return Response({
         "teacher": {
@@ -940,3 +962,111 @@ def hod_comprehensive_report(request, teacher_id):
             "conclusion": "Student feedback is collected, analyzed and corrective action has been taken. Future plans includes regularly reviewing feedback to ensure continuous improvement."
         }
     })
+
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def hod_department_comprehensive_report(request):
+    """Class Report (Cumulative) for HOD"""
+    if request.user.role not in ['hod', 'admin']:
+        return Response({'error': 'Only HOD or Admin allowed'}, status=403)
+        
+    session_id = request.query_params.get('session_id')
+    branch_id = request.query_params.get('branch')
+    year = request.query_params.get('year')
+    bypass = request.query_params.get('bypass_threshold') == 'true'
+    
+    if session_id:
+        session = get_object_or_404(FeedbackSession, pk=session_id)
+    else:
+        session = FeedbackSession.objects.filter(is_active=True).order_by('-year').first()
+        if not session:
+            return Response({'error': 'No active session found'}, status=404)
+            
+    # Base filter for offerings in this session
+    from .models import SessionOffering, Answer, Branch
+    from django.db.models import Avg, Count
+    
+    offerings = SessionOffering.objects.filter(session=session, is_active=True).select_related(
+        'teacher', 'base_offering__subject', 'base_offering__branch', 'base_offering__semester'
+    )
+    
+    if branch_id:
+        offerings = offerings.filter(base_offering__branch_id=branch_id)
+    if year:
+        # year 1 = sem 1,2; year 2 = sem 3,4; year 3 = sem 5,6
+        sem_nums = [int(year)*2 - 1, int(year)*2]
+        offerings = offerings.filter(base_offering__semester__number__in=sem_nums)
+        
+    if not offerings.exists():
+        return Response({
+            'data_available': False,
+            'session': session.name,
+            'no_data_message': 'No subjects found for the selected criteria.'
+        })
+        
+    teachers_data = []
+    total_answers = Answer.objects.filter(response_parent__session=session)
+    
+    for offering in offerings:
+        offering_answers = total_answers.filter(response_parent__offering=offering)
+        total_resp = offering_answers.values('response_parent').distinct().count()
+        
+        # Calculate threshold
+        max_students = offering.max_students or 60
+        threshold_met = bypass or (total_resp >= (max_students * 0.3))
+        
+        # calculate category averages
+        cat_aggs = offering_answers.values('question__category').annotate(avg_rating=Avg('rating'))
+        cats = {item['question__category']: item['avg_rating'] for item in cat_aggs}
+        
+        punctuality = cats.get('PUNCTUALITY', 0)
+        domain = cats.get('TEACHING', 0)
+        presentation = cats.get('CLARITY', 0)
+        resolve = cats.get('INTERACTION', 0)
+        teaching_aids = cats.get('BEHAVIOR', 0)
+        
+        avg_score = offering_answers.aggregate(overall=Avg('rating'))['overall'] or 0
+        score_25 = float(avg_score) * 5
+        percentage = (float(avg_score) / 5.0) * 100
+        
+        teachers_data.append({
+            'faculty': offering.teacher.get_full_name() if offering.teacher else 'Unassigned',
+            'course_name': offering.base_offering.subject.name,
+            'course_code': offering.base_offering.subject.code,
+            'punctuality': float(punctuality),
+            'domain_knowledge': float(domain),
+            'presentation_skills': float(presentation),
+            'resolve_difficulties': float(resolve),
+            'teaching_aids': float(teaching_aids),
+            'score': score_25,
+            'percentage': percentage,
+            'threshold_met': threshold_met,
+            'feedback_percentage': int((total_resp / max_students) * 100) if max_students > 0 else 0
+        })
+        
+    class_label = "All Branches, All Years"
+    if branch_id and year:
+        b = Branch.objects.get(pk=branch_id)
+        class_label = f"{b.name} - Year {year}"
+    elif branch_id:
+        b = Branch.objects.get(pk=branch_id)
+        class_label = f"{b.name} - All Years"
+    elif year:
+        class_label = f"All Branches - Year {year}"
+        
+    branches = Branch.objects.all().values('id', 'name', 'code')
+    sample_size = total_answers.filter(response_parent__offering__in=offerings).values('response_parent').distinct().count()
+    
+    return Response({
+        'department': 'Information Technology',
+        'class_label': class_label,
+        'session_year': f"Session: {session.name}",
+        'sample_size': sample_size,
+        'participation_rate': 0,
+        'teachers': teachers_data,
+        'overall_remarks': "Feedback is generally positive.",
+        'available_branches': list(branches)
+    })
+

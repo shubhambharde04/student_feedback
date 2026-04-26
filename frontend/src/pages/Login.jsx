@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import API, { checkBackendHealth } from "../api";
+import ThemeToggle from "../components/ThemeToggle";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -136,8 +137,11 @@ export default function Login() {
 
       {/* ─── Navigation Bar ─── */}
       <nav className="gpn-nav">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-1">
-          <span className="gpn-nav-item active">Welcome</span>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between">
+          <div className="flex items-center gap-1">
+            <span className="gpn-nav-item active">Welcome</span>
+          </div>
+          <ThemeToggle variant="navbar" />
         </div>
       </nav>
 

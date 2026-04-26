@@ -115,8 +115,16 @@ export default function Feedback() {
             </svg>
             Back
           </button>
-          <h1 className="text-lg font-bold text-surface-100 font-display">Submit Feedback</h1>
-          <div className="w-16" />
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-lg overflow-hidden p-0.5">
+              <img src="/gpn_logo.png" alt="GPN Logo" className="w-full h-full object-contain" />
+            </div>
+            <h1 className="text-lg font-bold text-surface-100 font-display">Submit Feedback</h1>
+          </div>
+          <div className="hidden sm:block">
+            <p className="text-[10px] text-amber-400 font-bold uppercase tracking-widest text-right">GPN Nagpur</p>
+            <p className="text-[8px] text-surface-500 text-right uppercase">Academic Feedback</p>
+          </div>
         </div>
       </header>
 

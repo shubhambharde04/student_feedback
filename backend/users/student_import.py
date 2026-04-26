@@ -14,7 +14,7 @@ from django.db.models import Q
 import logging
 
 from .models import (
-    User, FeedbackSession, StudentSemester, StudentProfile, 
+    User, FeedbackSession, StudentSemester,
     Branch, Semester, Department, SessionOffering
 )
 from .serializers import (
@@ -92,7 +92,7 @@ class StudentImportService:
         return valid_sheets, logs
 
     @classmethod
-    def _parse_sheet_rows(cls, df, mapped_cols, sheet_name, seen_enrollments):
+    def _parse_sheet_rows(cls, df, mapped_cols, sheet_name, seen_enrollments, target_session_name=None):
         """
         Parse rows from a single DataFrame using the given column mapping.
         Returns (results_list, errors_list, updated_seen_enrollments).
@@ -108,7 +108,10 @@ class StudentImportService:
                 enroll_no = str(row[mapped_cols['enroll_number']]).strip() if pd.notna(row[mapped_cols['enroll_number']]) else None
                 dept = str(row[mapped_cols['department']]).strip() if pd.notna(row[mapped_cols['department']]) else None
                 sem = str(row[mapped_cols['semester']]).strip() if pd.notna(row[mapped_cols['semester']]) else None
-                session = str(row[mapped_cols['session']]).strip() if pd.notna(row[mapped_cols['session']]) else None
+                
+                session = target_session_name
+                if 'session' in mapped_cols and pd.notna(row[mapped_cols['session']]):
+                    session = str(row[mapped_cols['session']]).strip()
 
                 if not enroll_no:
                     errors.append(f"[{sheet_name}] Row {row_num} skipped: Missing Enrollment Number")
@@ -141,7 +144,7 @@ class StudentImportService:
         return results, errors
 
     @classmethod
-    def process(cls, file, uploaded_by, preview=False, sheet_name=None, update_existing=True):
+    def process(cls, file, uploaded_by, preview=False, sheet_name=None, update_existing=True, session_id=None):
         """
         Main processing logic for student import.
 
@@ -150,7 +153,20 @@ class StudentImportService:
         2. sheet_name explicitly provided -> use only that sheet.
         3. Otherwise -> auto-detect and process ALL valid sheets, merging data.
         """
-        required_fields = ['name', 'enroll_number', 'department', 'semester', 'session']
+        required_fields = ['name', 'enroll_number', 'department', 'semester']
+        target_session_name = None
+        if session_id:
+            try:
+                target_session_name = FeedbackSession.objects.get(pk=session_id).name
+            except FeedbackSession.DoesNotExist:
+                return {
+                    'success': False,
+                    'error': f"Invalid session_id provided: {session_id}",
+                    'sheet_logs': []
+                }
+        else:
+            required_fields.append('session')
+            
         sheet_logs = []
 
         try:
@@ -172,7 +188,7 @@ class StudentImportService:
                     "Column mapping: "
                     + ", ".join(f"{k} -> '{v}'" for k, v in mapped_cols.items())
                 )
-                all_results, all_errors = cls._parse_sheet_rows(df, mapped_cols, 'CSV', set())
+                all_results, all_errors = cls._parse_sheet_rows(df, mapped_cols, 'CSV', set(), target_session_name)
             else:
                 file_bytes = file.read()
 
@@ -203,7 +219,7 @@ class StudentImportService:
                         "Column mapping: "
                         + ", ".join(f"{k} -> '{v}'" for k, v in mapped_cols.items())
                     )
-                    all_results, all_errors = cls._parse_sheet_rows(df, mapped_cols, sheet_name, set())
+                    all_results, all_errors = cls._parse_sheet_rows(df, mapped_cols, sheet_name, set(), target_session_name)
                 else:
                     # ── Auto-detect ALL valid sheets and merge ───────────
                     valid_sheets, detect_logs = cls._detect_all_valid_sheets(
@@ -234,7 +250,7 @@ class StudentImportService:
                             + ", ".join(f"{k} -> '{v}'" for k, v in smapped.items())
                         )
                         rows, errs = cls._parse_sheet_rows(
-                            df_sheet, smapped, sname, seen_enrollments
+                            df_sheet, smapped, sname, seen_enrollments, target_session_name
                         )
                         all_results.extend(rows)
                         all_errors.extend(errs)
@@ -350,14 +366,9 @@ class StudentImportService:
                     else:
                         skipped_existing += 1
                     
-                    # 5. Profile (never overwrite)
-                    StudentProfile.objects.get_or_create(
-                        user=user,
-                        defaults={'enrollment_no': enroll_no}
-                    )
                     
-                    # 6. Semester Assignment — preserve previous enrollment data
-                    StudentSemester.objects.get_or_create(
+                    # 6. Semester Assignment — ensure academic profile is up to date
+                    StudentSemester.objects.update_or_create(
                         student=user,
                         session=session_obj,
                         defaults={
@@ -413,6 +424,7 @@ def upload_students(request):
     preview = request.data.get('preview', 'false').lower() == 'true'
     sheet_name = request.data.get('sheet_name', None)
     update_existing = request.data.get('update_existing', 'true').lower() == 'true'
+    session_id = request.data.get('session_id', None)
     
     if not file.name.endswith(('.csv', '.xlsx', '.xls')):
         return Response({'error': 'Only CSV and Excel files are allowed'}, status=status.HTTP_400_BAD_REQUEST)
@@ -422,7 +434,8 @@ def upload_students(request):
         user, 
         preview=preview, 
         sheet_name=sheet_name,
-        update_existing=update_existing
+        update_existing=update_existing,
+        session_id=session_id
     )
     
     if not result['success']:

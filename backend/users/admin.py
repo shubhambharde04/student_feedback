@@ -6,10 +6,10 @@ from django import forms
 from django.shortcuts import render
 from django.contrib import messages
 from .models import (
-    Feedback, Subject, User, FeedbackWindow, Branch, Semester,
+    Subject, User, Branch, Semester,
     SubjectOffering, SubjectAssignment, StudentSemester,
     FeedbackSession, Question, FeedbackForm, SessionOffering,
-    FeedbackSubmission, FeedbackResponse
+    FeedbackResponse, Answer, SubmissionTracker, FeedbackSubmission
 )
 
 class CustomUserCreationForm(UserCreationForm):
@@ -154,8 +154,6 @@ class StudentSemesterAdmin(admin.ModelAdmin):
     list_filter = ('branch', 'semester')
     search_fields = ('student__username',)
 
-admin.site.register(Feedback)
-admin.site.register(FeedbackWindow)
 admin.site.register(Branch)
 admin.site.register(Semester)
 
@@ -186,19 +184,28 @@ class SessionOfferingAdmin(admin.ModelAdmin):
     list_display = ('base_offering', 'session', 'teacher', 'is_active')
     list_filter = ('session', 'is_active')
 
+@admin.register(SubmissionTracker)
+class SubmissionTrackerAdmin(admin.ModelAdmin):
+    list_display = ('student', 'offering', 'session', 'created_at')
+    list_filter = ('session', 'created_at')
+    search_fields = ('student__username', 'student__enrollment_no')
+
+@admin.register(FeedbackResponse)
+class FeedbackResponseAdmin(admin.ModelAdmin):
+    list_display = ('id', 'teacher', 'session', 'submitted_at')
+    list_filter = ('session', 'submitted_at')
+    search_fields = ('teacher__username', 'overall_remark')
+
+@admin.register(Answer)
+class AnswerAdmin(admin.ModelAdmin):
+    list_display = ('question', 'rating', 'response_parent')
+    list_filter = ('question__category', 'question__question_type')
+
+
+
 @admin.register(FeedbackSubmission)
 class FeedbackSubmissionAdmin(admin.ModelAdmin):
     list_display = ('student', 'offering', 'session', 'submitted_at', 'is_completed')
     list_filter = ('session', 'is_completed', 'submitted_at')
     search_fields = ('student__username', 'student__enrollment_no')
-
-@admin.register(FeedbackResponse)
-class FeedbackResponseAdmin(admin.ModelAdmin):
-    list_display = ('student', 'question_truncated', 'rating', 'submitted_at')
-    list_filter = ('session', 'question__category')
-    search_fields = ('student__username', 'text_response')
-
-    def question_truncated(self, obj):
-        return obj.question.text[:50]
-    question_truncated.short_description = 'Question'
 

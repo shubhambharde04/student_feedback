@@ -1,16 +1,17 @@
 import os
+import sys
 import django
+
+# Add the current directory to sys.path to ensure 'users' can be imported
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'feedback_system.settings')
 django.setup()
 
-from users.models import Feedback, FeedbackSubmission, FeedbackResponse, Question
+from users.models import FeedbackSubmission, FeedbackResponse, Question
 
 def cleanup():
-    # 1. Delete old "static" feedback records
-    print(f"Deleting {Feedback.objects.count()} legacy feedback records...")
-    Feedback.objects.all().delete()
-
+    # 1. Delete old submissions and responses
     print(f"Deleting {FeedbackSubmission.objects.count()} submissions...")
     FeedbackSubmission.objects.all().delete()
     

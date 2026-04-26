@@ -1,0 +1,9 @@
+import json
+import re
+
+log_file = r"C:\Users\shubh\.gemini\antigravity\brain\118529ab-be40-42e0-a247-208226ea9e87\.system_generated\logs\overview.txt"
+with open(log_file, 'r', encoding='utf-8') as f:
+    lines = f.readlines()
+
+for line i
+<truncated 575 bytes>
