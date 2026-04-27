@@ -1,24 +1,23 @@
-import pandas as pd
+import csv
 import openpyxl
-from io import BytesIO
+from io import BytesIO, StringIO
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import PermissionDenied
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.db import transaction
-from django.utils import timezone
 from django.http import HttpResponse
 from django.db.models import Q
 import logging
 
 from .models import (
     User, FeedbackSession, StudentSemester,
-    Branch, Semester, Department, SessionOffering
+    Branch, Semester, SessionOffering
 )
 from .serializers import (
-    UserSerializer, StudentSemesterSerializer, FeedbackSessionSerializer
+    StudentSemesterSerializer, FeedbackSessionSerializer
 )
 
 logger = logging.getLogger(__name__)
@@ -26,9 +25,9 @@ logger = logging.getLogger(__name__)
 class StudentImportService:
     """
     Service layer for intelligently parsing and importing student data from Excel/CSV.
+    Uses openpyxl and csv instead of pandas to save memory.
     """
     
-    # Flexible column mapping variants
     COLUMN_MAPPINGS = {
         'name': ['name', 'studentname', 'fullname', 'student_name', 'full_name'],
         'enroll_number': ['enrollnumber', 'enrollmentno', 'enrollno', 'rollno', 'enroll_number', 'enrollment_no', 'enrollmentnumber'],
@@ -40,15 +39,15 @@ class StudentImportService:
     @staticmethod
     def normalize_header(header):
         """Normalize header string for matching."""
-        if not header or pd.isna(header):
+        if header is None:
             return ""
         return str(header).lower().strip().replace(' ', '').replace('_', '').replace('.', '')
 
     @classmethod
-    def map_columns(cls, df_columns):
+    def map_columns(cls, headers):
         """Maps data frame columns to required fields based on aliases."""
         mapped = {}
-        normalized_cols = {cls.normalize_header(col): col for col in df_columns}
+        normalized_cols = {cls.normalize_header(col): col for col in headers}
         
         for field, variants in cls.COLUMN_MAPPINGS.items():
             for variant in variants:
@@ -64,23 +63,29 @@ class StudentImportService:
         """
         Scan every sheet in the workbook and return a list of
         (sheet_name, mapped_cols) for ALL sheets whose headers
-        satisfy the required fields, plus debug logs.
+        satisfy the required fields.
         """
         logs = []
         valid_sheets = []
-        all_sheets = pd.ExcelFile(BytesIO(file_bytes)).sheet_names
+        wb = openpyxl.load_workbook(BytesIO(file_bytes), read_only=True, data_only=True)
+        all_sheets = wb.sheetnames
         logs.append(f"Workbook contains {len(all_sheets)} sheet(s): {', '.join(all_sheets)}")
 
         for name in all_sheets:
             try:
-                df_head = pd.read_excel(BytesIO(file_bytes), sheet_name=name, nrows=0)
-                mapped = cls.map_columns(df_head.columns)
+                sheet = wb[name]
+                # Get the first row (headers)
+                headers = []
+                for cell in next(sheet.iter_rows(min_row=1, max_row=1)):
+                    headers.append(cell.value)
+                
+                mapped = cls.map_columns(headers)
                 matched = [f for f in required_fields if f in mapped]
                 missing = [f for f in required_fields if f not in mapped]
 
                 if missing:
                     logs.append(
-                        f"Sheet '{name}' -> skipped (matched {len(matched)}/5: "
+                        f"Sheet '{name}' -> skipped (matched {len(matched)}/{len(required_fields)}: "
                         f"{', '.join(matched)}; missing: {', '.join(missing)})"
                     )
                 else:
@@ -92,26 +97,30 @@ class StudentImportService:
         return valid_sheets, logs
 
     @classmethod
-    def _parse_sheet_rows(cls, df, mapped_cols, sheet_name, seen_enrollments, target_session_name=None):
+    def _parse_rows(cls, row_iterator, mapped_cols, sheet_name, seen_enrollments, target_session_name=None):
         """
-        Parse rows from a single DataFrame using the given column mapping.
-        Returns (results_list, errors_list, updated_seen_enrollments).
+        Parse rows from an iterator of dictionaries.
+        Returns (results_list, errors_list).
         """
         results = []
         errors = []
 
-        for index, row in df.iterrows():
-            row_num = index + 2  # 1-indexed + header row
-
+        for row_num, row in enumerate(row_iterator, start=2):
             try:
-                name = str(row[mapped_cols['name']]).strip() if pd.notna(row[mapped_cols['name']]) else None
-                enroll_no = str(row[mapped_cols['enroll_number']]).strip() if pd.notna(row[mapped_cols['enroll_number']]) else None
-                dept = str(row[mapped_cols['department']]).strip() if pd.notna(row[mapped_cols['department']]) else None
-                sem = str(row[mapped_cols['semester']]).strip() if pd.notna(row[mapped_cols['semester']]) else None
+                name_val = row.get(mapped_cols.get('name'))
+                enroll_val = row.get(mapped_cols.get('enroll_number'))
+                dept_val = row.get(mapped_cols.get('department'))
+                sem_val = row.get(mapped_cols.get('semester'))
+                
+                name = str(name_val).strip() if name_val is not None else None
+                enroll_no = str(enroll_val).strip() if enroll_val is not None else None
+                dept = str(dept_val).strip() if dept_val is not None else None
+                sem = str(sem_val).strip() if sem_val is not None else None
                 
                 session = target_session_name
-                if 'session' in mapped_cols and pd.notna(row[mapped_cols['session']]):
-                    session = str(row[mapped_cols['session']]).strip()
+                session_col = mapped_cols.get('session')
+                if session_col and row.get(session_col) is not None:
+                    session = str(row[session_col]).strip()
 
                 if not enroll_no:
                     errors.append(f"[{sheet_name}] Row {row_num} skipped: Missing Enrollment Number")
@@ -145,14 +154,6 @@ class StudentImportService:
 
     @classmethod
     def process(cls, file, uploaded_by, preview=False, sheet_name=None, update_existing=True, session_id=None):
-        """
-        Main processing logic for student import.
-
-        Sheet resolution order:
-        1. CSV -> single sheet, no detection needed.
-        2. sheet_name explicitly provided -> use only that sheet.
-        3. Otherwise -> auto-detect and process ALL valid sheets, merging data.
-        """
         required_fields = ['name', 'enroll_number', 'department', 'semester']
         target_session_name = None
         if session_id:
@@ -170,100 +171,70 @@ class StudentImportService:
         sheet_logs = []
 
         try:
-            # ── 1. Parse File ───────────────────────────────────────────
             if file.name.endswith('.csv'):
-                df = pd.read_csv(file)
+                content = file.read().decode('utf-8')
+                csv_reader = csv.DictReader(StringIO(content))
+                headers = csv_reader.fieldnames
                 sheet_logs.append("CSV file detected -- reading single sheet.")
-                mapped_cols = cls.map_columns(df.columns)
+                
+                mapped_cols = cls.map_columns(headers)
                 missing_fields = [f for f in required_fields if f not in mapped_cols]
                 if missing_fields:
                     return {
                         'success': False,
                         'error': f"Could not find required columns: {', '.join(missing_fields)}",
                         'mapped_columns': mapped_cols,
-                        'available_columns': list(df.columns),
+                        'available_columns': headers,
                         'sheet_logs': sheet_logs
                     }
-                sheet_logs.append(
-                    "Column mapping: "
-                    + ", ".join(f"{k} -> '{v}'" for k, v in mapped_cols.items())
-                )
-                all_results, all_errors = cls._parse_sheet_rows(df, mapped_cols, 'CSV', set(), target_session_name)
+                
+                sheet_logs.append("Column mapping: " + ", ".join(f"{k} -> '{v}'" for k, v in mapped_cols.items()))
+                all_results, all_errors = cls._parse_rows(csv_reader, mapped_cols, 'CSV', set(), target_session_name)
+            
             else:
                 file_bytes = file.read()
-
-                if sheet_name is not None and sheet_name != '':
-                    # ── User explicitly chose a single sheet ────────────
-                    sheet_logs.append(f"User specified sheet: '{sheet_name}'")
-                    try:
-                        df = pd.read_excel(BytesIO(file_bytes), sheet_name=sheet_name)
-                    except ValueError:
-                        available = pd.ExcelFile(BytesIO(file_bytes)).sheet_names
+                wb = openpyxl.load_workbook(BytesIO(file_bytes), read_only=True, data_only=True)
+                
+                if sheet_name:
+                    if sheet_name not in wb.sheetnames:
                         return {
                             'success': False,
                             'error': f"Sheet '{sheet_name}' not found.",
-                            'available_sheets': available,
+                            'available_sheets': wb.sheetnames,
                             'sheet_logs': sheet_logs
                         }
-                    mapped_cols = cls.map_columns(df.columns)
-                    missing_fields = [f for f in required_fields if f not in mapped_cols]
-                    if missing_fields:
-                        return {
-                            'success': False,
-                            'error': f"Could not find required columns in sheet '{sheet_name}': {', '.join(missing_fields)}",
-                            'mapped_columns': mapped_cols,
-                            'available_columns': list(df.columns),
-                            'sheet_logs': sheet_logs
-                        }
-                    sheet_logs.append(
-                        "Column mapping: "
-                        + ", ".join(f"{k} -> '{v}'" for k, v in mapped_cols.items())
-                    )
-                    all_results, all_errors = cls._parse_sheet_rows(df, mapped_cols, sheet_name, set(), target_session_name)
+                    valid_sheets = [(sheet_name, cls.map_columns([c.value for c in next(wb[sheet_name].iter_rows(min_row=1, max_row=1))]))]
                 else:
-                    # ── Auto-detect ALL valid sheets and merge ───────────
-                    valid_sheets, detect_logs = cls._detect_all_valid_sheets(
-                        file_bytes, required_fields
-                    )
+                    valid_sheets, detect_logs = cls._detect_all_valid_sheets(file_bytes, required_fields)
                     sheet_logs.extend(detect_logs)
 
-                    if not valid_sheets:
-                        available = pd.ExcelFile(BytesIO(file_bytes)).sheet_names
-                        return {
-                            'success': False,
-                            'error': (
-                                "No valid student data found in any sheet. "
-                                f"Available sheets: {', '.join(available)}"
-                            ),
-                            'available_sheets': available,
-                            'sheet_logs': sheet_logs
-                        }
+                if not valid_sheets:
+                    return {
+                        'success': False,
+                        'error': "No valid student data found in any sheet.",
+                        'available_sheets': wb.sheetnames,
+                        'sheet_logs': sheet_logs
+                    }
 
-                    all_results = []
-                    all_errors = []
-                    seen_enrollments = set()  # shared across sheets for dedup
+                all_results = []
+                all_errors = []
+                seen_enrollments = set()
 
-                    for sname, smapped in valid_sheets:
-                        df_sheet = pd.read_excel(BytesIO(file_bytes), sheet_name=sname)
-                        sheet_logs.append(
-                            f"Processing sheet '{sname}': "
-                            + ", ".join(f"{k} -> '{v}'" for k, v in smapped.items())
-                        )
-                        rows, errs = cls._parse_sheet_rows(
-                            df_sheet, smapped, sname, seen_enrollments, target_session_name
-                        )
-                        all_results.extend(rows)
-                        all_errors.extend(errs)
-                        sheet_logs.append(
-                            f"Sheet '{sname}' -> {len(rows)} valid rows, {len(errs)} errors"
-                        )
+                for sname, smapped in valid_sheets:
+                    sheet = wb[sname]
+                    # Convert sheet rows to list of dicts for _parse_rows
+                    headers = [c.value for c in next(sheet.iter_rows(min_row=1, max_row=1))]
+                    rows_iter = []
+                    # Start from row 2
+                    for row in sheet.iter_rows(min_row=2):
+                        row_dict = {headers[i]: cell.value for i, cell in enumerate(row) if i < len(headers)}
+                        rows_iter.append(row_dict)
+                    
+                    rows, errs = cls._parse_rows(rows_iter, smapped, sname, seen_enrollments, target_session_name)
+                    all_results.extend(rows)
+                    all_errors.extend(errs)
+                    sheet_logs.append(f"Sheet '{sname}' -> {len(rows)} valid rows, {len(errs)} errors")
 
-                    sheet_logs.append(
-                        f"Total merged: {len(all_results)} valid rows from "
-                        f"{len(valid_sheets)} sheet(s)"
-                    )
-
-            # ── 2. Preview or Save ──────────────────────────────────────
             if preview:
                 return {
                     'success': True,
@@ -294,7 +265,6 @@ class StudentImportService:
 
     @classmethod
     def save_to_db(cls, student_list, uploaded_by, update_existing=True):
-        """Performs the actual database operations within a transaction."""
         created_count = 0
         updated_count = 0
         skipped_existing = 0
@@ -313,19 +283,16 @@ class StudentImportService:
                     sem_val = data['semester']
                     session_name = data['session']
                     
-                    # 1. Resolve Session
                     session_obj = FeedbackSession.objects.filter(name__iexact=session_name).first()
                     if not session_obj:
                         db_errors.append(f"[{source}] Row {data['row_num']} (Enroll: {enroll_no}): Session '{session_name}' not found")
                         error_count += 1
                         continue
                     
-                    # 2. Resolve Branch/Department
                     branch_obj = Branch.objects.filter(Q(code__iexact=dept_code) | Q(name__iexact=dept_code)).first()
                     if not branch_obj:
                         branch_obj = Branch.objects.create(code=dept_code.upper()[:10], name=dept_code)
                     
-                    # 3. Resolve Semester
                     sem_num = ''.join(filter(str.isdigit, str(sem_val)))
                     if not sem_num:
                         db_errors.append(f"[{source}] Row {data['row_num']} (Enroll: {enroll_no}): Invalid semester format '{sem_val}'")
@@ -337,7 +304,6 @@ class StudentImportService:
                         defaults={'name': f'Semester {sem_num}'}
                     )
                     
-                    # 4. Get or Create User (username = enrollment number)
                     username = enroll_no
                     user_defaults = {
                         'email': f'{username}@student.com',
@@ -366,8 +332,6 @@ class StudentImportService:
                     else:
                         skipped_existing += 1
                     
-                    
-                    # 6. Semester Assignment — ensure academic profile is up to date
                     StudentSemester.objects.update_or_create(
                         student=user,
                         session=session_obj,
@@ -378,14 +342,12 @@ class StudentImportService:
                             'is_active': True
                         }
                     )
-                    
                     processed_configs.add((session_obj, branch_obj, semester_obj))
                     
                 except Exception as e:
                     db_errors.append(f"[{source}] Row {data['row_num']} (Enroll: {enroll_no}): Database error - {str(e)}")
                     error_count += 1
         
-        # Automatic Verification: Check if subject offerings exist for the enrolled branches and semesters
         for session_obj, branch_obj, semester_obj in processed_configs:
             has_offerings = SessionOffering.objects.filter(
                 session=session_obj,
@@ -395,7 +357,7 @@ class StudentImportService:
             ).exists()
             
             if not has_offerings:
-                warnings.append(f"Warning: No subject offerings found for {branch_obj.code} Semester {semester_obj.number} in '{session_obj.name}'. Students enrolled, but feedback won't be possible until subjects are added.")
+                warnings.append(f"Warning: No subject offerings found for {branch_obj.code} Semester {semester_obj.number} in '{session_obj.name}'.")
 
         return {
             'created': created_count,
@@ -409,10 +371,6 @@ class StudentImportService:
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def upload_students(request):
-    """
-    Improved student upload view using StudentImportService.
-    Supports preview, sheet selection, and flexible mapping.
-    """
     user = request.user
     if user.role not in ['hod', 'admin']:
         raise PermissionDenied("Only HOD and Admin can upload students")
@@ -443,22 +401,24 @@ def upload_students(request):
     
     return Response(result, status=status.HTTP_200_OK)
 
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_student_upload_template(request):
     """
-    Get template format for student upload as an Excel file
+    Get template format for student upload as an Excel file using openpyxl
     """
-    columns = ['Name', 'Enroll Number', 'Department', 'Semester', 'Session']
-    df = pd.DataFrame(columns=columns)
-    df.loc[0] = ['John Doe', '2024001', 'IT', '3', 'ODD 2024']
-    
     output = BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='Students')
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Students"
     
+    headers = ['Name', 'Enroll Number', 'Department', 'Semester', 'Session']
+    ws.append(headers)
+    ws.append(['John Doe', '2024001', 'IT', '3', 'ODD 2024'])
+    
+    wb.save(output)
     output.seek(0)
+    
     response = HttpResponse(
         output.read(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -469,9 +429,6 @@ def get_student_upload_template(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_session_students(request, session_id):
-    """
-    Get all students assigned to a specific session
-    """
     user = request.user
     if user.role not in ['hod', 'admin']:
         raise PermissionDenied("Only HOD and Admin can view session students")
@@ -513,9 +470,6 @@ def get_session_students(request, session_id):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def assign_student_to_session(request):
-    """
-    Manually assign a single student to a session
-    """
     user = request.user
     if user.role not in ['hod', 'admin']:
         raise PermissionDenied("Only HOD and Admin can assign students")
@@ -536,7 +490,6 @@ def assign_student_to_session(request):
         branch = get_object_or_404(Branch, pk=branch_id)
         semester = get_object_or_404(Semester, pk=semester_id)
         
-        # Auto-calculate class name if not provided or set to default
         if not class_name or class_name == 'A':
             class_name = semester.year_name
 
@@ -562,9 +515,6 @@ def assign_student_to_session(request):
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def remove_student_from_session(request, session_id, student_id):
-    """
-    Remove a student from a session
-    """
     user = request.user
     if user.role not in ['hod', 'admin']:
         raise PermissionDenied("Only HOD and Admin can remove students")
