@@ -24,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-*0*h^tf-#qoey0a9_kar4_pq6&v^7g9n4-y@ft*6b&%=xo*6z2'
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-fallback-key-change-this-in-env')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 
@@ -94,21 +94,23 @@ WSGI_APPLICATION = 'feedback_system.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+import dj_database_url
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('DB_NAME'),
-        'USER': os.getenv('DB_USER'),
-        'PASSWORD': os.getenv('DB_PASSWORD'),
-        'HOST': os.getenv('DB_HOST'),
-        'PORT': os.getenv('DB_PORT'),
-        'CONN_MAX_AGE': 600,
-        'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-            'connect_timeout': 10,
-        }
-    }
+    'default': dj_database_url.config(
+        default=f'mysql://{os.getenv("DB_USER", "root")}:{os.getenv("DB_PASSWORD", "")}@{os.getenv("DB_HOST", "localhost")}:{os.getenv("DB_PORT", "3306")}/{os.getenv("DB_NAME", "feedback_system")}',
+        conn_max_age=600,
+        ssl_require=False
+    )
 }
+
+# Ensure the engine is set correctly for MySQL
+if DATABASES['default']['ENGINE'] == 'django.db.backends.mysql':
+    DATABASES['default']['OPTIONS'] = {
+        'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+        'connect_timeout': 10,
+    }
+
 
 
 # Password validation
